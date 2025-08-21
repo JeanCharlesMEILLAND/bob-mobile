@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { Header, Button } from '../../components/common';
 import { ContactCurationInterface } from '../../components/contacts/ContactCurationInterface';
-import { ContactSelectionInterface } from '../../components/contacts/ContactsSelectionInterface';
+import { ContactsSelectionInterface } from '../../components/contacts/ContactsSelectionInterface';
 import { Colors, Typography, Spacing, GlobalStyles } from '../../styles';
 import { useContactsBob } from '../../hooks/useContactsBob';
 
@@ -148,7 +148,7 @@ export const RepertoireScreen = () => {
 
       {/* Interface d'invitation */}
       {showInvitationInterface && (
-        <ContactSelectionInterface
+        <ContactsSelectionInterface
           contactsBruts={contactsBruts}
           contactsDejaSelectionnes={repertoire.map(c => c.id)}
           onImportSelected={handleImportContacts}

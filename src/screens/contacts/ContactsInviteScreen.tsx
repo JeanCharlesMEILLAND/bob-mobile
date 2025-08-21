@@ -3,7 +3,7 @@
 // =============================================================================
 
 import React from 'react';
-import { ContactSelectionInterface } from '../../components/contacts/ContactsSelectionInterface';
+import { ContactsSelectionInterface } from '../../components/contacts/ContactsSelectionInterface';
 
 interface ContactsInviteScreenProps {
   onBack?: () => void;
@@ -11,7 +11,7 @@ interface ContactsInviteScreenProps {
 
 export const ContactsInviteScreen: React.FC<ContactsInviteScreenProps> = ({ onBack }) => {
   return (
-    <ContactSelectionInterface
+    <ContactsSelectionInterface
       onClose={onBack ?? (() => {})}
       contactsBruts={[]}
       contactsDejaSelectionnes={[]}

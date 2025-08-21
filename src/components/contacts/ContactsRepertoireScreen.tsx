@@ -616,7 +616,7 @@ export const ContactsRepertoireScreen = () => {
       {/* Interface de sélection */}
       {showSelectionInterface && (
         <Modal visible={showSelectionInterface} animationType="slide">
-          <ContactSelectionInterface
+          <ContactsSelectionInterface
             contactsBruts={contactsBruts}
             contactsDejaSelectionnes={repertoire.map(c => c.id)}
             onClose={() => setShowSelectionInterface(false)}
@@ -638,7 +638,7 @@ interface ContactSelectionProps {
   isLoading: boolean;
 }
 
-const ContactSelectionInterface: React.FC<ContactSelectionProps> = ({
+const ContactsSelectionInterface: React.FC<ContactSelectionProps> = ({
   contactsBruts,
   contactsDejaSelectionnes,
   onClose,

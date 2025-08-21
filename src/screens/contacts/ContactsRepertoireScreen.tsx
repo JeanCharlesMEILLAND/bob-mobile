@@ -17,7 +17,7 @@ import { Colors, Typography, Spacing } from '../../styles';
 import { PermissionModal } from '../../components/contacts/PermissionModal';
 import { EmptyStateView } from '../../components/contacts/EmptyStateView';
 import { ContactsDashboard } from '../../components/contacts/ContactsDashboard';
-import { ContactSelectionInterface } from '../../components/contacts/ContactsSelectionInterface';
+import { ContactsSelectionInterface } from '../../components/contacts/ContactsSelectionInterface';
 import { InvitationInterface } from '../../components/contacts/InvitationInterface';
 import { ManageContactsScreen } from '../../components/contacts/ManageContactsScreen';
 
@@ -265,7 +265,7 @@ export const ContactsRepertoireScreen = () => {
       {/* Interface de sélection depuis répertoire téléphone */}
       {showSelectionInterface && (
         <Modal visible={showSelectionInterface} animationType="slide">
-          <ContactSelectionInterface
+          <ContactsSelectionInterface
             contactsBruts={contactsBruts}
             contactsDejaSelectionnes={repertoire.map(c => c.id)}
             onClose={() => setShowSelectionInterface(false)}

@@ -12,7 +12,7 @@ import {
 import { styles } from './ContactsSelectionInterface.styles';
 import { calculateSmartScore } from '../../utils/contactHelpers';
 
-interface ContactSelectionInterfaceProps {
+interface ContactsSelectionInterfaceProps {
   contactsBruts: any[];
   contactsDejaSelectionnes: string[];
   onClose: () => void;
@@ -20,7 +20,7 @@ interface ContactSelectionInterfaceProps {
   isLoading: boolean;
 }
 
-export const ContactSelectionInterface: React.FC<ContactSelectionInterfaceProps> = ({
+export const ContactsSelectionInterface: React.FC<ContactsSelectionInterfaceProps> = ({
   contactsBruts,
   contactsDejaSelectionnes,
   onClose,
