@@ -317,7 +317,7 @@ const styles = StyleSheet.create({
   
   typeCardSelected: {
     borderColor: Colors.primary,
-    backgroundColor: `${Colors.primary}10`,
+    backgroundColor: '#3B82F610',
   },
   
   typeIcon: {

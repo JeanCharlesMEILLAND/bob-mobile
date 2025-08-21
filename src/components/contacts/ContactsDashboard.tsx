@@ -5,6 +5,7 @@ import {
   Text,
   TouchableOpacity,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { styles } from './ContactsDashboard.styles';
 
 interface ContactsDashboardProps {
@@ -45,6 +46,7 @@ export const ContactsDashboard: React.FC<ContactsDashboardProps> = ({
   isLoading,
   getAsyncStats,
 }) => {
+  const { t } = useTranslation();
   const [stats, setStats] = useState(initialStats);
 
   useEffect(() => {
@@ -69,7 +71,7 @@ export const ContactsDashboard: React.FC<ContactsDashboardProps> = ({
   return (
     <View style={styles.dashboard}>
       <View style={styles.progressCard}>
-        <Text style={styles.progressTitle}>Votre réseau Bob</Text>
+        <Text style={styles.progressTitle}>{t('contacts.myNetwork')}</Text>
         
         <View style={styles.progressBar}>
           <View 
@@ -81,7 +83,7 @@ export const ContactsDashboard: React.FC<ContactsDashboardProps> = ({
         </View>
         
         <Text style={styles.progressText}>
-          {stats.contactsAvecBob} sur {stats.mesContacts} ont déjà Bob ({stats.pourcentageBob}%)
+          {t('contacts.percentage', { count: stats.pourcentageBob })}
         </Text>
         
         <Text style={styles.progressSubtext}>
@@ -98,11 +100,11 @@ export const ContactsDashboard: React.FC<ContactsDashboardProps> = ({
           >
             <Text style={styles.statIcon}>👥</Text>
             <Text style={styles.statNumber}>{stats.mesContacts}</Text>
-            <Text style={styles.statLabel}>Mon réseau</Text>
+            <Text style={styles.statLabel}>{t('contacts.myNetwork')}</Text>
             <Text style={styles.statSubLabel}>
-              {stats.tauxCuration}% du répertoire
+              {t('contacts.dashboard.curationRate', { rate: stats.tauxCuration })}
             </Text>
-            <Text style={styles.statAction}>Ajouter →</Text>
+            <Text style={styles.statAction}>{t('common.add')} →</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
@@ -111,7 +113,7 @@ export const ContactsDashboard: React.FC<ContactsDashboardProps> = ({
         >
           <Text style={styles.statIcon}>✅</Text>
           <Text style={styles.statNumber}>{stats.contactsAvecBob}</Text>
-          <Text style={styles.statLabel}>Ont Bob</Text>
+          <Text style={styles.statLabel}>{t('contacts.withBob')}</Text>
           <Text style={styles.statSubLabel}>
             {stats.contactsAvecBob} utilisateur{stats.contactsAvecBob > 1 ? 's' : ''}
             </Text>
@@ -125,19 +127,19 @@ export const ContactsDashboard: React.FC<ContactsDashboardProps> = ({
           >
             <Text style={styles.statIcon}>📤</Text>
             <Text style={styles.statNumber}>{stats.contactsSansBob}</Text>
-            <Text style={styles.statLabel}>À inviter</Text>
+            <Text style={styles.statLabel}>{t('contacts.withoutBob')}</Text>
             <Text style={styles.statSubLabel}>
               {stats.contactsInvites > 0 ? `${stats.contactsInvites} en attente` : 'Non invités'}
             </Text>
             {stats.contactsSansBob > 0 && (
-              <Text style={styles.statAction}>Inviter →</Text>
+              <Text style={styles.statAction}>{t('contacts.inviteOnBob')} →</Text>
             )}
           </TouchableOpacity>
         </View>
       </View>
 
       <View style={styles.actionsSection}>
-        <Text style={styles.sectionTitle}>Actions rapides</Text>
+        <Text style={styles.sectionTitle}>{t('contacts.dashboard.quickActions')}</Text>
         
         <View style={styles.actionsList}>
           
@@ -237,7 +239,7 @@ export const ContactsDashboard: React.FC<ContactsDashboardProps> = ({
       )}
 
       <View style={styles.advancedSection}>
-        <Text style={styles.sectionTitle}>Maintenance</Text>
+        <Text style={styles.sectionTitle}>{t('contacts.dashboard.maintenance')}</Text>
         
         <View style={styles.advancedActions}>
           <TouchableOpacity

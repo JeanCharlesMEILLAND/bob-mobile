@@ -1,11 +1,13 @@
 ﻿// src/screens/auth/LoginScreen.tsx
 import React, { useState } from 'react';
 import { View, Text, Alert, StyleSheet, ScrollView } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../hooks';
 import { Button, Input } from '../../components/common';
 import { Colors, Typography, Spacing, GlobalStyles } from '../../styles';
 
 export const LoginScreen: React.FC = () => {
+  const { t } = useTranslation();
   const { login, register, testConnection, isLoading } = useAuth();
   const [isRegisterMode, setIsRegisterMode] = useState(false);
   
@@ -23,15 +25,15 @@ export const LoginScreen: React.FC = () => {
     const newErrors: Record<string, string> = {};
 
     if (isRegisterMode) {
-      if (!username.trim()) newErrors.username = 'Nom d\'utilisateur requis';
-      if (!email.trim()) newErrors.email = 'Email requis';
-      if (password !== confirmPassword) newErrors.confirmPassword = 'Les mots de passe ne correspondent pas';
+      if (!username.trim()) newErrors.username = t('auth.validation.usernameRequired');
+      if (!email.trim()) newErrors.email = t('auth.validation.emailRequired');
+      if (password !== confirmPassword) newErrors.confirmPassword = t('auth.validation.passwordsNotMatch');
     } else {
-      if (!identifier.trim()) newErrors.identifier = 'Email ou nom d\'utilisateur requis';
+      if (!identifier.trim()) newErrors.identifier = t('auth.validation.identifierRequired');
     }
     
-    if (!password.trim()) newErrors.password = 'Mot de passe requis';
-    if (password.length < 6 && password.length > 0) newErrors.password = 'Minimum 6 caractères';
+    if (!password.trim()) newErrors.password = t('auth.validation.passwordRequired');
+    if (password.length < 6 && password.length > 0) newErrors.password = t('auth.validation.passwordTooShort');
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -44,7 +46,7 @@ export const LoginScreen: React.FC = () => {
     const result = await login(identifier, password);
     
     if (!result.success) {
-      Alert.alert('Erreur de connexion', result.error || 'Erreur inconnue');
+      Alert.alert(t('auth.errors.loginError'), result.error || t('auth.errors.unknownError'));
     }
   };
 
@@ -55,9 +57,9 @@ export const LoginScreen: React.FC = () => {
     const result = await register(username, email, password);
     
     if (!result.success) {
-      Alert.alert('Erreur d\'inscription', result.error || 'Erreur inconnue');
+      Alert.alert(t('auth.errors.registerError'), result.error || t('auth.errors.unknownError'));
     } else {
-      Alert.alert('Succès', 'Inscription réussie ! Vous êtes maintenant connecté.');
+      Alert.alert(t('common.success'), t('auth.registerSuccess'));
     }
   };
 
@@ -66,7 +68,7 @@ export const LoginScreen: React.FC = () => {
     setPassword('password123');
     setIsRegisterMode(false);
     setErrors({});
-    Alert.alert('Info', 'Identifiants de test ajoutés. Cliquez sur "Se connecter".');
+    Alert.alert('Info', t('auth.testCredentialsAdded'));
   };
 
   const handleTestConnection = async () => {
@@ -97,7 +99,7 @@ export const LoginScreen: React.FC = () => {
       <View style={styles.header}>
         <Text style={styles.title}>Bob</Text>
         <Text style={styles.subtitle}>
-          {isRegisterMode ? 'Créer votre compte' : 'Connectez-vous à votre compte'}
+          {isRegisterMode ? t('auth.registerSubtitle') : t('auth.loginSubtitle')}
         </Text>
       </View>
       
@@ -105,8 +107,8 @@ export const LoginScreen: React.FC = () => {
         {isRegisterMode ? (
           <>
             <Input
-              label="Nom d'utilisateur *"
-              placeholder="Votre nom d'utilisateur"
+              label={t('auth.username') + ' *'}
+              placeholder={t('auth.username')}
               value={username}
               onChangeText={setUsername}
               error={errors.username}
@@ -114,7 +116,7 @@ export const LoginScreen: React.FC = () => {
             />
             
             <Input
-              label="Email *"
+              label={t('auth.email') + ' *'}
               placeholder="votre@email.com"
               value={email}
               onChangeText={setEmail}
@@ -125,7 +127,7 @@ export const LoginScreen: React.FC = () => {
           </>
         ) : (
           <Input
-            label="Email ou nom d'utilisateur *"
+            label={t('auth.identifier') + ' *'}
             placeholder="votre@email.com"
             value={identifier}
             onChangeText={setIdentifier}
@@ -136,8 +138,8 @@ export const LoginScreen: React.FC = () => {
         )}
         
         <Input
-          label="Mot de passe *"
-          placeholder="Votre mot de passe"
+          label={t('auth.password') + ' *'}
+          placeholder={t('auth.password')}
           value={password}
           onChangeText={setPassword}
           error={errors.password}
@@ -146,8 +148,8 @@ export const LoginScreen: React.FC = () => {
         
         {isRegisterMode && (
           <Input
-            label="Confirmer le mot de passe *"
-            placeholder="Confirmez votre mot de passe"
+            label={t('auth.confirmPassword') + ' *'}
+            placeholder={t('auth.confirmPassword')}
             value={confirmPassword}
             onChangeText={setConfirmPassword}
             error={errors.confirmPassword}
@@ -157,7 +159,7 @@ export const LoginScreen: React.FC = () => {
         
         {/* Action Button */}
         <Button
-          title={isRegisterMode ? 'S\'inscrire' : 'Se connecter'}
+          title={isRegisterMode ? t('auth.registerButton') : t('auth.loginButton')}
           onPress={isRegisterMode ? handleRegister : handleLogin}
           loading={isLoading}
           style={styles.actionButton}
@@ -165,7 +167,7 @@ export const LoginScreen: React.FC = () => {
         
         {/* Toggle Mode Button */}
         <Button
-          title={isRegisterMode ? 'Déjà un compte ? Se connecter' : 'Pas de compte ? S\'inscrire'}
+          title={isRegisterMode ? t('auth.switchToLogin') : t('auth.switchToRegister')}
           variant="secondary"
           onPress={toggleMode}
           style={styles.toggleButton}
@@ -175,14 +177,14 @@ export const LoginScreen: React.FC = () => {
         {!isRegisterMode && (
           <View style={styles.testButtons}>
             <Button
-              title="🧪 Utiliser identifiants de test"
+              title={t('auth.useTestCredentials')}
               variant="success"
               size="small"
               onPress={fillTestCredentials}
             />
             
             <Button
-              title="🔍 Test connexion VPS"
+              title={'🔍 ' + t('auth.testConnection')}
               variant="secondary"
               size="small"
               onPress={handleTestConnection}

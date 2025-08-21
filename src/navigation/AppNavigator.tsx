@@ -4,22 +4,21 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 
 // Ã‰crans
-import LoginScreen from '../screens/auth/LoginScreen';
-import RegisterScreen from '../screens/auth/RegisterScreen';
-import ExchangesScreen from '../screens/exchanges/ExchangesScreen';
-import EventsScreen from '../screens/events/EventsScreen';
-import ContactsScreen from '../screens/contacts/ContactsScreen';
-import ProfileScreen from '../screens/profile/ProfileScreen';
+import { LoginScreen } from '../screens/auth/LoginScreen';
+import { RegisterScreen } from '../screens/auth/RegisterScreen';
+import { ExchangesScreen } from '../screens/exchanges/ExchangesScreen';
+import { CreateExchangeScreen } from '../screens/exchanges/CreateExchangeScreen';
+import { EventsScreen } from '../screens/events/EventsScreen';
+import { ContactsScreen } from '../screens/contacts/ContactsScreen';
+import { ProfileScreen } from '../screens/profile/ProfileScreen';
 
 // Store
 import { useAuthStore } from '../store/authStore';
 
-// Types
-import { RootStackParamList, AuthStackParamList, MainTabParamList } from '../types';
-
-const RootStack = createStackNavigator<RootStackParamList>();
-const AuthStack = createStackNavigator<AuthStackParamList>();
-const MainTab = createBottomTabNavigator<MainTabParamList>();
+const RootStack = createStackNavigator();
+const AuthStack = createStackNavigator();
+const MainTab = createBottomTabNavigator();
+const ExchangesStack = createStackNavigator();
 
 // Stack Authentification
 function AuthNavigator() {
@@ -28,6 +27,16 @@ function AuthNavigator() {
       <AuthStack.Screen name="Login" component={LoginScreen} />
       <AuthStack.Screen name="Register" component={RegisterScreen} />
     </AuthStack.Navigator>
+  );
+}
+
+// Stack Échanges
+function ExchangesNavigator() {
+  return (
+    <ExchangesStack.Navigator screenOptions={{ headerShown: false }}>
+      <ExchangesStack.Screen name="ExchangesList" component={ExchangesScreen} />
+      <ExchangesStack.Screen name="CreateExchange" component={CreateExchangeScreen} />
+    </ExchangesStack.Navigator>
   );
 }
 
@@ -47,7 +56,7 @@ function MainNavigator() {
     >
       <MainTab.Screen 
         name="Exchanges" 
-        component={ExchangesScreen}
+        component={ExchangesNavigator}
         options={{ tabBarLabel: 'Ã‰changes' }}
       />
       <MainTab.Screen 

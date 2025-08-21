@@ -33,6 +33,22 @@ export interface UpdateGroupeData {
   actif?: boolean;
 }
 
+// =================== USER BOB ===================
+export interface UserProfile {
+  id: number;
+  username: string;
+  email: string;
+  telephone: string;
+  nom?: string;
+  prenom?: string;
+  avatar?: string;
+  bobizPoints: number;
+  niveau: 'Débutant' | 'Ami fidèle' | 'Super Bob' | 'Légende';
+  estEnLigne: boolean;
+  derniereActivite: string;
+  dateInscription: string;
+}
+
 // =================== CONTACT ===================
 export interface Contact {
   id: number;
@@ -44,6 +60,10 @@ export interface Contact {
   groupes: Groupe[];
   dateAjout: string;
   actif: boolean;
+  // Nouveaux champs pour la relation avec les users Bob
+  userId?: number; // ID de l'utilisateur Bob correspondant
+  aSurBob?: boolean; // Indique si ce contact utilise Bob
+  userProfile?: UserProfile; // Profil de l'utilisateur Bob (quand disponible)
 }
 
 export interface CreateContactData {
@@ -61,6 +81,9 @@ export interface UpdateContactData {
   telephone?: string;
   groupeIds?: number[];
   actif?: boolean;
+  // Nouveaux champs pour la relation avec les users
+  userId?: number;
+  aSurBob?: boolean;
 }
 
 // =================== HELPERS ===================

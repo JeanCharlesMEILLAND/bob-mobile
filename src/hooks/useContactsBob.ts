@@ -1,7 +1,6 @@
 // src/hooks/useContactsBob.ts - Version complète avec connexion Strapi
 import { useState, useCallback, useEffect } from 'react';
 import { Alert } from 'react-native';
-import { useAuth } from './useAuth';
 import * as Contacts from 'expo-contacts';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { storageService } from '../services/storage.service';
@@ -124,7 +123,6 @@ const createMockUsersBob = (): ContactBob[] => [
 ];
 
 export const useContactsBob = () => {
-  const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(null); // 🆕 NOUVEAU: Token JWT
@@ -198,18 +196,15 @@ export const useContactsBob = () => {
       
       setInvitations(invitationsStrapi);
       
-      // 3. Vérifier qui a Bob parmi mes contacts
+      // 3. Transformer les contacts en users automatiquement
       if (repertoire.length > 0) {
-        const telephones = repertoire.map(c => c.telephone);
-        const bobStatus: BobVerificationResult = await syncService.verifierContactsBob(telephones);
+        console.log('🔄 Transformation automatique contacts → users...');
+        const enrichedRepertoire = await syncService.transformContactsToUsers(repertoire, tokenToUse);
         
-        const repertoireAvecBob = repertoire.map(contact => ({
-          ...contact,
-          aSurBob: bobStatus.bobUsers[contact.telephone] || false,
-        }));
+        setRepertoire(enrichedRepertoire);
+        await saveCachedData(contactsBruts, enrichedRepertoire, contacts, invitationsStrapi);
         
-        setRepertoire(repertoireAvecBob);
-        await saveCachedData(contactsBruts, repertoireAvecBob, contacts, invitationsStrapi);
+        console.log(`✅ ${enrichedRepertoire.filter(c => c.aSurBob).length} contacts transformés en users Bob`);
       }
       
       console.log('✅ Sync Strapi terminée');
@@ -251,18 +246,15 @@ export const useContactsBob = () => {
         
         setInvitations(invitationsStrapi);
         
-        // 3. Vérifier qui a Bob parmi mes contacts
+        // 3. Transformer les contacts en users automatiquement
         if (repertoire.length > 0) {
-          const telephones = repertoire.map(c => c.telephone);
-          const bobStatus: BobVerificationResult = await syncService.verifierContactsBob(telephones);
+          console.log('🔄 Transformation automatique contacts → users...');
+          const enrichedRepertoire = await syncService.transformContactsToUsers(repertoire, token);
           
-          const repertoireAvecBob = repertoire.map(contact => ({
-            ...contact,
-            aSurBob: bobStatus.bobUsers[contact.telephone] || false,
-          }));
+          setRepertoire(enrichedRepertoire);
+          await saveCachedData(contactsBruts, enrichedRepertoire, contacts, invitationsStrapi);
           
-          setRepertoire(repertoireAvecBob);
-          await saveCachedData(contactsBruts, repertoireAvecBob, contacts, invitationsStrapi);
+          console.log(`✅ ${enrichedRepertoire.filter(c => c.aSurBob).length} contacts transformés en users Bob`);
         }
         
         console.log('✅ Sync Strapi terminée');
@@ -757,7 +749,6 @@ export const useContactsBob = () => {
             telephone: contact.telephone,
             nom: contact.nom,
             type,
-            codeParrainage,
           }, token);
           
           console.log('✅ Invitation créée dans Strapi:', invitationStrapi.id);

@@ -5,7 +5,7 @@ import { invitationsService } from './invitations.service';
 import { authService } from './auth.service';
 
 // Types pour une meilleure sécurité de type
-import type { Contact, Groupe } from '../types/contacts.types';
+import type { Contact, Groupe, UserProfile } from '../types/contacts.types';
 
 export interface SyncResult {
   success: boolean;
@@ -248,8 +248,13 @@ class SyncService {
       } else {
         // Créer nouveau contact
         console.log(`➕ Création contact: ${contact.nom}`);
+        
+        // Séparer nom et prénom intelligemment
+        const { nom, prenom } = this.parseFullName(contact.nom.trim());
+        
         const newContact = await contactsService.createContact({
-          nom: contact.nom.trim(),
+          nom,
+          prenom,
           telephone: normalizedPhone,
           email: contact.email?.trim(),
           groupeIds: groupeId ? [groupeId] : [],
@@ -261,6 +266,130 @@ class SyncService {
       console.error('❌ Erreur sync contact individuel:', error);
       throw error;
     }
+  }
+
+  // ==========================================
+  // TRANSFORMATION CONTACTS → USERS
+  // ==========================================
+
+  // Transformer automatiquement les contacts avec Bob en users
+  async transformContactsToUsers(contacts: Contact[], token: string): Promise<Contact[]> {
+    console.log('🔄 Transformation contacts → users:', contacts.length);
+    
+    if (!contacts.length) return contacts;
+
+    try {
+      // 1. Récupérer tous les profils utilisateurs Bob
+      const usersResponse = await apiClient.get('/users?populate=*', token);
+      if (!usersResponse.ok) {
+        throw new Error('Impossible de récupérer les utilisateurs Bob');
+      }
+
+      const usersData = await usersResponse.json();
+      const users = usersData.data || [];
+      
+      console.log('👥 Utilisateurs Bob trouvés:', users.length);
+
+      // 2. Créer un mapping téléphone → user
+      const usersByPhone: Record<string, any> = {};
+      users.forEach((user: any) => {
+        if (user.attributes?.telephone) {
+          const normalizedPhone = this.normalizePhoneNumber(user.attributes.telephone);
+          usersByPhone[normalizedPhone] = {
+            id: user.id,
+            ...user.attributes
+          };
+        }
+      });
+
+      // 3. Enrichir les contacts avec les données utilisateur
+      const enrichedContacts = contacts.map(contact => {
+        if (!contact.telephone) return contact;
+
+        const normalizedPhone = this.normalizePhoneNumber(contact.telephone);
+        const user = usersByPhone[normalizedPhone];
+
+        if (user) {
+          console.log(`✅ Contact ${contact.nom} → User Bob trouvé (ID: ${user.id})`);
+          
+          return {
+            ...contact,
+            userId: user.id,
+            aSurBob: true,
+            userProfile: {
+              id: user.id,
+              username: user.username,
+              email: user.email,
+              telephone: user.telephone,
+              nom: user.nom || contact.nom,
+              prenom: user.prenom || contact.prenom,
+              avatar: user.avatar,
+              bobizPoints: user.bobizPoints || 0,
+              niveau: this.calculateUserLevel(user.bobizPoints || 0),
+              estEnLigne: user.estEnLigne || false,
+              derniereActivite: user.derniereActivite || new Date().toISOString(),
+              dateInscription: user.dateInscription || user.createdAt || new Date().toISOString(),
+            }
+          };
+        }
+
+        return {
+          ...contact,
+          userId: undefined,
+          aSurBob: false,
+          userProfile: undefined
+        };
+      });
+
+      // 4. Mettre à jour les contacts dans Strapi avec les nouvelles infos
+      await this.updateContactsWithUserInfo(enrichedContacts.filter(c => c.userId), token);
+
+      console.log(`✅ Transformation terminée: ${enrichedContacts.filter(c => c.aSurBob).length} contacts sont des users Bob`);
+      
+      return enrichedContacts;
+
+    } catch (error) {
+      console.error('❌ Erreur transformation contacts → users:', error);
+      // Retourner les contacts originaux avec aSurBob = false en cas d'erreur
+      return contacts.map(contact => ({
+        ...contact,
+        userId: undefined,
+        aSurBob: false,
+        userProfile: undefined
+      }));
+    }
+  }
+
+  // Mettre à jour les contacts dans Strapi avec les infos utilisateur
+  private async updateContactsWithUserInfo(contactsWithUsers: Contact[], token: string): Promise<void> {
+    console.log('💾 Mise à jour des contacts avec infos users:', contactsWithUsers.length);
+
+    for (const contact of contactsWithUsers) {
+      if (!contact.id || !contact.userId) continue;
+
+      try {
+        await contactsService.updateContact(contact.id, {
+          userId: contact.userId,
+          aSurBob: true,
+        } as any, token);
+
+        console.log(`✅ Contact ${contact.nom} mis à jour avec user ID ${contact.userId}`);
+        
+        // Petit délai pour éviter le rate limiting
+        await this.sleep(100);
+        
+      } catch (error) {
+        console.error(`❌ Erreur mise à jour contact ${contact.nom}:`, error);
+      }
+    }
+  }
+
+  // Calculer le niveau d'un utilisateur basé sur ses points
+  private calculateUserLevel(bobizPoints: number): 'Débutant' | 'Ami fidèle' | 'Super Bob' | 'Légende' {
+    if (bobizPoints >= 1000) return 'Légende';
+    if (bobizPoints >= 500) return 'Super Bob';
+    if (bobizPoints >= 200) return 'Ami fidèle';
+    return 'Débutant';
   }
 
   // ==========================================
@@ -292,13 +421,16 @@ class SyncService {
     }
     
     try {
-      // Normaliser et dédupliquer les numéros
-      const normalizedPhones = [...new Set(
-        telephones
-          .filter(tel => tel && tel.trim())
-          .map(tel => this.normalizePhoneNumber(tel))
-      )];
+      // Créer un mapping entre les numéros originaux et normalisés
+      const phoneMapping: Record<string, string> = {};
+      telephones
+        .filter(tel => tel && tel.trim())
+        .forEach(original => {
+          const normalized = this.normalizePhoneNumber(original);
+          phoneMapping[normalized] = original;
+        });
 
+      const normalizedPhones = [...new Set(Object.keys(phoneMapping))];
       result.totalChecked = normalizedPhones.length;
       
       // Diviser en chunks pour éviter les URLs trop longues
@@ -345,16 +477,24 @@ class SyncService {
             }
           }
 
-          // Merger les résultats
-          Object.assign(result.bobUsers, chunkResults);
+          // Mapper les résultats aux numéros originaux
+          Object.entries(chunkResults).forEach(([normalizedPhone, hasBob]) => {
+            const originalPhone = phoneMapping[normalizedPhone];
+            if (originalPhone) {
+              result.bobUsers[originalPhone] = hasBob;
+            }
+          });
           
         } catch (chunkError) {
           console.error('❌ Erreur chunk vérification:', chunkError);
           result.errors.push(`Erreur chunk ${i / chunkSize + 1}`);
           
           // Marquer tous les numéros du chunk comme non Bob en cas d'erreur
-          for (const tel of chunk) {
-            result.bobUsers[tel] = false;
+          for (const normalizedTel of chunk) {
+            const originalTel = phoneMapping[normalizedTel];
+            if (originalTel) {
+              result.bobUsers[originalTel] = false;
+            }
           }
         }
         
@@ -377,8 +517,9 @@ class SyncService {
       
       // Fallback complet: marquer tous comme non Bob
       telephones.forEach(tel => {
-        const normalized = this.normalizePhoneNumber(tel);
-        result.bobUsers[normalized] = false;
+        if (tel && tel.trim()) {
+          result.bobUsers[tel] = false;
+        }
       });
       
       return result;
@@ -623,6 +764,79 @@ class SyncService {
   // Méthode utilitaire pour les délais
   private sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  // Corriger les problèmes d'encodage UTF-8
+  private fixTextEncoding(text: string): string {
+    if (!text) return text;
+    
+    // Corrections d'encodage courantes
+    const corrections: Record<string, string> = {
+      '√Ø': 'ï', // Marie Patalago√Øty → Marie Patalagoïty
+      '√´': 'é',
+      '√¢': 'â',
+      '√™': 'è',
+      '√ß': 'à',
+      '√π': 'ù',
+      '√¨': 'è',
+      '√®': 'î',
+      '√•': 'å', // √• pour å
+      '√¥': 'ä', // √¥ pour ä seulement
+      '√¶': 'ö',
+      '√º': 'ú',
+      '√≠': 'í',
+      '√≥': 'ó',
+    };
+    
+    let correctedText = text;
+    for (const [wrong, correct] of Object.entries(corrections)) {
+      correctedText = correctedText.replace(new RegExp(wrong, 'g'), correct);
+    }
+    
+    return correctedText;
+  }
+
+  // Séparer un nom complet en nom et prénom
+  private parseFullName(fullName: string): { nom: string; prenom: string } {
+    if (!fullName || !fullName.trim()) {
+      return { nom: '', prenom: '' };
+    }
+
+    // Corriger l'encodage avant le traitement
+    const cleaned = this.fixTextEncoding(fullName.trim());
+    
+    // Cas spéciaux avec séparateurs
+    if (cleaned.includes(' - ')) {
+      // "Nautivela - Julien" → prenom: "Julien", nom: "Nautivela"
+      const parts = cleaned.split(' - ');
+      return {
+        prenom: parts[1]?.trim() || '',
+        nom: parts[0]?.trim() || '',
+      };
+    }
+    
+    // Séparation standard par espaces
+    const parts = cleaned.split(' ');
+    
+    if (parts.length === 1) {
+      // Un seul mot → tout dans nom
+      return { nom: parts[0], prenom: '' };
+    }
+    
+    if (parts.length === 2) {
+      // "Marie Patalagoïty" → prenom: "Marie", nom: "Patalagoïty"
+      return {
+        prenom: parts[0],
+        nom: parts[1],
+      };
+    }
+    
+    // Plus de 2 mots → dernier mot = nom, le reste = prénom
+    // "Jean-Charles MEILLAND" → prenom: "Jean-Charles", nom: "MEILLAND"
+    const nom = parts[parts.length - 1];
+    const prenom = parts.slice(0, -1).join(' ');
+    
+    return { nom, prenom };
   }
 
   // Vérifier si une synchronisation est en cours

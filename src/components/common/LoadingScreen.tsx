@@ -1,6 +1,7 @@
 // src/components/common/LoadingScreen.tsx
 import React from 'react';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { Colors, Typography, Spacing, GlobalStyles } from '../../styles';
 
 interface LoadingScreenProps {
@@ -8,8 +9,10 @@ interface LoadingScreenProps {
 }
 
 export const LoadingScreen: React.FC<LoadingScreenProps> = ({ 
-  message = 'Chargement...' 
+  message 
 }) => {
+  const { t } = useTranslation();
+  const loadingMessage = message || t('common.loading');
   return (
     <View style={styles.container}>
       <View style={styles.content}>
@@ -24,7 +27,7 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
         />
         
         {/* Loading Message */}
-        <Text style={styles.message}>{message}</Text>
+        <Text style={styles.message}>{loadingMessage}</Text>
       </View>
     </View>
   );

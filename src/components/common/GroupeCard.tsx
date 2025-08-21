@@ -54,7 +54,7 @@ export const GroupeCard: React.FC<GroupeCardProps> = ({
       {/* Header avec icône et actions */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <View style={[styles.iconContainer, { backgroundColor: `${groupe.couleur}20` }]}>
+          <View style={[styles.iconContainer, { backgroundColor: groupe.couleur + '20' }]}>
             <Text style={styles.icon}>
               {groupeType?.icon || '⭐'}
             </Text>

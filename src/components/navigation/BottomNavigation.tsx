@@ -1,6 +1,7 @@
 ﻿// src/components/navigation/BottomNavigation.tsx
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { BottomNavigationProps, TabItem, ScreenType } from '../../types';
 import { Colors, Typography, Spacing } from '../../styles';
 
@@ -8,11 +9,13 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
   currentScreen, 
   onScreenChange 
 }) => {
+  const { t } = useTranslation();
+  
   const tabs: TabItem[] = [
-    { id: 'home', label: 'Échanges', icon: '🔄' },
-    { id: 'events', label: 'Événements', icon: '🎉' },
-    { id: 'contacts', label: 'Contacts', icon: '👥' },
-    { id: 'profile', label: 'Profil', icon: '🏆' },
+    { id: 'home', label: t('navigation.exchanges') || 'Échanges', icon: '🔄' },
+    { id: 'events', label: t('navigation.events') || 'Événements', icon: '🎉' },
+    { id: 'contacts', label: t('navigation.contacts') || 'Contacts', icon: '👥' },
+    { id: 'profile', label: t('navigation.profile') || 'Profil', icon: '🏆' },
   ];
 
   return (
@@ -27,12 +30,12 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
           onPress={() => onScreenChange(tab.id)}
           activeOpacity={0.7}
         >
-          <Text style={styles.tabIcon}>{tab.icon}</Text>
+          <Text style={styles.tabIcon}>{tab.icon || '📱'}</Text>
           <Text style={[
             styles.tabLabel,
             currentScreen === tab.id && styles.tabLabelActive
           ]}>
-            {tab.label}
+            {tab.label || 'Tab'}
           </Text>
         </TouchableOpacity>
       ))}
@@ -59,7 +62,7 @@ const styles = StyleSheet.create({
   },
   
   tabActive: {
-    backgroundColor: `${Colors.primary}15`, // 15% opacity
+    backgroundColor: '#3B82F615', // 15% opacity
   },
   
   tabIcon: {

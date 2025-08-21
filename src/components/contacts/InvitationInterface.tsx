@@ -11,9 +11,13 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Linking } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { styles } from './InvitationInterface.styles';
 import { GroupeType, GROUPE_TYPES } from '../../types/contacts.types';
 import { generateMessage } from '../../constants/messageTemplates';
+import { invitationsService } from '../../services/invitations.service';
+import { authService } from '../../services/auth.service';
+import { generateTranslatedMessageStatic } from '../../services/messageTranslation.service';
 
 const STORAGE_KEY = '@bob_invitations_history';
 const ALPHABET = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
@@ -54,6 +58,7 @@ export const InvitationInterface: React.FC<InvitationInterfaceProps> = ({
   onClose,
   onSaveGroupAssignments,
 }) => {
+  const { t } = useTranslation();
   const [contactsWithStatus, setContactsWithStatus] = useState<ContactWithStatus[]>([]);
   const [searchText, setSearchText] = useState('');
   const [letterFilter, setLetterFilter] = useState<string>('');
@@ -130,7 +135,8 @@ export const InvitationInterface: React.FC<InvitationInterfaceProps> = ({
     }
   };
 
-  const getMessageForContact = (contact: ContactWithStatus, channel: 'sms' | 'whatsapp' | 'link'): string => {
+  const getMessageForContact = (contact: ContactWithStatus, channel: 'sms' | 'whatsapp' | 'link', codeParrainage?: string): string => {
+    const { i18n } = useTranslation();
     const priorityOrder: GroupeType[] = ['famille', 'amis', 'voisins', 'bricoleurs', 'custom'];
     
     let selectedTemplate: GroupeType | undefined = undefined;
@@ -141,24 +147,59 @@ export const InvitationInterface: React.FC<InvitationInterfaceProps> = ({
       }
     }
     
-    return generateMessage(channel, 'invitation', selectedTemplate, {
-      prenom: contact.nom.split(' ')[0],
-      lien: 'bob-app.com/invite/ABC123',
-    });
+    const inviteLink = codeParrainage 
+      ? `https://bob-app.com/invite/${codeParrainage}`
+      : 'bob-app.com/invite';
+    
+    return generateTranslatedMessageStatic(channel, selectedTemplate, {
+      firstName: contact.nom.split(' ')[0],
+      link: inviteLink,
+    }, i18n.language);
   };
 
   const sendInvitation = async (contact: ContactWithStatus, method: 'sms' | 'whatsapp') => {
-    const message = getMessageForContact(contact, method);
-    
-    let url = '';
-    if (method === 'sms') {
-      url = `sms:${contact.telephone}?body=${encodeURIComponent(message)}`;
-    } else {
-      const phoneNumber = contact.telephone.replace(/[\\s\\-\\(\\)]/g, '');
-      url = `whatsapp://send?phone=${phoneNumber}&text=${encodeURIComponent(message)}`;
-    }
-    
     try {
+      // Créer l'invitation dans Strapi d'abord
+      const token = await authService.getValidToken();
+      if (!token) {
+        Alert.alert(t('common.error'), t('contacts.invitation.mustBeConnected'));
+        return;
+      }
+
+      console.log('📤 Création invitation Strapi pour:', contact.nom);
+      
+      const invitation = await invitationsService.createInvitation({
+        telephone: contact.telephone,
+        nom: contact.nom,
+        type: method,
+      }, token);
+      
+      console.log('✅ Invitation créée avec code:', invitation.codeParrainage);
+      
+      // Générer le message avec le vrai lien d'invitation
+      const message = getMessageForContact(contact, method, invitation.codeParrainage);
+      
+      let url = '';
+      if (method === 'sms') {
+        url = `sms:${contact.telephone}?body=${encodeURIComponent(message)}`;
+      } else {
+        // Formater correctement le numéro pour WhatsApp
+        let phoneNumber = contact.telephone.replace(/[^0-9+]/g, ''); // Garder seulement chiffres et +
+        
+        // Si le numéro commence par 0, remplacer par +33
+        if (phoneNumber.startsWith('0')) {
+          phoneNumber = '+33' + phoneNumber.substring(1);
+        }
+        
+        // Si pas de +, ajouter +33
+        if (!phoneNumber.startsWith('+')) {
+          phoneNumber = '+33' + phoneNumber;
+        }
+        
+        console.log(`📱 WhatsApp - Numéro original: ${contact.telephone}, formaté: ${phoneNumber}`);
+        url = `whatsapp://send?phone=${phoneNumber}&text=${encodeURIComponent(message)}`;
+      }
+      
       await Linking.openURL(url);
       
       const updatedContacts = contactsWithStatus.map(c => {
@@ -187,9 +228,16 @@ export const InvitationInterface: React.FC<InvitationInterfaceProps> = ({
       setContactsWithStatus(updatedContacts);
       await saveInvitationHistory(updatedContacts);
       
-      Alert.alert('✅ Invitation envoyée', `${contact.nom} recevra votre invitation par ${method.toUpperCase()}`);
+      Alert.alert(
+        t('contacts.invitation.invitationSent'), 
+        t('contacts.invitation.invitationSentDesc', { 
+          name: contact.nom, 
+          method: method.toUpperCase() 
+        })
+      );
     } catch (error) {
-      Alert.alert('Erreur', `Impossible d'ouvrir ${method === 'sms' ? 'SMS' : 'WhatsApp'}`);
+      console.error('❌ Erreur envoi invitation:', error);
+      Alert.alert(t('common.error'), t('contacts.invitation.errorSending', { error: error.message }));
     }
   };
 
@@ -208,7 +256,7 @@ export const InvitationInterface: React.FC<InvitationInterfaceProps> = ({
     setContactsWithStatus(updatedContacts);
     await saveInvitationHistory(updatedContacts);
     
-    Alert.alert('🎉 Super !', `${contact.nom} a rejoint Bob !`);
+    Alert.alert(t('contacts.invitation.joined'), t('contacts.invitation.joinedDesc', { name: contact.nom }));
   };
 
   const getCurrentTemplateLabel = (contact: ContactWithStatus): string => {

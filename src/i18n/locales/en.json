@@ -1,0 +1,249 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "sessionCheck": "Checking session...",
+    "error": "Error",
+    "success": "Success",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "close": "Close",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "search": "Search",
+    "filter": "Filter",
+    "clear": "Clear",
+    "refresh": "Refresh"
+  },
+  
+  "contacts": {
+    "title": "Contacts",
+    "myNetwork": "My network",
+    "totalContacts": "Total contacts",
+    "withBob": "Have Bob",
+    "withoutBob": "To invite",
+    "invited": "Invited",
+    "percentage": "{{count}}% have Bob",
+    "addFromPhonebook": "Add from phonebook",
+    "manageContacts": "Manage contacts",
+    "inviteOnBob": "Invite to Bob",
+    "noContacts": "No contacts",
+    "searchPlaceholder": "🔍 Search...",
+    "contactsAvailable": "{{count}} contact available",
+    "contactsAvailable_plural": "{{count}} contacts available",
+    "allContactsAdded": "All your contacts are already added!",
+    
+    "dashboard": {
+      "quickActions": "Quick actions",
+      "stats": "Statistics",
+      "curationRate": "{{rate}}% of phonebook",
+      "maintenance": "Maintenance"
+    },
+    
+    "invitation": {
+      "title": "Invite to Bob",
+      "neverInvited": "🆕 Never invited",
+      "invitedDaysAgo": "⏳ Invited {{days}} day(s) ago",
+      "relaunched": "🔄 Relaunched {{count}} times",
+      "lastContact": "Last contact: {{days}} day(s) ago",
+      "onBobSince": "✅ On Bob since {{date}}",
+      "tags": "Tags:",
+      "messageTemplate": "Message: {{template}}",
+      "defaultTemplate": "Default",
+      "familyTemplate": "Family version",
+      "friendsTemplate": "Friends version",
+      "neighborsTemplate": "Neighbors version",
+      "handymenTemplate": "Handymen version",
+      "inviteSMS": "📱 Invite SMS",
+      "inviteWhatsApp": "💬 WhatsApp",
+      "relaunch": "🔄 Relaunch",
+      "hasJoined": "✅ Has joined",
+      "activeOnBob": "Active contact on Bob",
+      "invitationSent": "✅ Invitation sent",
+      "invitationSentDesc": "{{name}} will receive your invitation via {{method}} with personalized link",
+      "joined": "🎉 Great!",
+      "joinedDesc": "{{name}} joined Bob!",
+      "errorSending": "Cannot send invitation: {{error}}",
+      "mustBeConnected": "You must be connected to send an invitation",
+      
+      "tabs": {
+        "all": "All ({{count}})",
+        "toInvite": "To invite ({{count}})",
+        "waiting": "Waiting ({{count}})"
+      },
+      
+      "filters": {
+        "startingWith": "Contacts starting with \"{{letter}}\"",
+        "clear": "Clear",
+        "viewAll": "View all contacts"
+      },
+      
+      "empty": {
+        "letter": "No contacts in \"{{letter}}\"",
+        "search": "No contacts found",
+        "new": "No new contacts",
+        "waiting": "No pending invitations",
+        "general": "No contacts"
+      }
+    }
+  },
+  
+  "groups": {
+    "family": "Family",
+    "friends": "Friends",
+    "neighbors": "Neighbors",
+    "handymen": "Handymen",
+    "custom": "Custom"
+  },
+  
+  "invitations": {
+    "sent": "Sent",
+    "accepted": "Accepted",
+    "refused": "Refused",
+    "expired": "Expired",
+    "pending": "Pending"
+  },
+  
+  "messages": {
+    "templates": {
+      "family": {
+        "invitation": "Hi {{firstName}}! 👨‍👩‍👧 I'm using Bob to organize with family. Want to join us? It's great for sharing stuff and helping each other! Download the app: {{link}}"
+      },
+      "friends": {
+        "invitation": "Hey {{firstName}}! 😄 I discovered Bob, perfect for helping each other between friends. Want to try? {{link}}"
+      },
+      "neighbors": {
+        "invitation": "Hello {{firstName}}! I'm inviting you to Bob, the neighborhood mutual aid app. {{link}} 🏠"
+      },
+      "handymen": {
+        "invitation": "Hi {{firstName}}! We use Bob to share tools and help each other. Join us! {{link}} 🔧"
+      },
+      "default": {
+        "invitation": "Hello {{firstName}}, I'm inviting you to join Bob, the mutual aid app. {{link}}"
+      }
+    }
+  },
+  
+  "errors": {
+    "network": "Connection error",
+    "authentication": "Authentication error",
+    "permission": "Permission denied",
+    "notFound": "Item not found",
+    "serverError": "Server error",
+    "unknown": "Unknown error",
+    "whatsappNotAvailable": "Cannot open WhatsApp",
+    "smsNotAvailable": "Cannot open SMS"
+  },
+  
+  "auth": {
+    "login": "Login",
+    "register": "Register",
+    "loginButton": "Sign In",
+    "registerButton": "Sign Up",
+    "switchToRegister": "Don't have an account? Sign up",
+    "switchToLogin": "Already have an account? Sign in",
+    "username": "Username",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "identifier": "Email or username",
+    "forgotPassword": "Forgot password?",
+    "welcomeBack": "Welcome back!",
+    "joinBob": "Join Bob",
+    "loginSubtitle": "Connect to your mutual aid network",
+    "registerSubtitle": "Create your account and start helping each other",
+    "registerSuccess": "Registration successful! You are now connected.",
+    "testCredentialsAdded": "Test credentials added. Click \"Sign In\".",
+    "testConnection": "Test VPS connection",
+    "useTestCredentials": "🧪 Use test credentials",
+    
+    "validation": {
+      "usernameRequired": "Username required",
+      "emailRequired": "Email required",
+      "passwordRequired": "Password required",
+      "identifierRequired": "Email or username required",
+      "passwordsNotMatch": "Passwords don't match",
+      "passwordTooShort": "Minimum 6 characters"
+    },
+    
+    "errors": {
+      "loginError": "Login error",
+      "registerError": "Registration error",
+      "unknownError": "Unknown error",
+      "networkError": "Network error"
+    }
+  },
+  
+  "navigation": {
+    "home": "Home",
+    "contacts": "Contacts",
+    "exchanges": "Exchanges",
+    "events": "Events",
+    "profile": "Profile"
+  },
+  
+  "exchanges": {
+    "title": "Exchanges",
+    "welcome": "Welcome, {{username}}! 👋",
+    "bobizPoints": "🏆 {{points}} Bobiz - {{level}}",
+    "defaultLevel": "Beginner",
+    "createExchange": "Create exchange",
+    "myExchanges": "My exchanges",
+    "availableExchanges": "Available exchanges",
+    "noExchanges": "No exchanges at the moment",
+    "comingSoon": "Feature under development...",
+    "categories": {
+      "all": "All",
+      "lend": "Lending",
+      "borrow": "Borrowing",
+      "services": "Services",
+      "events": "Events"
+    },
+    "actions": {
+      "quickActions": "Quick actions",
+      "lend": "Lend",
+      "lendDesc": "Offer an item or service",
+      "borrow": "Borrow",
+      "borrowDesc": "Find available items",
+      "events": "Events",
+      "eventsDesc": "Organize or join"
+    }
+  },
+  
+  "events": {
+    "title": "Events",
+    "myEvents": "My events",
+    "upcomingEvents": "Upcoming events",
+    "createEvent": "Create event",
+    "joinEvent": "Join",
+    "noEvents": "No events at the moment",
+    "comingSoon": "Feature under development..."
+  },
+  
+  "profile": {
+    "title": "Profile",
+    "myBobiz": "My Bobiz",
+    "points": "Points",
+    "level": "Level",
+    "earnPoints": "Earn points by lending items and participating in events!",
+    "settings": "Settings",
+    "notifications": "Notifications",
+    "privacy": "Privacy",
+    "help": "Help & Support",
+    "about": "About Bob",
+    "logout": "Sign out",
+    "logoutConfirm": "Sign out",
+    "logoutMessage": "Are you sure you want to sign out?",
+    "featureInDevelopment": "Feature \"{{feature}}\" under development"
+  },
+  
+  "settings": {
+    "language": "Language",
+    "chooseLanguage": "Choose language",
+    "languageChanged": "Language changed to {{language}}"
+  }
+}

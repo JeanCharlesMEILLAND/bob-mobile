@@ -1,0 +1,249 @@
+{
+  "common": {
+    "loading": "Chargement...",
+    "sessionCheck": "Vérification de la session...",
+    "error": "Erreur",
+    "success": "Succès",
+    "cancel": "Annuler",
+    "confirm": "Confirmer",
+    "save": "Sauvegarder",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "add": "Ajouter",
+    "close": "Fermer",
+    "back": "Retour",
+    "next": "Suivant",
+    "previous": "Précédent",
+    "search": "Rechercher",
+    "filter": "Filtrer",
+    "clear": "Effacer",
+    "refresh": "Actualiser"
+  },
+  
+  "contacts": {
+    "title": "Contacts",
+    "myNetwork": "Mon réseau",
+    "totalContacts": "Total contacts",
+    "withBob": "Ont Bob",
+    "withoutBob": "À inviter",
+    "invited": "Invités",
+    "percentage": "{{count}}% ont Bob",
+    "addFromPhonebook": "Ajouter du répertoire",
+    "manageContacts": "Gérer mes contacts",
+    "inviteOnBob": "Inviter sur Bob",
+    "noContacts": "Aucun contact",
+    "searchPlaceholder": "🔍 Rechercher...",
+    "contactsAvailable": "{{count}} contact disponible",
+    "contactsAvailable_plural": "{{count}} contacts disponibles",
+    "allContactsAdded": "Tous vos contacts sont déjà ajoutés !",
+    
+    "dashboard": {
+      "quickActions": "Actions rapides",
+      "stats": "Statistiques",
+      "curationRate": "{{rate}}% du répertoire",
+      "maintenance": "Maintenance"
+    },
+    
+    "invitation": {
+      "title": "Inviter sur Bob",
+      "neverInvited": "🆕 Jamais invité",
+      "invitedDaysAgo": "⏳ Invité il y a {{days}} jour(s)",
+      "relaunched": "🔄 Relancé {{count}} fois",
+      "lastContact": "Dernier contact: il y a {{days}} jour(s)",
+      "onBobSince": "✅ Sur Bob depuis {{date}}",
+      "tags": "Tags:",
+      "messageTemplate": "Message: {{template}}",
+      "defaultTemplate": "Par défaut",
+      "familyTemplate": "Version Famille",
+      "friendsTemplate": "Version Amis",
+      "neighborsTemplate": "Version Voisins",
+      "handymenTemplate": "Version Bricoleurs",
+      "inviteSMS": "📱 Inviter SMS",
+      "inviteWhatsApp": "💬 WhatsApp",
+      "relaunch": "🔄 Relancer",
+      "hasJoined": "✅ A rejoint",
+      "activeOnBob": "Contact actif sur Bob",
+      "invitationSent": "✅ Invitation envoyée",
+      "invitationSentDesc": "{{name}} recevra votre invitation par {{method}} avec le lien personnalisé",
+      "joined": "🎉 Super !",
+      "joinedDesc": "{{name}} a rejoint Bob !",
+      "errorSending": "Impossible d'envoyer l'invitation: {{error}}",
+      "mustBeConnected": "Vous devez être connecté pour envoyer une invitation",
+      
+      "tabs": {
+        "all": "Tous ({{count}})",
+        "toInvite": "À inviter ({{count}})",
+        "waiting": "En attente ({{count}})"
+      },
+      
+      "filters": {
+        "startingWith": "Contacts commençant par \"{{letter}}\"",
+        "clear": "Effacer",
+        "viewAll": "Voir tous les contacts"
+      },
+      
+      "empty": {
+        "letter": "Aucun contact en \"{{letter}}\"",
+        "search": "Aucun contact trouvé",
+        "new": "Aucun nouveau contact",
+        "waiting": "Aucune invitation en attente",
+        "general": "Aucun contact"
+      }
+    }
+  },
+  
+  "groups": {
+    "family": "Famille",
+    "friends": "Amis",
+    "neighbors": "Voisins",
+    "handymen": "Bricoleurs",
+    "custom": "Personnalisé"
+  },
+  
+  "invitations": {
+    "sent": "Envoyée",
+    "accepted": "Acceptée",
+    "refused": "Refusée",
+    "expired": "Expirée",
+    "pending": "En attente"
+  },
+  
+  "messages": {
+    "templates": {
+      "family": {
+        "invitation": "Salut {{firstName}} ! 👨‍👩‍👧 J'utilise Bob pour m'organiser avec la famille. Ça te dit de nous rejoindre ? C'est super pratique pour s'échanger des affaires et s'entraider ! Télécharge l'app : {{link}}"
+      },
+      "friends": {
+        "invitation": "Hey {{firstName}} ! 😄 J'ai découvert Bob, parfait pour s'entraider entre potes. Tu veux essayer ? {{link}}"
+      },
+      "neighbors": {
+        "invitation": "Bonjour {{firstName}} ! Je t'invite sur Bob, l'app d'entraide entre voisins du quartier. {{link}} 🏠"
+      },
+      "handymen": {
+        "invitation": "Salut {{firstName}} ! On utilise Bob pour s'échanger des outils et s'entraider. Rejoins-nous ! {{link}} 🔧"
+      },
+      "default": {
+        "invitation": "Bonjour {{firstName}}, je vous invite à rejoindre Bob, l'application d'entraide. {{link}}"
+      }
+    }
+  },
+  
+  "errors": {
+    "network": "Erreur de connexion",
+    "authentication": "Erreur d'authentification",
+    "permission": "Permission refusée",
+    "notFound": "Élément introuvable",
+    "serverError": "Erreur serveur",
+    "unknown": "Erreur inconnue",
+    "whatsappNotAvailable": "Impossible d'ouvrir WhatsApp",
+    "smsNotAvailable": "Impossible d'ouvrir SMS"
+  },
+  
+  "auth": {
+    "login": "Connexion",
+    "register": "Inscription",
+    "loginButton": "Se connecter",
+    "registerButton": "S'inscrire",
+    "switchToRegister": "Pas encore de compte ? S'inscrire",
+    "switchToLogin": "Déjà un compte ? Se connecter",
+    "username": "Nom d'utilisateur",
+    "email": "Email",
+    "password": "Mot de passe",
+    "confirmPassword": "Confirmer le mot de passe",
+    "identifier": "Email ou nom d'utilisateur",
+    "forgotPassword": "Mot de passe oublié ?",
+    "welcomeBack": "Bon retour !",
+    "joinBob": "Rejoignez Bob",
+    "loginSubtitle": "Connectez-vous à votre réseau d'entraide",
+    "registerSubtitle": "Créez votre compte et commencez à vous entraider",
+    "registerSuccess": "Inscription réussie ! Vous êtes maintenant connecté.",
+    "testCredentialsAdded": "Identifiants de test ajoutés. Cliquez sur \"Se connecter\".",
+    "testConnection": "Test connexion VPS",
+    "useTestCredentials": "🧪 Utiliser identifiants de test",
+    
+    "validation": {
+      "usernameRequired": "Nom d'utilisateur requis",
+      "emailRequired": "Email requis",
+      "passwordRequired": "Mot de passe requis",
+      "identifierRequired": "Email ou nom d'utilisateur requis",
+      "passwordsNotMatch": "Les mots de passe ne correspondent pas",
+      "passwordTooShort": "Minimum 6 caractères"
+    },
+    
+    "errors": {
+      "loginError": "Erreur de connexion",
+      "registerError": "Erreur d'inscription",
+      "unknownError": "Erreur inconnue",
+      "networkError": "Erreur de réseau"
+    }
+  },
+  
+  "navigation": {
+    "home": "Accueil",
+    "contacts": "Contacts",
+    "exchanges": "Échanges",
+    "events": "Événements",
+    "profile": "Profil"
+  },
+  
+  "exchanges": {
+    "title": "Échanges",
+    "welcome": "Bienvenue, {{username}} ! 👋",
+    "bobizPoints": "🏆 {{points}} Bobiz - {{level}}",
+    "defaultLevel": "Débutant",
+    "createExchange": "Créer un échange",
+    "myExchanges": "Mes échanges",
+    "availableExchanges": "Échanges disponibles",
+    "noExchanges": "Aucun échange pour le moment",
+    "comingSoon": "Fonctionnalité en cours de développement...",
+    "categories": {
+      "all": "Tous",
+      "lend": "Prêts",
+      "borrow": "Emprunts",
+      "services": "Services",
+      "events": "Événements"
+    },
+    "actions": {
+      "quickActions": "Actions rapides",
+      "lend": "Prêter",
+      "lendDesc": "Proposer un objet ou service",
+      "borrow": "Emprunter",
+      "borrowDesc": "Rechercher objets disponibles",
+      "events": "Événements",
+      "eventsDesc": "Organiser ou rejoindre"
+    }
+  },
+  
+  "events": {
+    "title": "Événements",
+    "myEvents": "Mes événements",
+    "upcomingEvents": "Événements à venir",
+    "createEvent": "Créer un événement",
+    "joinEvent": "Participer",
+    "noEvents": "Aucun événement pour le moment",
+    "comingSoon": "Fonctionnalité en cours de développement..."
+  },
+  
+  "profile": {
+    "title": "Profil",
+    "myBobiz": "Mes Bobiz",
+    "points": "Points",
+    "level": "Niveau",
+    "earnPoints": "Gagnez des points en prêtant des objets et en participant aux événements !",
+    "settings": "Paramètres",
+    "notifications": "Notifications",
+    "privacy": "Confidentialité",
+    "help": "Aide & Support",
+    "about": "À propos de Bob",
+    "logout": "Se déconnecter",
+    "logoutConfirm": "Déconnexion",
+    "logoutMessage": "Êtes-vous sûr de vouloir vous déconnecter ?",
+    "featureInDevelopment": "Fonctionnalité \"{{feature}}\" en développement"
+  },
+  
+  "settings": {
+    "language": "Langue",
+    "chooseLanguage": "Choisir la langue",
+    "languageChanged": "Langue changée vers {{language}}"
+  }
+}
