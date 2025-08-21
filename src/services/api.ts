@@ -1,0 +1,50 @@
+﻿// src/services/api.ts
+export const API_BASE_URL = 'http://46.202.153.43:1337/api';
+
+export const apiClient = {
+  get: async (endpoint: string, token?: string) => {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+    });
+    return response;
+  },
+  
+  post: async (endpoint: string, data: any, token?: string) => {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      body: JSON.stringify(data),
+    });
+    return response;
+  },
+
+  put: async (endpoint: string, data: any, token?: string) => {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      body: JSON.stringify(data),
+    });
+    return response;
+  },
+
+  delete: async (endpoint: string, token?: string) => {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+    });
+    return response;
+  },
+};
