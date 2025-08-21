@@ -22,7 +22,7 @@ export const RepertoireScreen = () => {
     repertoire,              // Mes contacts Bob sélectionnés
     contacts,                // Utilisateurs Bob trouvés
     scannerRepertoireBrut,   // Scanner sans import auto
-    importerContactsSelectionnes, // Importer contacts choisis
+    importerContactsEtSync, // Importer contacts choisis avec sync Strapi
     repartirAZero,           // Vider le répertoire
     inviterContact,
     getStats,
@@ -72,7 +72,7 @@ export const RepertoireScreen = () => {
   // Importer les contacts sélectionnés
   const handleImportContacts = async (contactIds: string[]) => {
     try {
-      await importerContactsSelectionnes(contactIds);
+      await importerContactsEtSync(contactIds);
       console.log(`✅ ${contactIds.length} contacts importés avec succès`);
     } catch (error: any) {
       console.error('❌ Erreur import:', error);

@@ -94,7 +94,7 @@ export const ContactsDashboard: React.FC<ContactsDashboardProps> = ({
           
           <TouchableOpacity 
             style={[styles.statCard, styles.statCardPrimary]}
-            onPress={onManageContacts}
+            onPress={onAddContacts}
           >
             <Text style={styles.statIcon}>👥</Text>
             <Text style={styles.statNumber}>{stats.mesContacts}</Text>
@@ -102,18 +102,21 @@ export const ContactsDashboard: React.FC<ContactsDashboardProps> = ({
             <Text style={styles.statSubLabel}>
               {stats.tauxCuration}% du répertoire
             </Text>
-            <Text style={styles.statAction}>Gérer →</Text>
+            <Text style={styles.statAction}>Ajouter →</Text>
           </TouchableOpacity>
           
-          <View style={[styles.statCard, styles.statCardSuccess]}>
-            <Text style={styles.statIcon}>✅</Text>
-            <Text style={styles.statNumber}>{stats.contactsAvecBob}</Text>
-            <Text style={styles.statLabel}>Ont Bob</Text>
-            <Text style={styles.statSubLabel}>
-              {stats.contactsAvecBob} utilisateur{stats.contactsAvecBob > 1 ? 's' : ''}
+          <TouchableOpacity 
+          style={[styles.statCard, styles.statCardSuccess]}
+          onPress={onManageContacts}
+        >
+          <Text style={styles.statIcon}>✅</Text>
+          <Text style={styles.statNumber}>{stats.contactsAvecBob}</Text>
+          <Text style={styles.statLabel}>Ont Bob</Text>
+          <Text style={styles.statSubLabel}>
+            {stats.contactsAvecBob} utilisateur{stats.contactsAvecBob > 1 ? 's' : ''}
             </Text>
             <Text style={styles.statPercentage}>{stats.pourcentageBob}%</Text>
-          </View>
+          </TouchableOpacity>
           
           <TouchableOpacity 
             style={[styles.statCard, styles.statCardWarning]}

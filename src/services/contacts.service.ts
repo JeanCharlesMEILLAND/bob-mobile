@@ -146,25 +146,20 @@ export const contactsService = {
     console.log('👥 ContactsService - Récupération des contacts');
     
     try {
-      // Note: À adapter selon la structure de votre API Strapi
-      // Pour l'instant, on récupère via les groupes
-      const groupes = await contactsService.getMyGroupes(token);
+      const response = await apiClient.get('/contacts?populate=groupes', token);
       
-      const allContacts: Contact[] = [];
-      
-      for (const groupe of groupes) {
-        if (groupe.membres) {
-          allContacts.push(...groupe.membres);
-        }
+      if (!response.ok) {
+        throw new Error('Erreur récupération contacts');
       }
       
-      // Dédupliquer les contacts (un contact peut être dans plusieurs groupes)
-      const uniqueContacts = allContacts.filter((contact, index, self) => 
-        index === self.findIndex(c => c.id === contact.id)
-      );
+      const result = await response.json();
+      const contacts = result.data?.map((item: any) => ({
+        id: item.id,
+        ...item.attributes
+      })) || [];
       
-      console.log('✅ Contacts récupérés:', uniqueContacts.length);
-      return uniqueContacts;
+      console.log('✅ Contacts récupérés:', contacts.length);
+      return contacts;
     } catch (error: any) {
       console.error('❌ Erreur getMyContacts:', error.message);
       throw error;
@@ -178,30 +173,40 @@ export const contactsService = {
     console.log('👤 ContactsService - Création contact:', data.nom);
     
     try {
-      // Note: À adapter selon votre modèle Strapi
-      // Pour l'instant, on simule car le modèle Contact n'existe peut-être pas encore
       const contactData = {
         nom: data.nom,
         prenom: data.prenom,
         email: data.email,
         telephone: data.telephone,
-        groupes: data.groupeIds,
+        // Temporairement commenter groupes pour éviter l'erreur de relation
+        // groupes: data.groupeIds,
         actif: true,
-      };
-      
-      // Simulation de réponse - à remplacer par un vrai appel API
-      const newContact: Contact = {
-        id: Date.now(), // ID temporaire
-        nom: data.nom,
-        prenom: data.prenom,
-        email: data.email,
-        telephone: data.telephone,
-        groupes: [], // À populer avec les vrais groupes
+        source: 'import_repertoire',
         dateAjout: new Date().toISOString(),
-        actif: true,
       };
       
-      console.log('✅ Contact créé (simulé):', newContact.nom);
+      const response = await apiClient.post('/contacts', { data: contactData }, token);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Détail erreur création contact:', errorText);
+        console.error('❌ Status:', response.status);
+        
+        try {
+          const errorData = JSON.parse(errorText);
+          throw new Error(errorData.error?.message || `Erreur ${response.status}: ${errorText}`);
+        } catch {
+          throw new Error(`Erreur ${response.status}: ${errorText}`);
+        }
+      }
+      
+      const result = await response.json();
+      const newContact: Contact = {
+        id: result.data.id,
+        ...result.data.attributes,
+      };
+      
+      console.log('✅ Contact créé:', newContact.nom);
       return newContact;
     } catch (error: any) {
       console.error('❌ Erreur createContact:', error.message);
@@ -216,8 +221,21 @@ export const contactsService = {
     console.log('✏️ ContactsService - Modification contact:', id);
     
     try {
-      // À implémenter selon votre API
-      throw new Error('updateContact: À implémenter');
+      const response = await apiClient.put(`/contacts/${id}`, { data }, token);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || 'Erreur modification contact');
+      }
+      
+      const result = await response.json();
+      const updatedContact: Contact = {
+        id: result.data.id,
+        ...result.data.attributes,
+      };
+      
+      console.log('✅ Contact modifié:', updatedContact.nom);
+      return updatedContact;
     } catch (error: any) {
       console.error('❌ Erreur updateContact:', error.message);
       throw error;
@@ -231,8 +249,14 @@ export const contactsService = {
     console.log('🗑️ ContactsService - Suppression contact:', id);
     
     try {
-      // À implémenter selon votre API
-      throw new Error('deleteContact: À implémenter');
+      const response = await apiClient.delete(`/contacts/${id}`, token);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || 'Erreur suppression contact');
+      }
+      
+      console.log('✅ Contact supprimé');
     } catch (error: any) {
       console.error('❌ Erreur deleteContact:', error.message);
       throw error;
@@ -285,6 +309,128 @@ export const contactsService = {
       return contactsByGroupe;
     } catch (error: any) {
       console.error('❌ Erreur getContactsByGroupe:', error.message);
+      throw error;
+    }
+  },
+
+  // =================== CONTACTS AVANCÉS ===================
+
+  /**
+   * Rechercher des contacts par téléphone
+   */
+  findContactByPhone: async (telephone: string, token: string): Promise<Contact | null> => {
+    console.log('🔍 ContactsService - Recherche par téléphone:', telephone);
+    
+    try {
+      const response = await apiClient.get(`/contacts/phone/${encodeURIComponent(telephone)}`, token);
+      
+      if (!response.ok) {
+        if (response.status === 404) {
+          return null;
+        }
+        throw new Error('Erreur recherche contact');
+      }
+      
+      const result = await response.json();
+      const contacts = result.data || [];
+      
+      if (contacts.length === 0) {
+        return null;
+      }
+      
+      return {
+        id: contacts[0].id,
+        ...contacts[0].attributes || contacts[0],
+      };
+    } catch (error: any) {
+      console.error('❌ Erreur findContactByPhone:', error.message);
+      return null;
+    }
+  },
+
+  /**
+   * Vérifier quels contacts ont Bob
+   */
+  checkBobUsers: async (telephones: string[], token: string): Promise<Record<string, boolean>> => {
+    console.log('🔍 ContactsService - Vérification utilisateurs Bob:', telephones.length);
+    
+    try {
+      const response = await apiClient.post('/contacts/check-bob-users', {
+        telephones,
+      }, token);
+      
+      if (!response.ok) {
+        throw new Error('Erreur vérification utilisateurs Bob');
+      }
+      
+      const result = await response.json();
+      console.log('✅ Vérification Bob terminée');
+      
+      return result.data?.results || {};
+    } catch (error: any) {
+      console.error('❌ Erreur checkBobUsers:', error.message);
+      
+      // Fallback: marquer tous comme non Bob
+      const fallback: Record<string, boolean> = {};
+      telephones.forEach(tel => {
+        fallback[tel] = false;
+      });
+      return fallback;
+    }
+  },
+
+  /**
+   * Import en masse de contacts
+   */
+  bulkCreateContacts: async (contacts: CreateContactData[], token: string): Promise<{
+    created: Contact[];
+    errors: any[];
+    duplicates: any[];
+  }> => {
+    console.log('📥 ContactsService - Import en masse:', contacts.length, 'contacts');
+    
+    try {
+      const response = await apiClient.post('/contacts/bulk-create', {
+        contacts,
+      }, token);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || 'Erreur import en masse');
+      }
+      
+      const result = await response.json();
+      console.log('✅ Import en masse terminé');
+      
+      return result.data;
+    } catch (error: any) {
+      console.error('❌ Erreur bulkCreateContacts:', error.message);
+      throw error;
+    }
+  },
+
+  /**
+   * Synchroniser les contacts avec les utilisateurs Bob
+   */
+  syncWithBobUsers: async (token: string): Promise<{
+    totalChecked: number;
+    updated: number;
+  }> => {
+    console.log('🔄 ContactsService - Synchronisation avec utilisateurs Bob');
+    
+    try {
+      const response = await apiClient.post('/contacts/sync-bob-users', {}, token);
+      
+      if (!response.ok) {
+        throw new Error('Erreur synchronisation Bob');
+      }
+      
+      const result = await response.json();
+      console.log('✅ Synchronisation Bob terminée');
+      
+      return result.data;
+    } catch (error: any) {
+      console.error('❌ Erreur syncWithBobUsers:', error.message);
       throw error;
     }
   },

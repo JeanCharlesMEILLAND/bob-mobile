@@ -26,6 +26,29 @@ export const styles = StyleSheet.create({
     fontWeight: Typography.weights.bold,
     color: Colors.text,
   },
+dashboardHeader: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    height: 60, 
+    paddingTop: 10,
+    backgroundColor: Colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+  },
+  headerContent: {
+  alignItems: 'center',
+  justifyContent: 'center',
+},
+  
+  dashboardHeaderTitle: {
+    fontSize: Typography.sizes.xl,
+    fontWeight: Typography.weights.bold,
+    color: Colors.text,
+    textAlign: 'center',
+  },
+
   headerSubtitle: {
     fontSize: Typography.sizes.sm,
     color: Colors.textSecondary,

@@ -3,8 +3,16 @@ import { apiClient } from './api';
 import { storageService } from './storage.service';
 import { LoginData, RegisterData, AuthResponse } from '../types';
 
-export const authService = {
-  login: async (data: LoginData): Promise<AuthResponse> => {
+class AuthService {
+  private static _token: string | null = null;
+  private static _user: any = null;
+  private static _isValidating: boolean = false;
+
+  // ==========================================
+  // MÉTHODES PUBLIQUES EXISTANTES
+  // ==========================================
+
+  async login(data: LoginData): Promise<AuthResponse> {
     console.log('🔄 AuthService - Tentative de connexion avec:', data.identifier);
     console.log('📡 Envoi requête vers: /auth/local');
     
@@ -23,9 +31,9 @@ export const authService = {
     console.log('✅ Connexion réussie! User:', result.user.username);
     console.log('🔑 JWT reçu:', result.jwt ? 'OUI' : 'NON');
     
-    // 💾 NOUVEAU: Sauvegarder automatiquement la session
+    // 💾 Sauvegarder automatiquement la session avec cache
     try {
-      await storageService.saveSession(result.jwt, result.user);
+      await this.setSession(result.jwt, result.user);
       console.log('💾 Session sauvegardée automatiquement');
     } catch (error) {
       console.warn('⚠️ Erreur sauvegarde session:', error);
@@ -33,9 +41,9 @@ export const authService = {
     }
     
     return result;
-  },
+  }
 
-  register: async (data: RegisterData): Promise<AuthResponse> => {
+  async register(data: RegisterData): Promise<AuthResponse> {
     console.log('📝 AuthService - Inscription:', data.username);
     
     const response = await apiClient.post('/auth/local/register', data);
@@ -48,22 +56,40 @@ export const authService = {
     const result = await response.json();
     console.log('✅ Inscription réussie! User:', result.user.username);
     
-    // 💾 NOUVEAU: Sauvegarder automatiquement la session après inscription
+    // 💾 Sauvegarder automatiquement la session après inscription
     try {
-      await storageService.saveSession(result.jwt, result.user);
+      await this.setSession(result.jwt, result.user);
       console.log('💾 Session sauvegardée après inscription');
     } catch (error) {
       console.warn('⚠️ Erreur sauvegarde session:', error);
     }
     
     return result;
-  },
+  }
 
-  // 🆕 NOUVEAU: Restaurer une session depuis le stockage
-  restoreSession: async (): Promise<AuthResponse | null> => {
+  async restoreSession(): Promise<AuthResponse | null> {
     console.log('🔄 AuthService - Tentative de restauration session');
     
     try {
+      // 1. Vérifier d'abord le cache mémoire
+      if (AuthService._token && AuthService._user) {
+        console.log('🧠 Session trouvée en mémoire');
+        
+        // Valider que le token est encore bon
+        const isValid = await this.validateCurrentToken();
+        if (isValid) {
+          console.log('✅ Session mémoire valide');
+          return {
+            jwt: AuthService._token,
+            user: AuthService._user,
+          };
+        } else {
+          console.warn('⚠️ Token mémoire invalide, nettoyage...');
+          await this.clearSession();
+        }
+      }
+
+      // 2. Essayer de restaurer depuis le storage
       const session = await storageService.getSession();
       
       if (!session) {
@@ -71,37 +97,258 @@ export const authService = {
         return null;
       }
 
-      console.log('✅ Session restaurée:', session.user.username);
+      // 3. Valider le token restauré
+      const isValid = await this.validateToken(session.token);
+      if (!isValid) {
+        console.warn('⚠️ Token stocké invalide, suppression...');
+        await this.clearSession();
+        return null;
+      }
+
+      // 4. Mettre en cache et retourner
+      AuthService._token = session.token;
+      AuthService._user = session.user;
+
+      console.log('✅ Session complète récupérée:', session.user.username || session.user);
       return {
         jwt: session.token,
         user: session.user,
       };
     } catch (error) {
       console.error('❌ Erreur restauration session:', error);
-      await storageService.clearAll(); // Nettoyer en cas d'erreur
+      await this.clearSession(); // Nettoyer en cas d'erreur
       return null;
     }
-  },
+  }
 
-  // 🆕 NOUVEAU: Logout avec nettoyage du stockage
-  logout: async (): Promise<void> => {
+  async logout(): Promise<void> {
     console.log('🚪 AuthService - Déconnexion');
-    
-    try {
-      await storageService.clearAll();
-      console.log('✅ Session nettoyée');
-    } catch (error) {
-      console.error('❌ Erreur nettoyage session:', error);
-    }
-  },
+    await this.clearSession();
+  }
 
-  testConnection: async (): Promise<{ status: number; ok: boolean }> => {
+  async testConnection(): Promise<{ status: number; ok: boolean }> {
     try {
-      const response = await apiClient.get('/users/me');
+      const token = await this.getValidToken();
+      const response = await apiClient.get('/users/me', token ?? undefined);
       return { status: response.status, ok: response.ok };
     } catch (error: any) {
       console.error('❌ Test connexion erreur:', error);
       throw error;
     }
-  },
-};
+  }
+
+  // ==========================================
+  // MÉTHODES DE GESTION DU TOKEN (NOUVELLES)
+  // ==========================================
+
+  async getValidToken(): Promise<string | null> {
+    try {
+      // 1. Vérifier d'abord en mémoire
+      if (AuthService._token) {
+        console.log('🔑 Token depuis mémoire: PRÉSENT');
+        
+        // Valider le token périodiquement (pas à chaque appel)
+        if (!AuthService._isValidating) {
+          this.validateCurrentTokenAsync(); // Validation en arrière-plan
+        }
+        
+        return AuthService._token;
+      }
+      
+      // 2. Essayer de restaurer depuis le storage
+      console.log('🔄 Tentative restauration token depuis storage...');
+      const session = await storageService.getSession();
+      
+      if (!session?.token) {
+        console.warn('⚠️ Aucun token trouvé dans le storage');
+        return null;
+      }
+      
+      // 3. Valider le token restauré
+      const isValid = await this.validateToken(session.token);
+      
+      if (!isValid) {
+        console.warn('⚠️ Token stocké expiré, suppression...');
+        await this.clearSession();
+        return null;
+      }
+      
+      // 4. Mettre en cache en mémoire
+      AuthService._token = session.token;
+      AuthService._user = session.user;
+      console.log('🔑 Token valide récupéré et mis en cache');
+      
+      return session.token;
+      
+    } catch (error) {
+      console.error('❌ Erreur récupération token:', error);
+      return null;
+    }
+  }
+
+  async getCurrentUser(): Promise<any | null> {
+    try {
+      // 1. Vérifier le cache mémoire
+      if (AuthService._user) {
+        return AuthService._user;
+      }
+
+      // 2. Essayer de restaurer depuis le storage
+      const session = await storageService.getSession();
+      if (session?.user) {
+        AuthService._user = session.user;
+        return session.user;
+      }
+
+      return null;
+    } catch (error) {
+      console.error('❌ Erreur récupération utilisateur:', error);
+      return null;
+    }
+  }
+
+  // ==========================================
+  // MÉTHODES PRIVÉES DE VALIDATION
+  // ==========================================
+
+  private async validateToken(token: string): Promise<boolean> {
+    try {
+      // 1. Vérifier la structure basique du token
+      if (!token || token.length < 10 || !token.includes('.')) {
+        console.warn('⚠️ Token malformé');
+        return false;
+      }
+      
+      // 2. Vérifier auprès du serveur
+      const response = await apiClient.get('/users/me', token);
+      
+      if (response.ok) {
+        console.log('✅ Token validé avec succès');
+        return true;
+      } else {
+        console.warn('⚠️ Token rejeté par le serveur:', response.status);
+        return false;
+      }
+      
+    } catch (error) {
+      console.error('❌ Erreur validation token:', error);
+      return false;
+    }
+  }
+
+  private async validateCurrentToken(): Promise<boolean> {
+    if (!AuthService._token) return false;
+    return await this.validateToken(AuthService._token);
+  }
+
+  // Validation asynchrone en arrière-plan (non bloquante)
+  private validateCurrentTokenAsync(): void {
+    if (AuthService._isValidating || !AuthService._token) return;
+    
+    AuthService._isValidating = true;
+    
+    this.validateToken(AuthService._token)
+      .then(isValid => {
+        if (!isValid) {
+          console.warn('⚠️ Token invalide détecté en arrière-plan, nettoyage...');
+          this.clearSession();
+        }
+      })
+      .catch(error => {
+        console.error('❌ Erreur validation arrière-plan:', error);
+      })
+      .finally(() => {
+        AuthService._isValidating = false;
+      });
+  }
+
+  // ==========================================
+  // MÉTHODES DE GESTION DE SESSION
+  // ==========================================
+
+  private async setSession(token: string, user: any): Promise<void> {
+    try {
+      // 1. Sauvegarder dans le storage
+      await storageService.saveSession(token, user);
+      
+      // 2. Mettre en cache en mémoire
+      AuthService._token = token;
+      AuthService._user = user;
+      
+      console.log('✅ Session complète sauvegardée (storage + cache)');
+    } catch (error) {
+      console.error('❌ Erreur sauvegarde session:', error);
+      throw error;
+    }
+  }
+
+  private async clearSession(): Promise<void> {
+    try {
+      // 1. Nettoyer le storage
+      await storageService.clearAll();
+      
+      // 2. Nettoyer le cache mémoire
+      AuthService._token = null;
+      AuthService._user = null;
+      AuthService._isValidating = false;
+      
+      console.log('🗑️ Session complètement nettoyée');
+    } catch (error) {
+      console.error('❌ Erreur nettoyage session:', error);
+    }
+  }
+
+  // ==========================================
+  // MÉTHODES DE DEBUG
+  // ==========================================
+
+  async debugTokenStatus(): Promise<void> {
+    console.log('🔍 === DEBUG TOKEN STATUS ===');
+    
+    try {
+      // Vérifier mémoire
+      console.log('🧠 Token mémoire:', AuthService._token ? 'PRÉSENT' : 'ABSENT');
+      console.log('👤 User mémoire:', AuthService._user ? AuthService._user.username || 'PRÉSENT' : 'ABSENT');
+      
+      // Vérifier storage
+      const session = await storageService.getSession();
+      console.log('📱 Token storage:', session?.token ? 'PRÉSENT' : 'ABSENT');
+      console.log('👤 User storage:', session?.user ? session.user.username || 'PRÉSENT' : 'ABSENT');
+      
+      // Test validation si token disponible
+      const currentToken = await this.getValidToken();
+      if (currentToken) {
+        const isValid = await this.validateToken(currentToken);
+        console.log('✅ Token validité:', isValid ? 'VALIDE' : 'INVALIDE');
+      }
+      
+    } catch (error) {
+      console.error('❌ Erreur debug:', error);
+    }
+    
+    console.log('🔍 === FIN DEBUG TOKEN ===');
+  }
+
+  // Méthode pour forcer la synchronisation du cache
+  async syncCache(): Promise<void> {
+    console.log('🔄 Synchronisation cache...');
+    
+    try {
+      const session = await storageService.getSession();
+      if (session) {
+        AuthService._token = session.token;
+        AuthService._user = session.user;
+        console.log('✅ Cache synchronisé');
+      } else {
+        AuthService._token = null;
+        AuthService._user = null;
+        console.log('🗑️ Cache vidé (pas de session)');
+      }
+    } catch (error) {
+      console.error('❌ Erreur sync cache:', error);
+    }
+  }
+}
+
+// Exporter une instance singleton
+export const authService = new AuthService();

@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { Colors, Typography, Spacing } from '../../styles';
 import { useContactsBob } from '../../hooks/useContactsBob';
-import { ContactsSelectionInterface } from '../../components/contacts/ContactsSelectionInterface';
+// import { ContactsSelectionInterface } from '../../components/contacts/ContactsSelectionInterface';
 
 export const ContactsRepertoireScreen = () => {
   const {
@@ -24,7 +24,7 @@ export const ContactsRepertoireScreen = () => {
     repertoire,
     contacts,
     scannerRepertoire,
-    importerContactsSelectionnes,
+    importerContactsEtSync,
     retirerContactsDuRepertoire,
     repartirAZero,
     getStats,
@@ -44,7 +44,15 @@ export const ContactsRepertoireScreen = () => {
   // Animation
   const [slideAnim] = useState(new Animated.Value(0));
 
-  const stats = getStats();
+  const [stats, setStats] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      const result = await getStats();
+      setStats(result);
+    };
+    fetchStats();
+  }, [getStats]);
 
   // Contacts intelligents (avec priorité basée sur fréquence estimée)
   const contactsAvecPriorite = useMemo(() => {
@@ -143,7 +151,7 @@ export const ContactsRepertoireScreen = () => {
   // Importer les contacts sélectionnés
   const handleImportSelected = async (contactIds: string[]) => {
     try {
-      await importerContactsSelectionnes(contactIds);
+      await importerContactsEtSync(contactIds);
       setShowSelectionInterface(false);
       setSelectedContacts(new Set());
       
@@ -182,7 +190,7 @@ export const ContactsRepertoireScreen = () => {
               Alert.alert('Erreur', error.message);
             }
           }
-        }
+        },
       ]
     );
   };
@@ -320,7 +328,11 @@ export const ContactsRepertoireScreen = () => {
       {/* Interface d'invitation */}
       {showInvitationInterface && (
         <ContactsSelectionInterface
+          contactsBruts={contactsBruts}
+          contactsDejaSelectionnes={repertoire.map(c => c.id)}
           onClose={() => setShowInvitationInterface(false)}
+          onImportSelected={handleImportSelected}
+          isLoading={isLoading}
         />
       )}
 

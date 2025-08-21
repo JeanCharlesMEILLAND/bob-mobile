@@ -31,7 +31,7 @@ export const ContactsRepertoireScreen = () => {
     repertoire,
     contacts,
     scannerRepertoire,
-    importerContactsSelectionnes,
+    importerContactsEtSync,
     getStats,
     lastScanDate,
     clearCache,
@@ -143,7 +143,7 @@ export const ContactsRepertoireScreen = () => {
   // Importer les contacts sélectionnés
   const handleImportSelected = async (contactIds: string[]) => {
     try {
-      await importerContactsSelectionnes(contactIds);
+      await importerContactsEtSync(contactIds);
       setShowSelectionInterface(false);
       
       Alert.alert(
@@ -190,16 +190,16 @@ export const ContactsRepertoireScreen = () => {
   return (
     <View style={styles.container}>
       {/* Header avec badge notification */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>Mon Réseau Bob</Text>
-          {repertoire.length > 0 && (
+      <View style={styles.dashboardHeader}>
+         <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>Dashboard Réseau Bob</Text>
+          {/* {repertoire.length > 0 && (
             <Text style={styles.headerSubtitle}>
               {enrichedStats.mesContacts} contacts • {enrichedStats.pourcentageBob}% ont Bob
             </Text>
-          )}
+          )} */}
         </View>
-        {repertoire.length > 0 && enrichedStats.contactsSansBob > 0 && (
+        {/* {repertoire.length > 0 && enrichedStats.contactsSansBob > 0 && (
           <TouchableOpacity 
             onPress={() => setShowInvitationInterface(true)}
             style={styles.inviteButton}
@@ -211,7 +211,7 @@ export const ContactsRepertoireScreen = () => {
               </View>
             )}
           </TouchableOpacity>
-        )}
+        )} */}
       </View>
 
       <ScrollView 

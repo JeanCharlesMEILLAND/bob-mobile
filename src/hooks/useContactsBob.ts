@@ -1,9 +1,14 @@
-// src/hooks/useContactsBob.ts - Version avec getStats corrigé
+// src/hooks/useContactsBob.ts - Version complète avec connexion Strapi
 import { useState, useCallback, useEffect } from 'react';
 import { Alert } from 'react-native';
 import { useAuth } from './useAuth';
 import * as Contacts from 'expo-contacts';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { storageService } from '../services/storage.service';
+import { syncService } from '../services/sync.service';
+import { invitationsService } from '../services/invitations.service';
+import { authService } from '../services/auth.service';
+import type { BobVerificationResult } from '../services/sync.service';
 
 interface ContactBob {
   id: number;
@@ -122,6 +127,7 @@ export const useContactsBob = () => {
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(null); // 🆕 NOUVEAU: Token JWT
   
   const [contactsBruts, setContactsBruts] = useState<ContactBrut[]>([]);
   const [repertoire, setRepertoire] = useState<ContactRepertoire[]>([]);
@@ -134,6 +140,22 @@ export const useContactsBob = () => {
   });
   const [lastScanDate, setLastScanDate] = useState<string | null>(null);
 
+  // 🆕 NOUVEAU: Charger le token au démarrage
+  useEffect(() => {
+    const loadTokenAndSync = async () => {
+      const storedToken = await storageService.getToken();
+      setToken(storedToken);
+      
+      if (storedToken) {
+        console.log('🔑 Token trouvé, synchronisation avec Strapi...');
+        // Utiliser directement storedToken au lieu d'attendre l'état
+        await syncAvecStrapiWithToken(storedToken);
+      }
+    };
+    
+    loadTokenAndSync();
+  }, []);
+
   useEffect(() => {
     const logTimeout = setTimeout(() => {
       console.log('🔄 Hook state changed:');
@@ -141,10 +163,118 @@ export const useContactsBob = () => {
       console.log('  📱 repertoire (mes contacts):', repertoire.length);
       console.log('  👥 contacts Bob:', contacts.length);
       console.log('  📤 invitations:', invitations.length);
+      console.log('  🔑 token:', token ? 'PRÉSENT' : 'ABSENT');
     }, 100);
 
     return () => clearTimeout(logTimeout);
-  }, [contactsBruts.length, repertoire.length, contacts.length, invitations.length]);
+  }, [contactsBruts.length, repertoire.length, contacts.length, invitations.length, token]);
+  
+  // 🆕 NOUVEAU: Synchroniser avec Strapi (version avec token direct)
+  const syncAvecStrapiWithToken = useCallback(async (directToken?: string) => {
+    const tokenToUse = directToken || token;
+    if (!tokenToUse) {
+      console.warn('⚠️ Pas de token pour sync Strapi');
+      return;
+    }
+    
+    try {
+      console.log('🔄 Synchronisation avec Strapi avec token direct...');
+      setIsLoading(true);
+      
+      // 1. Récupérer l'état depuis Strapi
+      const strapiState = await syncService.getFullState();
+      
+      // 2. Mettre à jour les invitations depuis Strapi
+      const invitationsStrapi = strapiState.invitations.map((inv: any) => ({
+        id: inv.id,
+        telephone: inv.telephone,
+        nom: inv.nom,
+        type: inv.type as 'sms' | 'whatsapp',
+        statut: inv.statut,
+        dateEnvoi: inv.dateEnvoi,
+        nombreRelances: inv.nombreRelances || 0,
+        codeParrainage: inv.codeParrainage,
+      }));
+      
+      setInvitations(invitationsStrapi);
+      
+      // 3. Vérifier qui a Bob parmi mes contacts
+      if (repertoire.length > 0) {
+        const telephones = repertoire.map(c => c.telephone);
+        const bobStatus: BobVerificationResult = await syncService.verifierContactsBob(telephones);
+        
+        const repertoireAvecBob = repertoire.map(contact => ({
+          ...contact,
+          aSurBob: bobStatus.bobUsers[contact.telephone] || false,
+        }));
+        
+        setRepertoire(repertoireAvecBob);
+        await saveCachedData(contactsBruts, repertoireAvecBob, contacts, invitationsStrapi);
+      }
+      
+      console.log('✅ Sync Strapi terminée');
+      console.log('  📤 Invitations Strapi:', invitationsStrapi.length);
+      console.log('  📱 Contacts vérifiés:', repertoire.length);
+      
+    } catch (error) {
+      console.error('❌ Erreur sync Strapi:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [repertoire, contactsBruts, contacts]);
+
+  // 🆕 NOUVEAU: Synchroniser avec Strapi (version originale)
+    const syncAvecStrapi = useCallback(async () => {
+      if (!token) {
+        console.warn('⚠️ Pas de token pour sync Strapi');
+        return;
+      }
+      
+      try {
+        console.log('🔄 Synchronisation avec Strapi...');
+        setIsLoading(true);
+        
+        // 1. Récupérer l'état depuis Strapi
+        const strapiState = await syncService.getFullState();
+        
+        // 2. Mettre à jour les invitations depuis Strapi
+        const invitationsStrapi = strapiState.invitations.map((inv: any) => ({
+          id: inv.id,
+          telephone: inv.telephone,
+          nom: inv.nom,
+          type: inv.type as 'sms' | 'whatsapp',
+          statut: inv.statut,
+          dateEnvoi: inv.dateEnvoi,
+          nombreRelances: inv.nombreRelances || 0,
+          codeParrainage: inv.codeParrainage,
+        }));
+        
+        setInvitations(invitationsStrapi);
+        
+        // 3. Vérifier qui a Bob parmi mes contacts
+        if (repertoire.length > 0) {
+          const telephones = repertoire.map(c => c.telephone);
+          const bobStatus: BobVerificationResult = await syncService.verifierContactsBob(telephones);
+          
+          const repertoireAvecBob = repertoire.map(contact => ({
+            ...contact,
+            aSurBob: bobStatus.bobUsers[contact.telephone] || false,
+          }));
+          
+          setRepertoire(repertoireAvecBob);
+          await saveCachedData(contactsBruts, repertoireAvecBob, contacts, invitationsStrapi);
+        }
+        
+        console.log('✅ Sync Strapi terminée');
+        console.log('  📤 Invitations Strapi:', invitationsStrapi.length);
+        console.log('  📱 Contacts vérifiés:', repertoire.length);
+        
+      } catch (error) {
+        console.error('❌ Erreur sync Strapi:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }, [token, repertoire, contactsBruts, contacts]);
 
   const migrateOldCache = async () => {
     try {
@@ -530,6 +660,41 @@ export const useContactsBob = () => {
     }
   }, [contactsBruts, repertoire, contacts, invitations]);
 
+  // 🆕 NOUVEAU: Importer et synchroniser avec Strapi
+  const importerContactsEtSync = useCallback(async (contactIds: string[]) => {
+    // D'abord importer localement
+    await importerContactsSelectionnes(contactIds);
+    
+    // Puis sync avec Strapi - utiliser authService directement
+    const currentToken = await authService.getValidToken();
+    if (currentToken) {
+      console.log('🔄 Synchronisation des contacts avec Strapi...');
+      const contactsASync = contactsBruts
+        .filter(c => contactIds.includes(c.id))
+        .map(c => ({
+          id: typeof c.id === 'string' && !isNaN(Number(c.id)) ? Number(c.id) : Date.now() + Math.random(),
+          telephone: c.telephone,
+          nom: c.nom,
+          email: c.email,
+          groupes: [],
+          dateAjout: new Date().toISOString(),
+          actif: true,
+        }));
+      
+      try {
+        await syncService.syncContactsAvecStrapi(contactsASync);
+        console.log('✅ Contacts synchronisés avec Strapi');
+        
+        // Récupérer le statut Bob mis à jour avec le token actuel
+        await syncAvecStrapiWithToken(currentToken);
+      } catch (error) {
+        console.warn('⚠️ Sync Strapi échouée, continuant en local:', error);
+      }
+    } else {
+      console.warn('⚠️ Pas de token valide pour sync avec Strapi');
+    }
+  }, [importerContactsSelectionnes, contactsBruts, syncAvecStrapiWithToken]);
+
   const repartirAZero = useCallback(async (): Promise<void> => {
     try {
       console.log('🗑️ Remise à zéro du répertoire...');
@@ -571,6 +736,7 @@ export const useContactsBob = () => {
     }
   }, [repertoire, invitations, contacts, contactsBruts]);
 
+  // MODIFIÉ: inviterContact avec Strapi
   const inviterContact = useCallback(async (
     contact: ContactRepertoire, 
     type: 'sms' | 'whatsapp' = 'sms'
@@ -580,17 +746,36 @@ export const useContactsBob = () => {
     try {
       console.log(`📨 Invitation ${type} à ${contact.nom}`);
       
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const codeParrainage = generateParrainageCode();
       
+      // 🆕 NOUVEAU: Créer dans Strapi si token disponible
+      let invitationStrapi = null;
+      
+      if (token) {
+        try {
+          invitationStrapi = await invitationsService.createInvitation({
+            telephone: contact.telephone,
+            nom: contact.nom,
+            type,
+            codeParrainage,
+          }, token);
+          
+          console.log('✅ Invitation créée dans Strapi:', invitationStrapi.id);
+        } catch (error) {
+          console.warn('⚠️ Erreur Strapi, continuant en local:', error);
+        }
+      }
+      
+      // Créer l'invitation locale (toujours, pour le cache)
       const nouvelleInvitation: InvitationContact = {
-        id: Date.now() + Math.random(),
+        id: invitationStrapi?.id || Date.now() + Math.random(),
         telephone: contact.telephone,
         nom: contact.nom,
         type,
         statut: 'envoye',
-        dateEnvoi: new Date().toISOString(),
+        dateEnvoi: invitationStrapi?.dateEnvoi || new Date().toISOString(),
         nombreRelances: 0,
-        codeParrainage: generateParrainageCode(),
+        codeParrainage: invitationStrapi?.codeParrainage || codeParrainage,
       };
 
       const nouvellesInvitations = [...invitations, nouvelleInvitation];
@@ -620,7 +805,79 @@ export const useContactsBob = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [repertoire, invitations, contacts, contactsBruts]);
+  }, [repertoire, invitations, contacts, contactsBruts, token]);
+
+  // 🆕 NOUVEAU: Relancer une invitation
+  const relancerInvitation = useCallback(async (
+    contact: ContactRepertoire,
+    type: 'sms' | 'whatsapp' = 'sms'
+  ): Promise<void> => {
+    try {
+      console.log(`🔄 Relance invitation ${type} à ${contact.nom}`);
+      
+      const invitation = invitations.find(inv => inv.telephone === contact.telephone);
+      if (!invitation) {
+        throw new Error('Invitation introuvable');
+      }
+      
+      // Mettre à jour dans Strapi si connecté
+      if (token && invitation.id) {
+        try {
+          await invitationsService.relanceInvitation(invitation.id, token);
+          console.log('✅ Relance enregistrée dans Strapi');
+        } catch (error) {
+          console.warn('⚠️ Erreur Strapi relance:', error);
+        }
+      }
+      
+      // Mettre à jour localement
+      const updatedInvitations = invitations.map(inv => 
+        inv.id === invitation.id
+          ? {
+              ...inv,
+              nombreRelances: (inv.nombreRelances || 0) + 1,
+              dateRelance: new Date().toISOString(),
+            }
+          : inv
+      );
+      
+      setInvitations(updatedInvitations);
+      await saveCachedData(contactsBruts, repertoire, contacts, updatedInvitations);
+      
+      console.log('✅ Invitation relancée');
+    } catch (error) {
+      console.error('❌ Erreur relance:', error);
+      throw error;
+    }
+  }, [invitations, repertoire, contacts, contactsBruts, token]);
+
+  // 🆕 NOUVEAU: Annuler une invitation
+  const annulerInvitation = useCallback(async (contact: ContactRepertoire): Promise<void> => {
+    try {
+      console.log(`❌ Annulation invitation ${contact.nom}`);
+      
+      const updatedInvitations = invitations.map(inv => 
+        inv.telephone === contact.telephone
+          ? { ...inv, statut: 'annule' as const }
+          : inv
+      );
+      
+      const updatedRepertoire = repertoire.map(c => 
+        c.id === contact.id
+          ? { ...c, estInvite: false, dateInvitation: undefined }
+          : c
+      );
+      
+      setInvitations(updatedInvitations);
+      setRepertoire(updatedRepertoire);
+      await saveCachedData(contactsBruts, updatedRepertoire, contacts, updatedInvitations);
+      
+      console.log('✅ Invitation annulée');
+    } catch (error) {
+      console.error('❌ Erreur annulation:', error);
+      throw error;
+    }
+  }, [invitations, repertoire, contacts, contactsBruts]);
 
   const generateParrainageCode = (): string => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -749,6 +1006,7 @@ export const useContactsBob = () => {
   }, []);
 
   return {
+    // États
     isLoading,
     error,
     contactsBruts,
@@ -758,6 +1016,7 @@ export const useContactsBob = () => {
     scanProgress,
     lastScanDate,
     
+    // Méthodes principales
     scannerRepertoireBrut,
     scannerRepertoire: scannerRepertoireBrut,
     importerContactsSelectionnes,
@@ -766,6 +1025,13 @@ export const useContactsBob = () => {
     inviterContact,
     clearCache,
     
+    // 🆕 NOUVEAU: Méthodes Strapi
+    syncAvecStrapi,
+    importerContactsEtSync,
+    relancerInvitation,
+    annulerInvitation,
+    
+    // Utilitaires
     getStats,
     needsRefreshScan,
     clearError: () => setError(null),
