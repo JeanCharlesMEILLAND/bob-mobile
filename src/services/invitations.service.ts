@@ -707,16 +707,38 @@ export const invitationsService = {
     console.log('📝 Mise à jour statut invitation:', id, '→', nouveauStatut);
     
     try {
-      // 1. D'abord récupérer l'invitation actuelle pour avoir tous les champs
-      console.log('📄 Récupération invitation actuelle...');
+      // 1. Debug - lister toutes les invitations pour voir les IDs corrects
+      console.log('🔍 Debug - Liste des invitations disponibles...');
+      const listResponse = await apiClient.get('/api/invitations', token);
+      if (listResponse.ok) {
+        const listData = await listResponse.json();
+        console.log('📋 Invitations disponibles:', listData.data?.map(i => ({ 
+          id: i.id, 
+          documentId: i.documentId, 
+          telephone: i.telephone, 
+          statut: i.statut 
+        })));
+      }
+
+      // 2. D'abord récupérer l'invitation actuelle pour avoir tous les champs
+      console.log('📄 Récupération invitation actuelle avec ID:', id);
       const getResponse = await apiClient.get(`/api/invitations/${id}`, token);
       
+      let currentInvitation;
       if (!getResponse.ok) {
-        throw new Error(`Impossible de récupérer l'invitation: ${getResponse.status}`);
+        console.log('⚠️ Tentative avec /invitations/ au lieu de /api/invitations/...');
+        const getResponse2 = await apiClient.get(`/invitations/${id}`, token);
+        
+        if (!getResponse2.ok) {
+          throw new Error(`Impossible de récupérer l'invitation: GET /api/invitations/${id} -> ${getResponse.status}, GET /invitations/${id} -> ${getResponse2.status}`);
+        }
+        
+        currentInvitation = await getResponse2.json();
+        console.log('📄 Invitation trouvée via /invitations/:', currentInvitation);
+      } else {
+        currentInvitation = await getResponse.json();
+        console.log('📄 Invitation trouvée via /api/invitations/:', currentInvitation);
       }
-      
-      const currentInvitation = await getResponse.json();
-      console.log('📄 Invitation actuelle:', currentInvitation);
       
       // 2. Préparer les données complètes pour la mise à jour
       const invitationData = currentInvitation.data || currentInvitation;
