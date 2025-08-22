@@ -36,6 +36,16 @@
     "contactsAvailable": "{{count}} contact disponible",
     "contactsAvailable_plural": "{{count}} contacts disponibles",
     "allContactsAdded": "Tous vos contacts sont déjà ajoutés !",
+    "selectForChat": "Choisir un contact",
+    "available": "contact(s) disponible(s)",
+    "searchContacts": "Rechercher un contact...",
+    "noResults": "Aucun résultat trouvé",
+    "noContactsYet": "Aucun contact BOB disponible",
+    "online": "En ligne",
+    "justNow": "À l'instant",
+    "minutesAgo": "Il y a {{minutes}} min",
+    "hoursAgo": "Il y a {{hours}}h",
+    "daysAgo": "Il y a {{days}} jour(s)",
     
     "dashboard": {
       "quickActions": "Actions rapides",
@@ -186,23 +196,53 @@
     "profile": "Profil"
   },
   
+  "webLayout": {
+    "navigation": "Navigation",
+    "quickActions": "Actions rapides",
+    "myBobs": "Mes Bobs",
+    "messages": "Messages",
+    "collectiveBob": "BOB Collectif",
+    "organizeEvent": "Organiser un événement",
+    "test": "Tester",
+    "demoComplete": "Démo complète",
+    "member": "Membre Bob",
+    "logout": "Déconnexion",
+    "user": "Utilisateur"
+  },
+  
   "exchanges": {
     "title": "Échanges",
+    "titleWeb": "Mes Bobs",
     "welcome": "Bienvenue, {{username}} ! 👋",
+    "welcomeWeb": "Salut {{username}} ! 👋",
     "bobizPoints": "🏆 {{points}} Bobiz - {{level}}",
     "defaultLevel": "Débutant",
     "createExchange": "Créer un échange",
+    "createBob": "Créer un Bob",
     "myExchanges": "Mes échanges",
     "availableExchanges": "Échanges disponibles",
+    "recentExchanges": "Échanges récents",
     "noExchanges": "Aucun échange pour le moment",
+    "noExchangesDesc": "Créez votre premier Bob pour commencer à échanger avec votre réseau !",
     "comingSoon": "Fonctionnalité en cours de développement...",
+    
+    "stats": {
+      "title": "Vos statistiques",
+      "totalExchanges": "Total des échanges",
+      "activeBobs": "Bobs actifs", 
+      "completedBobs": "Bobs terminés",
+      "bobizEarned": "Bobiz gagnés"
+    },
+    
     "categories": {
       "all": "Tous",
       "lend": "Prêts",
       "borrow": "Emprunts",
       "services": "Services",
-      "events": "Événements"
+      "events": "Événements",
+      "available": "Disponibles"
     },
+    
     "actions": {
       "quickActions": "Actions rapides",
       "lend": "Prêter",
@@ -210,17 +250,27 @@
       "borrow": "Emprunter",
       "borrowDesc": "Rechercher objets disponibles",
       "events": "Événements",
-      "eventsDesc": "Organiser ou rejoindre"
+      "eventsDesc": "Organiser ou rejoindre",
+      "createBobDesc": "Proposer un prêt ou demander de l'aide à votre réseau",
+      "testBob": "Tester le parcours",
+      "testBobDesc": "Démonstration complète d'un Bob de prêt",
+      "testData": "Données de test",
+      "testDataDesc": "Injecter des exemples pour tester l'application",
+      "verifyStrapi": "Vérifier Strapi",
+      "verifyStrapiDesc": "Contrôler la sauvegarde des données backend",
+      "openChat": "Chat Bob",
+      "openChatDesc": "Discuter avec les participants"
     }
   },
   
   "events": {
-    "title": "Événements",
+    "title": "BOB Collectifs",
     "myEvents": "Mes événements",
     "upcomingEvents": "Événements à venir",
-    "createEvent": "Créer un événement",
+    "createEvent": "🎯 + Créer un BOB Collectif",
     "joinEvent": "Participer",
-    "noEvents": "Aucun événement pour le moment",
+    "noEvents": "Aucun BOB Collectif",
+    "createFirstEvent": "Créez votre premier BOB Collectif avec une liste de besoins et invitez vos contacts !",
     "comingSoon": "Fonctionnalité en cours de développement..."
   },
   

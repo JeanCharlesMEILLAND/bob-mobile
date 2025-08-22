@@ -186,23 +186,53 @@
     "profile": "Profile"
   },
   
+  "webLayout": {
+    "navigation": "Navigation",
+    "quickActions": "Quick Actions",
+    "myBobs": "My Bobs",
+    "messages": "Messages",
+    "collectiveBob": "BOB Collective",
+    "organizeEvent": "Organize an event",
+    "test": "Test",
+    "demoComplete": "Complete demo",
+    "member": "Bob Member",
+    "logout": "Logout",
+    "user": "User"
+  },
+  
   "exchanges": {
     "title": "Exchanges",
+    "titleWeb": "My Bobs",
     "welcome": "Welcome, {{username}}! 👋",
+    "welcomeWeb": "Hello {{username}}! 👋",
     "bobizPoints": "🏆 {{points}} Bobiz - {{level}}",
     "defaultLevel": "Beginner",
     "createExchange": "Create exchange",
+    "createBob": "Create a Bob",
     "myExchanges": "My exchanges",
     "availableExchanges": "Available exchanges",
+    "recentExchanges": "Recent Exchanges",
     "noExchanges": "No exchanges at the moment",
+    "noExchangesDesc": "Create your first Bob to start exchanging with your network!",
     "comingSoon": "Feature under development...",
+    
+    "stats": {
+      "title": "Your Statistics",
+      "totalExchanges": "Total Exchanges",
+      "activeBobs": "Active Bobs", 
+      "completedBobs": "Completed Bobs",
+      "bobizEarned": "Bobiz Earned"
+    },
+    
     "categories": {
       "all": "All",
       "lend": "Lending",
       "borrow": "Borrowing",
       "services": "Services",
-      "events": "Events"
+      "events": "Events",
+      "available": "Available"
     },
+    
     "actions": {
       "quickActions": "Quick actions",
       "lend": "Lend",
@@ -210,17 +240,25 @@
       "borrow": "Borrow",
       "borrowDesc": "Find available items",
       "events": "Events",
-      "eventsDesc": "Organize or join"
+      "eventsDesc": "Organize or join",
+      "createBobDesc": "Offer a loan or ask for help from your network",
+      "testBob": "Test Journey",
+      "testBobDesc": "Complete Bob lending demonstration",
+      "testData": "Test Data",
+      "testDataDesc": "Inject examples to test the application",
+      "verifyStrapi": "Verify Strapi",
+      "verifyStrapiDesc": "Check backend data backup"
     }
   },
   
   "events": {
-    "title": "Events",
+    "title": "BOB Collective",
     "myEvents": "My events",
     "upcomingEvents": "Upcoming events",
-    "createEvent": "Create event",
+    "createEvent": "🎯 + Create BOB Collective",
     "joinEvent": "Join",
-    "noEvents": "No events at the moment",
+    "noEvents": "No BOB Collective",
+    "createFirstEvent": "Create your first BOB Collective with a list of needs and invite your contacts!",
     "comingSoon": "Feature under development..."
   },
   

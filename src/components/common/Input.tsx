@@ -2,6 +2,7 @@
 import React from 'react';
 import { TextInput, StyleSheet, TextInputProps, View, Text } from 'react-native';
 import { Colors, Typography, Spacing, Radius } from '../../styles';
+import { WebStyles } from '../../styles/web';
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -31,6 +32,7 @@ export const Input: React.FC<InputProps> = ({
           styles.input,
           styles[inputVariant],
           styles[size],
+          WebStyles.input,
           style
         ]}
         placeholderTextColor={Colors.textSecondary}

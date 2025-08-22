@@ -16,6 +16,7 @@ import { useAuth } from '../../hooks';
 import { useContactsBob } from '../../hooks/useContactsBob';
 import { useSimpleNavigation } from '../../navigation/SimpleNavigation';
 import { Header, Button } from '../../components/common';
+import { WebStyles } from '../../styles/web';
 import { exchangesService } from '../../services/exchanges.service';
 import { authService } from '../../services/auth.service';
 import { styles } from './CreateBoberScreen.styles';
@@ -511,7 +512,7 @@ export const CreateBoberScreen: React.FC<CreateBoberProps> = ({
 
   return (
     <KeyboardAvoidingView 
-      style={styles.container}
+      style={[styles.container, WebStyles.container]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <Header 

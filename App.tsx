@@ -7,15 +7,18 @@ import { useAuth } from './src/hooks';
 import { LoadingScreen } from './src/components/common';
 import { 
   LoginScreen, 
-  ExchangesScreen, 
   EventsScreen, 
   ProfileScreen 
 } from './src/screens';
+import { ExchangesScreen } from './src/screens/exchanges';
 import { CreateExchangeScreen, CreateBoberScreen, BoberCardScreen, BobTestScenario, DataInjectionScreen, VerifyStrapi } from './src/screens/exchanges';
+import { CreateEventScreen } from './src/screens/events';
 import { ContactsRepertoireScreen } from './src/screens/contacts/ContactsRepertoireScreen';
+import { ChatScreen, ContactsListScreen } from './src/screens/chat';
 import { BottomNavigation } from './src/components/navigation';
 import { GlobalStyles, Colors } from './src/styles';
 import { ScreenType } from './src/types';
+import './src/utils/webCSS';
 
 import { NavigationContext } from './src/navigation/SimpleNavigation';
 
@@ -38,7 +41,7 @@ const AppContentSimple: React.FC = () => {
 
   const navigate = (screen: string, params?: any) => {
     console.log('🧭 Navigation vers:', screen, params);
-    if (screen === 'CreateExchange' || screen === 'CreateBober' || screen === 'BoberCard' || screen === 'BobTest' || screen === 'DataInjection' || screen === 'VerifyStrapi') {
+    if (screen === 'CreateExchange' || screen === 'CreateBober' || screen === 'BoberCard' || screen === 'BobTest' || screen === 'DataInjection' || screen === 'VerifyStrapi' || screen === 'CreateEvent' || screen === 'Chat' || screen === 'ContactsList') {
       setNavigationStack(prev => [...prev, { screen, params }]);
     }
   };
@@ -79,6 +82,25 @@ const AppContentSimple: React.FC = () => {
 
       if (currentStackItem.screen === 'VerifyStrapi') {
         return <VerifyStrapi />;
+      }
+
+      if (currentStackItem.screen === 'CreateEvent') {
+        return <CreateEventScreen />;
+      }
+
+      if (currentStackItem.screen === 'ContactsList') {
+        return <ContactsListScreen />;
+      }
+
+      if (currentStackItem.screen === 'Chat') {
+        return <ChatScreen 
+          chatId={currentStackItem.params?.chatId || 'bob_chat_001'}
+          chatTitle={currentStackItem.params?.chatTitle}
+          contactId={currentStackItem.params?.contactId}
+          contactName={currentStackItem.params?.contactName}
+          contactPhone={currentStackItem.params?.contactPhone}
+          isOnline={currentStackItem.params?.isOnline}
+        />;
       }
     }
     

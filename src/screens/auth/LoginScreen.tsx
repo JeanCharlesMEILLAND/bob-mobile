@@ -1,10 +1,11 @@
 ﻿// src/screens/auth/LoginScreen.tsx
 import React, { useState } from 'react';
-import { View, Text, Alert, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, Alert, StyleSheet, ScrollView, Platform } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../hooks';
-import { Button, Input } from '../../components/common';
+import { Button, Input, PasswordInput } from '../../components/common';
 import { Colors, Typography, Spacing, GlobalStyles } from '../../styles';
+import { WebStyles, getResponsiveStyle } from '../../styles/web';
 
 export const LoginScreen: React.FC = () => {
   const { t } = useTranslation();
@@ -46,7 +47,19 @@ export const LoginScreen: React.FC = () => {
     const result = await login(identifier, password);
     
     if (!result.success) {
-      Alert.alert(t('auth.errors.loginError'), result.error || t('auth.errors.unknownError'));
+      const errorMessage = result.error || 'Erreur de connexion inconnue';
+      Alert.alert(
+        '❌ Connexion échouée', 
+        errorMessage,
+        [
+          { text: 'Réessayer', style: 'default' },
+          { 
+            text: 'Utiliser test', 
+            onPress: fillTestCredentials,
+            style: 'default'
+          }
+        ]
+      );
     }
   };
 
@@ -68,7 +81,10 @@ export const LoginScreen: React.FC = () => {
     setPassword('password123');
     setIsRegisterMode(false);
     setErrors({});
-    Alert.alert('Info', t('auth.testCredentialsAdded'));
+    Alert.alert(
+      '🧪 Identifiants de test', 
+      'Identifiants remplis automatiquement:\n• Email: test@bob.com\n• Mot de passe: password123\n\nAutres comptes disponibles:\n• admin@bob.com / admin123\n• marie@bob.com / marie123\n• test / test'
+    );
   };
 
   const handleTestConnection = async () => {
@@ -95,15 +111,15 @@ export const LoginScreen: React.FC = () => {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.header}>
+    <ScrollView style={[styles.container, WebStyles.scrollView]} contentContainerStyle={styles.content}>
+      <View style={[styles.header, WebStyles.header]}>
         <Text style={styles.title}>Bob</Text>
         <Text style={styles.subtitle}>
           {isRegisterMode ? t('auth.registerSubtitle') : t('auth.loginSubtitle')}
         </Text>
       </View>
       
-      <View style={styles.form}>
+      <View style={[styles.form, WebStyles.form]}>
         {isRegisterMode ? (
           <>
             <Input
@@ -137,23 +153,21 @@ export const LoginScreen: React.FC = () => {
           />
         )}
         
-        <Input
+        <PasswordInput
           label={t('auth.password') + ' *'}
           placeholder={t('auth.password')}
           value={password}
           onChangeText={setPassword}
           error={errors.password}
-          secureTextEntry
         />
         
         {isRegisterMode && (
-          <Input
+          <PasswordInput
             label={t('auth.confirmPassword') + ' *'}
             placeholder={t('auth.confirmPassword')}
             value={confirmPassword}
             onChangeText={setConfirmPassword}
             error={errors.confirmPassword}
-            secureTextEntry
           />
         )}
         
@@ -162,7 +176,7 @@ export const LoginScreen: React.FC = () => {
           title={isRegisterMode ? t('auth.registerButton') : t('auth.loginButton')}
           onPress={isRegisterMode ? handleRegister : handleLogin}
           loading={isLoading}
-          style={styles.actionButton}
+          style={[styles.actionButton, WebStyles.button]}
         />
         
         {/* Toggle Mode Button */}
@@ -170,12 +184,20 @@ export const LoginScreen: React.FC = () => {
           title={isRegisterMode ? t('auth.switchToLogin') : t('auth.switchToRegister')}
           variant="secondary"
           onPress={toggleMode}
-          style={styles.toggleButton}
+          style={[styles.toggleButton, WebStyles.button]}
         />
         
         {/* Test Buttons */}
         {!isRegisterMode && (
           <View style={styles.testButtons}>
+            <View style={styles.helpSection}>
+              <Text style={styles.helpTitle}>🧪 Identifiants de test disponibles :</Text>
+              <Text style={styles.helpText}>• test@bob.com / password123</Text>
+              <Text style={styles.helpText}>• admin@bob.com / admin123</Text>
+              <Text style={styles.helpText}>• marie@bob.com / marie123</Text>
+              <Text style={styles.helpText}>• test / test</Text>
+            </View>
+            
             <Button
               title={t('auth.useTestCredentials')}
               variant="success"
@@ -244,6 +266,31 @@ const styles = StyleSheet.create({
     marginTop: Spacing.lg,
     gap: Spacing.sm,
     alignItems: 'center',
+  },
+  
+  helpSection: {
+    backgroundColor: '#F0F8FF',
+    padding: Spacing.md,
+    borderRadius: 8,
+    marginBottom: Spacing.md,
+    borderLeftWidth: 4,
+    borderLeftColor: Colors.primary,
+    width: '100%',
+  },
+  
+  helpTitle: {
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.semibold,
+    color: Colors.primary,
+    marginBottom: Spacing.xs,
+    textAlign: 'center',
+  },
+  
+  helpText: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.textSecondary,
+    marginVertical: 2,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   
   testConnectionButton: {

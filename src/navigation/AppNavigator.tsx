@@ -2,6 +2,7 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
+import { WebStyles, isWebDesktop } from '../styles/web';
 
 // Ã‰crans
 import { LoginScreen } from '../screens/auth/LoginScreen';
@@ -9,6 +10,7 @@ import { RegisterScreen } from '../screens/auth/RegisterScreen';
 import { ExchangesScreen } from '../screens/exchanges/ExchangesScreen';
 import { CreateExchangeScreen } from '../screens/exchanges/CreateExchangeScreen';
 import { EventsScreen } from '../screens/events/EventsScreen';
+import { CreateEventScreen } from '../screens/events/CreateEventScreen';
 import { ContactsScreen } from '../screens/contacts/ContactsScreen';
 import { ProfileScreen } from '../screens/profile/ProfileScreen';
 
@@ -19,6 +21,7 @@ const RootStack = createStackNavigator();
 const AuthStack = createStackNavigator();
 const MainTab = createBottomTabNavigator();
 const ExchangesStack = createStackNavigator();
+const EventsStack = createStackNavigator();
 
 // Stack Authentification
 function AuthNavigator() {
@@ -40,6 +43,16 @@ function ExchangesNavigator() {
   );
 }
 
+// Stack Événements
+function EventsNavigator() {
+  return (
+    <EventsStack.Navigator screenOptions={{ headerShown: false }}>
+      <EventsStack.Screen name="EventsList" component={EventsScreen} />
+      <EventsStack.Screen name="CreateEvent" component={CreateEventScreen} />
+    </EventsStack.Navigator>
+  );
+}
+
 // Tabs principales
 function MainNavigator() {
   return (
@@ -52,6 +65,7 @@ function MainNavigator() {
         tabBarActiveTintColor: '#3B82F6',
         tabBarInactiveTintColor: 'gray',
         headerShown: false,
+        tabBarStyle: isWebDesktop() ? WebStyles.bottomNavigation : undefined,
       })}
     >
       <MainTab.Screen 
@@ -61,8 +75,8 @@ function MainNavigator() {
       />
       <MainTab.Screen 
         name="Events" 
-        component={EventsScreen}
-        options={{ tabBarLabel: 'Ã‰vÃ©nements' }}
+        component={EventsNavigator}
+        options={{ tabBarLabel: 'Événements' }}
       />
       <MainTab.Screen 
         name="Contacts" 

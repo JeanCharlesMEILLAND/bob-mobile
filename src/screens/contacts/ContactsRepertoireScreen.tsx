@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useContactsBob } from '../../hooks/useContactsBob';
 import { Colors, Typography, Spacing } from '../../styles';
+import { WebStyles } from '../../styles/web';
 
 // Import des composants découpés
 import { PermissionModal } from '../../components/contacts/PermissionModal';
@@ -188,7 +189,7 @@ export const ContactsRepertoireScreen = () => {
       };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, WebStyles.container]}>
       {/* Header avec badge notification */}
       <View style={styles.dashboardHeader}>
          <View style={styles.headerContent}>

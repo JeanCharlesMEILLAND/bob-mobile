@@ -185,23 +185,53 @@
     "profile": "Profil"
   },
   
+  "webLayout": {
+    "navigation": "Nawigacja",
+    "quickActions": "Szybkie akcje",
+    "myBobs": "Moje Boby",
+    "messages": "Wiadomości",
+    "collectiveBob": "BOB Kolektywny",
+    "organizeEvent": "Organizuj wydarzenie",
+    "test": "Testuj",
+    "demoComplete": "Pełna demonstracja",
+    "member": "Członek Bob",
+    "logout": "Wyloguj się",
+    "user": "Użytkownik"
+  },
+  
   "exchanges": {
     "title": "Wymiany",
+    "titleWeb": "Moje Boby",
     "welcome": "Witaj, {{username}}! 👋",
+    "welcomeWeb": "Cześć {{username}}! 👋",
     "bobizPoints": "🏆 {{points}} Bobiz - {{level}}",
     "defaultLevel": "Początkujący",
     "createExchange": "Utwórz wymianę",
+    "createBob": "Utwórz Bob",
     "myExchanges": "Moje wymiany",
     "availableExchanges": "Dostępne wymiany",
+    "recentExchanges": "Najnowsze wymiany",
     "noExchanges": "Brak wymian w tym momencie",
+    "noExchangesDesc": "Utwórz swojego pierwszego Boba, aby zacząć wymieniać się ze swoją siecią!",
     "comingSoon": "Funkcja w trakcie rozwoju...",
+    
+    "stats": {
+      "title": "Twoje statystyki",
+      "totalExchanges": "Wszystkie wymiany",
+      "activeBobs": "Aktywne Boby", 
+      "completedBobs": "Zakończone Boby",
+      "bobizEarned": "Zdobyte Bobiz"
+    },
+    
     "categories": {
       "all": "Wszystkie",
       "lend": "Pożyczanie",
       "borrow": "Wypożyczanie",
       "services": "Usługi",
-      "events": "Wydarzenia"
+      "events": "Wydarzenia",
+      "available": "Dostępne"
     },
+    
     "actions": {
       "quickActions": "Szybkie akcje",
       "lend": "Pożycz",
@@ -209,17 +239,25 @@
       "borrow": "Wypożycz",
       "borrowDesc": "Znajdź dostępne przedmioty",
       "events": "Wydarzenia",
-      "eventsDesc": "Organizuj lub dołącz"
+      "eventsDesc": "Organizuj lub dołącz",
+      "createBobDesc": "Zaproponuj pożyczkę lub poproś o pomoc swoją sieć",
+      "testBob": "Testuj podróż",
+      "testBobDesc": "Kompletna demonstracja pożyczania Boba",
+      "testData": "Dane testowe",
+      "testDataDesc": "Wstrzyknij przykłady do testowania aplikacji",
+      "verifyStrapi": "Sprawdź Strapi",
+      "verifyStrapiDesc": "Sprawdź kopię zapasową danych backendu"
     }
   },
   
   "events": {
-    "title": "Wydarzenia",
+    "title": "BOB Kolektywny",
     "myEvents": "Moje wydarzenia",
     "upcomingEvents": "Nadchodzące wydarzenia",
-    "createEvent": "Utwórz wydarzenie",
+    "createEvent": "🎯 + Utwórz BOB Kolektywny",
     "joinEvent": "Dołącz",
-    "noEvents": "Brak wydarzeń w tym momencie",
+    "noEvents": "Brak BOB Kolektywnego",
+    "createFirstEvent": "Utwórz swój pierwszy BOB Kolektywny z listą potrzeb i zaproś swoich kontaktów!",
     "comingSoon": "Funkcja w trakcie rozwoju..."
   },
   

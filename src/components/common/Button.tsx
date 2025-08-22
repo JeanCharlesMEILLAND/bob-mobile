@@ -2,6 +2,7 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle } from 'react-native';
 import { Colors, Typography, Spacing, Radius } from '../../styles';
+import { WebStyles } from '../../styles/web';
 
 interface ButtonProps {
   title: string;
@@ -31,6 +32,7 @@ export const Button: React.FC<ButtonProps> = ({
         styles[variant],
         styles[size],
         (disabled || loading) && styles.disabled,
+        WebStyles.button,
         style,
       ]}
       onPress={onPress}

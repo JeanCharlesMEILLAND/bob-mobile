@@ -12,6 +12,7 @@ import { Header, Button } from '../../components/common';
 import { BoberCardScreen, BoberData } from './BoberCardScreen';
 import { mockBoberExamples } from './mockBoberData';
 import { styles } from './BobTestScenario.styles';
+import { WebStyles } from '../../styles/web';
 
 type UserRole = 'preteur' | 'emprunteur';
 type TestStep = 'menu' | 'create_bob' | 'bob_created' | 'switch_user' | 'view_as_borrower';
@@ -357,7 +358,7 @@ export const BobTestScenario: React.FC = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, WebStyles.container]}>
       <Header 
         title={getScreenTitle()}
         showBackButton={true}

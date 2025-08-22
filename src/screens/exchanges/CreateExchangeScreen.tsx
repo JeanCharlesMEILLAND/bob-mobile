@@ -13,6 +13,7 @@ import { useTranslation } from 'react-i18next';
 import { useSimpleNavigation } from '../../navigation/SimpleNavigation';
 import { Header } from '../../components/common';
 import { styles } from './CreateExchangeScreen.styles';
+import { WebStyles } from '../../styles/web';
 
 type BoberType = 'pret' | 'emprunt' | 'service_offert' | 'service_demande';
 
@@ -111,7 +112,7 @@ export const CreateExchangeScreen: React.FC = () => {
 
   return (
     <KeyboardAvoidingView 
-      style={styles.container}
+      style={[styles.container, WebStyles.container]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <Header 

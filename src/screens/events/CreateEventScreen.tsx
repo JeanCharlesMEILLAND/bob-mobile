@@ -14,8 +14,11 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../hooks';
 import { Header, Button } from '../../components/common';
 import { styles } from './CreateEventScreen.styles';
+import { useSimpleNavigation } from '../../navigation/SimpleNavigation';
+import { WebStyles } from '../../styles/web';
 import { invitationsService } from '../../services/invitations.service';
 import { authService } from '../../services/auth.service';
+import { eventsService } from '../../services/events.service';
 
 interface EventNeed {
   id: string;
@@ -46,6 +49,7 @@ type TargetType = 'groups' | 'contacts' | 'all';
 
 export const CreateEventScreen: React.FC = () => {
   const { user } = useAuth();
+  const navigation = useSimpleNavigation();
   
   // Event basic info
   const [title, setTitle] = useState('');
@@ -231,13 +235,15 @@ export const CreateEventScreen: React.FC = () => {
         ciblage: targeting
       };
 
-      console.log('🎉 Création événement:', eventData);
+      console.log('🎉 Création événement BOB Collectif:', eventData);
       
-      // 1. Créer l'événement (API call nécessaire)
-      // const newEvent = await eventsService.createEvent(eventData, user?.token);
+      // 1. Créer l'événement via l'API
+      const token = await authService.getValidToken();
+      if (!token) {
+        throw new Error('Token d\'authentification requis');
+      }
       
-      // Pour la démonstration, simulons la création
-      const mockEventId = Date.now();
+      const newEvent = await eventsService.createEvent(eventData, token);
       
       // 2. Prévisualiser qui recevra les invitations
       try {
@@ -251,7 +257,7 @@ export const CreateEventScreen: React.FC = () => {
         
         // 3. Envoyer les invitations
         const invitationResult = await invitationsService.sendEventInvitations(
-          mockEventId,
+          newEvent.id,
           targeting,
           token
         );
@@ -264,10 +270,11 @@ export const CreateEventScreen: React.FC = () => {
           `\n\nUn chat de groupe sera créé dès la première participation.`;
         
         Alert.alert(
-          'Succès !',
+          'BOB Collectif créé !',
           successMessage,
           [{ text: 'OK', onPress: () => {
-            // TODO: Navigation vers EventDetailScreen avec mockEventId
+            // TODO: Navigation vers EventDetailScreen avec newEvent.id
+            console.log('📱 Navigation vers événement:', newEvent.id);
           }}]
         );
       } catch (previewError) {
@@ -275,10 +282,10 @@ export const CreateEventScreen: React.FC = () => {
         
         // Fallback : créer l'événement sans invitations pour l'instant
         Alert.alert(
-          'Événement créé !', 
-          'Votre événement a été créé. Les invitations seront envoyées prochainement.',
+          'BOB Collectif créé !', 
+          `Votre BOB Collectif "${newEvent.titre}" a été créé avec succès ! Les invitations seront envoyées prochainement.`,
           [{ text: 'OK', onPress: () => {
-            // TODO: Navigation vers EventDetailScreen
+            console.log('📱 Navigation vers événement créé:', newEvent.id);
           }}]
         );
       }
@@ -318,12 +325,20 @@ export const CreateEventScreen: React.FC = () => {
 
   return (
     <KeyboardAvoidingView 
-      style={styles.container}
+      style={[styles.container, WebStyles.container]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <Header title="Créer un événement" />
+      <Header 
+        title="Créer un événement" 
+        showBackButton={true}
+        onBackPress={navigation.goBack}
+      />
       
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={[styles.content, WebStyles.scrollView]} 
+        contentContainerStyle={WebStyles.container}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Basic Event Info */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Informations générales</Text>

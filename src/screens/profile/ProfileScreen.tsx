@@ -6,6 +6,7 @@ import { useAuth } from '../../hooks';
 import { Header } from '../../components/common';
 import { LanguageSelector } from '../../components/common/LanguageSelector';
 import { styles } from './ProfileScreen.styles';
+import { WebStyles } from '../../styles/web';
 
 interface ProfileActionProps {
   icon: string;
@@ -28,7 +29,9 @@ const ProfileAction: React.FC<ProfileActionProps> = ({
     style={[
       styles.actionCard, 
       variant === 'highlight' && styles.actionCardHighlight,
-      variant === 'danger' && styles.actionCardDanger
+      variant === 'danger' && styles.actionCardDanger,
+      WebStyles.card,
+      WebStyles.button
     ]}
     onPress={onPress}
   >

@@ -13,6 +13,7 @@ import { useSimpleNavigation } from '../../navigation/SimpleNavigation';
 import { Header } from '../../components/common';
 // import QRCode from 'react-native-qrcode-svg'; // TODO: Installer react-native-qrcode-svg
 import { styles } from './BoberCardScreen.styles';
+import { WebStyles } from '../../styles/web';
 
 export interface BoberData {
   id: string;
@@ -227,7 +228,7 @@ export const BoberCardScreen: React.FC<BoberCardScreenProps> = ({
 
   if (!bober) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, WebStyles.container]}>
         <Header 
           title="Chargement..."
           showBackButton={true}
@@ -244,7 +245,7 @@ export const BoberCardScreen: React.FC<BoberCardScreenProps> = ({
   const statusInfo = getStatusInfo(bober.status);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, WebStyles.container]}>
       <Header 
         title={typeInfo.label}
         showBackButton={true}

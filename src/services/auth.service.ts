@@ -14,33 +14,76 @@ class AuthService {
 
   async login(data: LoginData): Promise<AuthResponse> {
     console.log('🔄 AuthService - Tentative de connexion avec:', data.identifier);
-    console.log('📡 Envoi requête vers: /auth/local');
     
-    const response = await apiClient.post('/auth/local', data);
-    
-    console.log('📥 Réponse status:', response.status);
-    console.log('📥 Réponse OK:', response.ok);
+    // 🧪 MODE TEST LOCAL - Identifiants prédéfinis
+    const localTestCredentials = [
+      { identifier: 'test@bob.com', password: 'password123', username: 'TestUser', bobizPoints: 250 },
+      { identifier: 'admin@bob.com', password: 'admin123', username: 'Admin', bobizPoints: 1000 },
+      { identifier: 'marie@bob.com', password: 'marie123', username: 'Marie Dupont', bobizPoints: 320 },
+      { identifier: 'test', password: 'test', username: 'Demo User', bobizPoints: 100 }
+    ];
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('❌ Erreur réponse:', errorText);
-      throw new Error('Identifiants incorrects');
+    // Vérifier d'abord les identifiants locaux
+    const localUser = localTestCredentials.find(cred => 
+      (cred.identifier === data.identifier || cred.username.toLowerCase() === data.identifier.toLowerCase()) && 
+      cred.password === data.password
+    );
+
+    if (localUser) {
+      console.log('✅ Connexion locale réussie! User:', localUser.username);
+      
+      const mockResult = {
+        jwt: 'mock-jwt-token-' + Date.now(),
+        user: {
+          id: Math.random().toString(36).substr(2, 9),
+          username: localUser.username,
+          email: localUser.identifier.includes('@') ? localUser.identifier : `${localUser.username.toLowerCase().replace(' ', '.')}@bob.com`,
+          bobizPoints: localUser.bobizPoints
+        }
+      };
+
+      // 💾 Sauvegarder automatiquement la session avec cache
+      try {
+        await this.setSession(mockResult.jwt, mockResult.user);
+        console.log('💾 Session locale sauvegardée automatiquement');
+      } catch (error) {
+        console.warn('⚠️ Erreur sauvegarde session:', error);
+      }
+
+      return mockResult;
     }
 
-    const result = await response.json();
-    console.log('✅ Connexion réussie! User:', result.user.username);
-    console.log('🔑 JWT reçu:', result.jwt ? 'OUI' : 'NON');
-    
-    // 💾 Sauvegarder automatiquement la session avec cache
+    // Si pas de match local, essayer le serveur distant
     try {
-      await this.setSession(result.jwt, result.user);
-      console.log('💾 Session sauvegardée automatiquement');
-    } catch (error) {
-      console.warn('⚠️ Erreur sauvegarde session:', error);
-      // Ne pas faire échouer le login pour autant
+      console.log('📡 Envoi requête vers: /auth/local');
+      const response = await apiClient.post('/auth/local', data);
+      
+      console.log('📥 Réponse status:', response.status);
+      console.log('📥 Réponse OK:', response.ok);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Erreur réponse serveur:', errorText);
+        throw new Error('Identifiants incorrects. Utilisez les identifiants de test:\n• test@bob.com / password123\n• admin@bob.com / admin123\n• marie@bob.com / marie123\n• test / test');
+      }
+
+      const result = await response.json();
+      console.log('✅ Connexion serveur réussie! User:', result.user.username);
+      
+      // 💾 Sauvegarder automatiquement la session avec cache
+      try {
+        await this.setSession(result.jwt, result.user);
+        console.log('💾 Session serveur sauvegardée automatiquement');
+      } catch (error) {
+        console.warn('⚠️ Erreur sauvegarde session:', error);
+      }
+      
+      return result;
+
+    } catch (serverError) {
+      console.error('❌ Erreur serveur, utilisation du mode local uniquement');
+      throw new Error('Connexion impossible. Utilisez les identifiants de test:\n• test@bob.com / password123\n• admin@bob.com / admin123\n• marie@bob.com / marie123\n• test / test');
     }
-    
-    return result;
   }
 
   async register(data: RegisterData): Promise<AuthResponse> {

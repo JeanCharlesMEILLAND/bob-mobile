@@ -6,13 +6,16 @@ import {
   ScrollView, 
   TouchableOpacity, 
   RefreshControl,
-  FlatList 
+  FlatList,
+  Platform 
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../hooks';
 import { Header } from '../../components/common';
 import { useSimpleNavigation } from '../../navigation/SimpleNavigation';
 import { styles } from './ExchangesScreen.styles';
+import { WebStyles, getResponsiveStyle, isWebDesktop } from '../../styles/web';
+import { ExchangesScreenWeb } from './ExchangesScreen.web';
 
 interface Exchange {
   id: string;
@@ -56,7 +59,9 @@ const QuickAction: React.FC<QuickActionProps> = ({
   <TouchableOpacity 
     style={[
       styles.actionCard, 
-      variant === 'primary' && styles.actionCardPrimary
+      variant === 'primary' && styles.actionCardPrimary,
+      WebStyles.button,
+      WebStyles.card
     ]}
     onPress={onPress}
   >
@@ -106,7 +111,7 @@ const ExchangeCard: React.FC<ExchangeCardProps> = ({ exchange, onPress }) => {
   const statusInfo = getStatusInfo(exchange.statut);
 
   return (
-    <TouchableOpacity style={styles.exchangeCard} onPress={onPress}>
+    <TouchableOpacity style={[styles.exchangeCard, WebStyles.card, WebStyles.button]} onPress={onPress}>
       <View style={styles.exchangeHeader}>
         <View style={styles.exchangeTypeContainer}>
           <Text style={styles.exchangeTypeIcon}>{typeInfo.icon}</Text>
@@ -136,7 +141,7 @@ const ExchangeCard: React.FC<ExchangeCardProps> = ({ exchange, onPress }) => {
   );
 };
 
-export const ExchangesScreen: React.FC = () => {
+export const ExchangesScreenMobile: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
   const navigation = useSimpleNavigation();
@@ -225,11 +230,12 @@ export const ExchangesScreen: React.FC = () => {
   });
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, WebStyles.container]}>
       <Header title={t('exchanges.title')} />
       
       <ScrollView 
-        style={styles.content}
+        style={[styles.content, WebStyles.scrollView]}
+        contentContainerStyle={WebStyles.container}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         showsVerticalScrollIndicator={false}
       >
@@ -250,7 +256,7 @@ export const ExchangesScreen: React.FC = () => {
 
         {/* Stats Cards */}
         <View style={styles.statsSection}>
-          <View style={styles.statsGrid}>
+          <View style={[styles.statsGrid, isWebDesktop() ? WebStyles.grid : {}]}>
             <View style={[styles.statCard, styles.statCardPrimary]}>
               <Text style={styles.statIcon}>📊</Text>
               <Text style={styles.statNumber}>{stats.totalExchanges}</Text>

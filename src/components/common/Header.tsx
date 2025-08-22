@@ -2,6 +2,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Colors, Typography, Spacing, GlobalStyles } from '../../styles';
+import { WebStyles } from '../../styles/web';
 
 interface HeaderProps {
   title: string;
@@ -19,12 +20,12 @@ export const Header: React.FC<HeaderProps> = ({
   leftElement,
 }) => {
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, WebStyles.header]}>
       <View style={styles.content}>
         {/* Left side */}
         <View style={styles.leftSide}>
           {showBackButton && onBackPress ? (
-            <TouchableOpacity onPress={onBackPress} style={styles.backButton}>
+            <TouchableOpacity onPress={onBackPress} style={[styles.backButton, WebStyles.button]}>
               <Text style={styles.backButtonText}>← Retour</Text>
             </TouchableOpacity>
           ) : leftElement ? (

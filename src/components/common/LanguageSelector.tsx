@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { changeLanguage, LANGUAGES, Language } from '../../i18n';
+import { WebStyles } from '../../styles/web';
 
 interface LanguageSelectorProps {
   visible: boolean;
@@ -43,10 +44,10 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
       onRequestClose={onClose}
     >
       <View style={styles.overlay}>
-        <View style={styles.container}>
+        <View style={[styles.container, WebStyles.modal]}>
           <View style={styles.header}>
             <Text style={styles.title}>{t('settings.chooseLanguage')}</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <TouchableOpacity onPress={onClose} style={[styles.closeButton, WebStyles.button]}>
               <Text style={styles.closeButtonText}>✕</Text>
             </TouchableOpacity>
           </View>
@@ -58,6 +59,7 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
                 style={[
                   styles.languageOption,
                   selectedLanguage === language.code && styles.selectedOption,
+                  WebStyles.button
                 ]}
                 onPress={() => handleLanguageSelect(language.code)}
               >
