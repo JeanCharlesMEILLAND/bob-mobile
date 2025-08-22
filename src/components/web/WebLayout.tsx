@@ -57,8 +57,15 @@ const navigationItems: Omit<NavItem, 'label'>[] = [
   },
 ];
 
-// Quick actions seront traduites dans le composant 
-const quickActions: Omit<typeof quickActions[0], 'label' | 'description'>[] = [
+// Quick actions seront traduites dans le composant
+interface QuickAction {
+  id: string;
+  icon: string;
+  screen: string;
+  color: string;
+}
+
+const quickActions: QuickAction[] = [
   {
     id: 'create-bob',
     icon: '➕',
@@ -89,7 +96,7 @@ export const WebLayout: React.FC<WebLayoutProps> = ({
   const { user, logout } = useAuth();
   const navigation = useSimpleNavigation();
 
-  if (!getWebStyle(true, false)) {
+  if (!getWebStyle({ display: 'flex' }, false)) {
     // Fallback pour mobile - pas de layout web
     return <>{children}</>;
   }
@@ -494,7 +501,7 @@ export const WebLayout: React.FC<WebLayoutProps> = ({
 
             <View style={styles.navSection}>
               <Text style={styles.navSectionTitle}>{t('webLayout.quickActions')}</Text>
-              {quickActions.map((action) => (
+              {quickActions.map((action: QuickAction) => (
                 <TouchableOpacity
                   key={action.id}
                   style={styles.quickActionItem}

@@ -151,7 +151,7 @@ export const InvitationInterface: React.FC<InvitationInterfaceProps> = ({
       ? `https://bob-app.com/invite/${codeParrainage}`
       : 'bob-app.com/invite';
     
-    return generateTranslatedMessageStatic(channel, selectedTemplate, {
+    return generateTranslatedMessageStatic(channel as 'sms' | 'whatsapp', selectedTemplate, {
       firstName: contact.nom.split(' ')[0],
       link: inviteLink,
     }, i18n.language);
@@ -237,7 +237,7 @@ export const InvitationInterface: React.FC<InvitationInterfaceProps> = ({
       );
     } catch (error) {
       console.error('❌ Erreur envoi invitation:', error);
-      Alert.alert(t('common.error'), t('contacts.invitation.errorSending', { error: error.message }));
+      Alert.alert(t('common.error'), t('contacts.invitation.errorSending', { error: error instanceof Error ? error.message : 'Erreur inconnue' }));
     }
   };
 

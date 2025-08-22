@@ -295,8 +295,26 @@ export const WebDesign = {
   },
 };
 
+// Types pour les styles web
+interface WebStyleObject {
+  [key: string]: any;
+  cursor?: 'pointer' | 'default' | 'text' | 'wait' | 'help';
+  transition?: string;
+  transform?: string;
+  boxShadow?: string;
+  borderRadius?: number | string;
+  backgroundColor?: string;
+  borderColor?: string;
+  outline?: string;
+  overflowY?: 'auto' | 'hidden' | 'scroll' | 'visible';
+  maxHeight?: string;
+  minHeight?: number | string;
+  paddingHorizontal?: number;
+  marginHorizontal?: string | number;
+}
+
 // Helpers pour utilisation conditionnelle
-export const getWebStyle = (webStyle: any, mobileStyle: any = {}) => {
+export const getWebStyle = (webStyle: WebStyleObject, mobileStyle: any = {}) => {
   return isWeb ? webStyle : mobileStyle;
 };
 

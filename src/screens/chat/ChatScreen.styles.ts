@@ -52,6 +52,9 @@ export const styles = StyleSheet.create({
     backgroundColor: '#F8F9FA',
     ...(Platform.OS === 'web' && {
       position: 'relative',
+      display: 'flex',
+      flexDirection: 'column',
+      height: '100%',
     }),
   },
 
@@ -59,10 +62,17 @@ export const styles = StyleSheet.create({
   messagesList: {
     flex: 1,
     paddingVertical: 8,
+    ...(Platform.OS === 'web' && {
+      overflowY: 'auto',
+      maxHeight: 'calc(100vh - 200px)',
+    }),
   },
 
   messagesContainer: {
     paddingBottom: 16,
+    paddingHorizontal: 8,
+    flexGrow: 1,
+    justifyContent: 'flex-end',
   },
 
   // Zone de saisie

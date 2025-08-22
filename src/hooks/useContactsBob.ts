@@ -7,7 +7,7 @@ import { storageService } from '../services/storage.service';
 import { syncService } from '../services/sync.service';
 import { invitationsService } from '../services/invitations.service';
 import { authService } from '../services/auth.service';
-import type { BobVerificationResult } from '../services/sync.service';
+import type { Contact } from '../types/contacts.types';
 
 interface ContactBob {
   id: number;
@@ -66,6 +66,17 @@ interface ScanProgress {
   currentCount?: number;
   totalCount?: number;
   message?: string;
+}
+
+// 🆕 NOUVEAU: Status de synchronisation
+interface SyncStatus {
+  state: 'idle' | 'uploading' | 'downloading' | 'success' | 'error' | 'retrying';
+  progress: number;
+  message: string;
+  lastSync?: string;
+  errors?: string[];
+  retryCount?: number;
+  maxRetries?: number;
 }
 
 const STORAGE_KEYS = {
@@ -137,6 +148,15 @@ export const useContactsBob = () => {
     progress: 0,
   });
   const [lastScanDate, setLastScanDate] = useState<string | null>(null);
+  
+  // 🆕 NOUVEAU: Status de synchronisation
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>({
+    state: 'idle',
+    progress: 0,
+    message: 'Prêt à synchroniser',
+    maxRetries: 3,
+    retryCount: 0,
+  });
 
   // 🆕 NOUVEAU: Charger le token au démarrage
   useEffect(() => {
@@ -199,7 +219,36 @@ export const useContactsBob = () => {
       // 3. Transformer les contacts en users automatiquement
       if (repertoire.length > 0) {
         console.log('🔄 Transformation automatique contacts → users...');
-        const enrichedRepertoire = await syncService.transformContactsToUsers(repertoire, tokenToUse);
+        // Convertir ContactRepertoire[] vers Contact[] pour l'API
+        const contactsForApi: Contact[] = repertoire.map(r => ({
+          id: typeof r.id === 'string' ? parseInt(r.id) || 0 : r.id,
+          nom: r.nom,
+          telephone: r.telephone,
+          email: r.email,
+          groupes: [],
+          dateAjout: r.lastUpdated || new Date().toISOString(),
+          actif: true,
+          aSurBob: r.aSurBob,
+        }));
+        
+        const enrichedContacts = await syncService.transformContactsToUsers(contactsForApi, tokenToUse);
+        
+        // Convertir Contact[] vers ContactRepertoire[] pour l'état local
+        const enrichedRepertoire: ContactRepertoire[] = enrichedContacts.map(c => {
+          const originalContact = repertoire.find(r => r.telephone === c.telephone);
+          return {
+            id: originalContact?.id || c.id.toString(),
+            nom: c.nom,
+            telephone: c.telephone || '',
+            email: c.email,
+            aSurBob: c.aSurBob || false,
+            estInvite: originalContact?.estInvite || false,
+            dateInvitation: originalContact?.dateInvitation,
+            nombreInvitations: originalContact?.nombreInvitations,
+            lastUpdated: new Date().toISOString(),
+            source: originalContact?.source || 'curation',
+          };
+        });
         
         setRepertoire(enrichedRepertoire);
         await saveCachedData(contactsBruts, enrichedRepertoire, contacts, invitationsStrapi);
@@ -249,7 +298,36 @@ export const useContactsBob = () => {
         // 3. Transformer les contacts en users automatiquement
         if (repertoire.length > 0) {
           console.log('🔄 Transformation automatique contacts → users...');
-          const enrichedRepertoire = await syncService.transformContactsToUsers(repertoire, token);
+          // Convertir ContactRepertoire[] vers Contact[] pour l'API
+          const contactsForApi: Contact[] = repertoire.map(r => ({
+            id: typeof r.id === 'string' ? parseInt(r.id) || 0 : r.id,
+            nom: r.nom,
+            telephone: r.telephone,
+            email: r.email,
+            groupes: [],
+            dateAjout: r.lastUpdated || new Date().toISOString(),
+            actif: true,
+            aSurBob: r.aSurBob,
+          }));
+          
+          const enrichedContacts = await syncService.transformContactsToUsers(contactsForApi, token);
+          
+          // Convertir Contact[] vers ContactRepertoire[] pour l'état local
+          const enrichedRepertoire: ContactRepertoire[] = enrichedContacts.map(c => {
+            const originalContact = repertoire.find(r => r.telephone === c.telephone);
+            return {
+              id: originalContact?.id || c.id.toString(),
+              nom: c.nom,
+              telephone: c.telephone || '',
+              email: c.email,
+              aSurBob: c.aSurBob || false,
+              estInvite: originalContact?.estInvite || false,
+              dateInvitation: originalContact?.dateInvitation,
+              nombreInvitations: originalContact?.nombreInvitations,
+              lastUpdated: new Date().toISOString(),
+              source: originalContact?.source || 'curation',
+            };
+          });
           
           setRepertoire(enrichedRepertoire);
           await saveCachedData(contactsBruts, enrichedRepertoire, contacts, invitationsStrapi);
@@ -870,6 +948,216 @@ export const useContactsBob = () => {
     }
   }, [invitations, repertoire, contacts, contactsBruts]);
 
+  // 🆕 AMÉLIORÉ: Synchroniser les contacts vers Strapi avec retry/batch
+  const syncContactsToStrapi = useCallback(async (options?: {
+    forceRetry?: boolean;
+    batchSize?: number;
+  }): Promise<{
+    success: boolean;
+    created: number;
+    updated: number;
+    errors: string[];
+  }> => {
+    const { forceRetry = false, batchSize = 50 } = options || {};
+    
+    if (!token) {
+      throw new Error('Token d\'authentification requis');
+    }
+
+    // Reset retry count si force retry
+    if (forceRetry) {
+      setSyncStatus(prev => ({ ...prev, retryCount: 0 }));
+    }
+
+    const attempt = async (retryCount: number): Promise<any> => {
+      try {
+        console.log(`📤 Synchronisation contacts vers Strapi (tentative ${retryCount + 1})...`);
+        
+        setSyncStatus({
+          state: 'uploading',
+          progress: 0,
+          message: `Envoi vers Strapi (tentative ${retryCount + 1})...`,
+          retryCount,
+          maxRetries: 3,
+          lastSync: new Date().toISOString(),
+        });
+
+        // Préparer les données pour l'API
+        const contactsData = repertoire.map(contact => ({
+          nom: contact.nom,
+          telephone: contact.telephone,
+          email: contact.email || null,
+          source: contact.source || 'import_repertoire',
+          dateAjout: contact.lastUpdated || new Date().toISOString(),
+          actif: true,
+          metadata: {
+            nombreInvitations: contact.nombreInvitations || 0,
+            dateInvitation: contact.dateInvitation,
+            importSource: 'mobile',
+          },
+        }));
+
+        setSyncStatus(prev => ({
+          ...prev,
+          progress: 25,
+          message: `Envoi ${contactsData.length} contacts...`,
+        }));
+
+        // Appel API avec timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+
+        const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/contacts/bulk-import`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            contacts: contactsData,
+            batchSize,
+          }),
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          throw new Error(`Erreur API: ${response.status} - ${response.statusText}`);
+        }
+
+        setSyncStatus(prev => ({
+          ...prev,
+          progress: 75,
+          message: 'Traitement de la réponse...',
+        }));
+
+        const result = await response.json();
+        
+        setSyncStatus({
+          state: 'success',
+          progress: 100,
+          message: `Sync réussie: ${result.data.created.length} créés, ${result.data.updated.length} mis à jour`,
+          lastSync: new Date().toISOString(),
+          retryCount: 0,
+          maxRetries: 3,
+        });
+
+        console.log('✅ Synchronisation terminée:', {
+          créés: result.data.created.length,
+          'mis à jour': result.data.updated.length,
+          doublons: result.data.duplicates.length,
+          erreurs: result.data.errors.length,
+        });
+
+        return {
+          success: true,
+          created: result.data.created.length,
+          updated: result.data.updated.length,
+          errors: result.data.errors.map((e: any) => e.error),
+        };
+
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+        console.error(`❌ Erreur sync (tentative ${retryCount + 1}):`, errorMessage);
+        
+        // Retry logic
+        if (retryCount < 2) { // Max 3 tentatives (0, 1, 2)
+          const nextRetry = retryCount + 1;
+          const retryDelay = Math.pow(2, nextRetry) * 1000; // Backoff exponentiel: 2s, 4s
+          
+          setSyncStatus({
+            state: 'retrying',
+            progress: 0,
+            message: `Erreur: ${errorMessage}. Nouvelle tentative dans ${retryDelay/1000}s...`,
+            retryCount: nextRetry,
+            maxRetries: 3,
+            errors: [errorMessage],
+          });
+          
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+          return attempt(nextRetry);
+        } else {
+          // Échec définitif
+          setSyncStatus({
+            state: 'error',
+            progress: 0,
+            message: `Échec après 3 tentatives: ${errorMessage}`,
+            retryCount: retryCount + 1,
+            maxRetries: 3,
+            errors: [errorMessage],
+          });
+          
+          return {
+            success: false,
+            created: 0,
+            updated: 0,
+            errors: [errorMessage],
+          };
+        }
+      }
+    };
+
+    setIsLoading(true);
+    try {
+      return await attempt(syncStatus.retryCount || 0);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [repertoire, token, syncStatus.retryCount]);
+
+  // 🆕 NOUVEAU: Récupérer les contacts depuis Strapi
+  const fetchContactsFromStrapi = useCallback(async () => {
+    if (!token) {
+      console.warn('⚠️ Pas de token pour récupération Strapi');
+      return;
+    }
+
+    try {
+      console.log('📥 Récupération contacts depuis Strapi...');
+      setIsLoading(true);
+
+      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/contacts/my-contacts`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Erreur API: ${response.status}`);
+      }
+
+      const result = await response.json();
+      
+      // Convertir les données Strapi vers ContactRepertoire
+      const strapiContacts: ContactRepertoire[] = result.data.map((contact: any) => ({
+        id: contact.id.toString(),
+        nom: contact.nom,
+        telephone: contact.telephone,
+        email: contact.email,
+        aSurBob: contact.aSurBob || false,
+        estInvite: !!contact.dernierStatutInvitation,
+        dateInvitation: contact.derniereDateInvitation,
+        nombreInvitations: contact.invitations?.length || 0,
+        lastUpdated: contact.derniereActivite || contact.dateAjout,
+        source: contact.source || 'strapi',
+      }));
+
+      setRepertoire(strapiContacts);
+      await saveCachedData(contactsBruts, strapiContacts, contacts, invitations);
+      
+      console.log(`✅ ${strapiContacts.length} contacts récupérés depuis Strapi`);
+      console.log(`  📊 Meta: ${result.meta?.total} total, ${result.meta?.bobUsers} utilisateurs Bob`);
+
+    } catch (error) {
+      console.error('❌ Erreur récupération contacts Strapi:', error);
+      setError(`Erreur récupération: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [token, contactsBruts, contacts, invitations]);
+
   const generateParrainageCode = (): string => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     let result = '';
@@ -1006,6 +1294,7 @@ export const useContactsBob = () => {
     invitations,
     scanProgress,
     lastScanDate,
+    syncStatus,
     
     // Méthodes principales
     scannerRepertoireBrut,
@@ -1021,6 +1310,8 @@ export const useContactsBob = () => {
     importerContactsEtSync,
     relancerInvitation,
     annulerInvitation,
+    syncContactsToStrapi,
+    fetchContactsFromStrapi,
     
     // Utilitaires
     getStats,

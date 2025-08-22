@@ -2,12 +2,12 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
-import { WebStyles, isWebDesktop } from '../styles/web';
+// import { WebStyles, isWebDesktop } from '../styles/web'; // Temporairement désactivé
 
 // Ã‰crans
 import { LoginScreen } from '../screens/auth/LoginScreen';
-import { RegisterScreen } from '../screens/auth/RegisterScreen';
-import { ExchangesScreen } from '../screens/exchanges/ExchangesScreen';
+import RegisterScreen from '../screens/auth/RegisterScreen';
+import { ExchangesScreen } from '../screens/exchanges';
 import { CreateExchangeScreen } from '../screens/exchanges/CreateExchangeScreen';
 import { EventsScreen } from '../screens/events/EventsScreen';
 import { CreateEventScreen } from '../screens/events/CreateEventScreen';
@@ -57,15 +57,15 @@ function EventsNavigator() {
 function MainNavigator() {
   return (
     <MainTab.Navigator
-      screenOptions={({ route }) => ({
-        tabBarIcon: ({ focused, color, size }) => {
+      screenOptions={() => ({
+        tabBarIcon: () => {
           // TODO: Ajouter les vraies icÃ´nes plus tard
           return null;
         },
         tabBarActiveTintColor: '#3B82F6',
         tabBarInactiveTintColor: 'gray',
         headerShown: false,
-        tabBarStyle: isWebDesktop() ? WebStyles.bottomNavigation : undefined,
+        // tabBarStyle: isWebDesktop() ? WebStyles.bottomNavigation : undefined, // Temporairement désactivé pour compatibilité types
       })}
     >
       <MainTab.Screen 

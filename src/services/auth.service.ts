@@ -3,6 +3,9 @@ import { apiClient } from './api';
 import { storageService } from './storage.service';
 import { LoginData, RegisterData, AuthResponse } from '../types';
 
+// Export types for external use
+export type { LoginData, RegisterData };
+
 class AuthService {
   private static _token: string | null = null;
   private static _user: any = null;
@@ -35,7 +38,7 @@ class AuthService {
       const mockResult = {
         jwt: 'mock-jwt-token-' + Date.now(),
         user: {
-          id: Math.random().toString(36).substr(2, 9),
+          id: Math.floor(Math.random() * 10000),
           username: localUser.username,
           email: localUser.identifier.includes('@') ? localUser.identifier : `${localUser.username.toLowerCase().replace(' ', '.')}@bob.com`,
           bobizPoints: localUser.bobizPoints

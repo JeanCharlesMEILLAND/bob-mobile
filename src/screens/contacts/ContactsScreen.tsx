@@ -1,6 +1,6 @@
-﻿// src/screens/contacts/ContactsScreen.tsx - Version avec onglets
+﻿// src/screens/contacts/ContactsScreen.tsx - Version avec détection platform
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { Header } from '../../components/common';
 import { Colors, Typography, Spacing, GlobalStyles } from '../../styles';
 import { GroupeDetailScreen } from './GroupeDetailScreen';
@@ -11,11 +11,19 @@ import { useContacts } from '../../hooks/useContacts';
 // Import de votre ancien écran groupes
 import { ContactsGroupesView } from './ContactsGroupesView';
 
+// 🆕 NOUVEAU: Import conditionnel de la version web
+import { ContactsWebScreen } from './ContactsWebScreen';
+
 type TabType = 'groupes' | 'repertoire';
 
 export const ContactsScreen: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('repertoire');
   const [selectedGroupe, setSelectedGroupe] = useState<GroupeWithContactCount | null>(null);
+
+  // 🆕 NOUVEAU: Détection platform - version web optimisée
+  if (Platform.OS === 'web') {
+    return <ContactsWebScreen />;
+  }
 
   // Si un groupe est sélectionné, afficher l'écran détail
   if (selectedGroupe) {

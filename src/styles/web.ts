@@ -6,27 +6,29 @@ const { width } = Dimensions.get('window');
 export const WebStyles = {
   // Adaptations pour le web
   container: {
-    maxWidth: Platform.OS === 'web' ? 1200 : '100%',
-    marginHorizontal: Platform.OS === 'web' ? 'auto' : 0,
+    maxWidth: Platform.OS === 'web' ? 1200 : width,
+    marginHorizontal: 0,
     paddingHorizontal: Platform.OS === 'web' ? 20 : 0,
+    alignSelf: Platform.OS === 'web' ? 'center' as const : 'stretch' as const,
   },
   
   // Cards plus larges sur web
   card: {
-    maxWidth: Platform.OS === 'web' ? 800 : '100%',
-    marginHorizontal: Platform.OS === 'web' ? 'auto' : 0,
+    maxWidth: Platform.OS === 'web' ? 800 : width,
+    marginHorizontal: 0,
     marginBottom: Platform.OS === 'web' ? 16 : 12,
     borderRadius: Platform.OS === 'web' ? 12 : 8,
     padding: Platform.OS === 'web' ? 20 : 16,
+    alignSelf: Platform.OS === 'web' ? 'center' as const : 'stretch' as const,
   },
   
   // Navigation adaptée
   bottomNavigation: {
     // Sur web, peut être en sidebar ou en top navigation
-    flexDirection: Platform.OS === 'web' && width > 768 ? 'column' : 'row',
-    maxWidth: Platform.OS === 'web' && width > 768 ? 250 : '100%',
-    height: Platform.OS === 'web' && width > 768 ? '100vh' : 'auto',
-    position: Platform.OS === 'web' && width > 768 ? 'fixed' : 'relative',
+    flexDirection: Platform.OS === 'web' && width > 768 ? 'column' as const : 'row' as const,
+    maxWidth: Platform.OS === 'web' && width > 768 ? 250 : width,
+    height: Platform.OS === 'web' && width > 768 ? 500 : 'auto',
+    position: Platform.OS === 'web' && width > 768 ? 'absolute' as const : 'relative' as const,
   },
   
   // Contenu principal avec sidebar
@@ -67,16 +69,18 @@ export const WebStyles = {
   
   // Modals plus grandes sur web
   modal: {
-    maxWidth: Platform.OS === 'web' ? 600 : '100%',
-    marginHorizontal: Platform.OS === 'web' ? 'auto' : 0,
+    maxWidth: Platform.OS === 'web' ? 600 : width,
+    marginHorizontal: 0,
     borderRadius: Platform.OS === 'web' ? 16 : 12,
+    alignSelf: Platform.OS === 'web' ? 'center' as const : 'stretch' as const,
   },
   
   // Forms centrées sur web
   form: {
-    maxWidth: Platform.OS === 'web' ? 500 : '100%',
-    marginHorizontal: Platform.OS === 'web' ? 'auto' : 0,
+    maxWidth: Platform.OS === 'web' ? 500 : width,
+    marginHorizontal: 0,
     paddingHorizontal: Platform.OS === 'web' ? 24 : 16,
+    alignSelf: Platform.OS === 'web' ? 'center' as const : 'stretch' as const,
   },
   
   // Scrollable areas

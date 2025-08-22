@@ -3,7 +3,6 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
   Alert,
   ScrollView,
   RefreshControl,
@@ -11,7 +10,7 @@ import {
   Animated,
 } from 'react-native';
 import { useContactsBob } from '../../hooks/useContactsBob';
-import { Colors, Typography, Spacing } from '../../styles';
+import { Colors } from '../../styles';
 import { WebStyles } from '../../styles/web';
 
 // Import des composants découpés
@@ -23,14 +22,12 @@ import { InvitationInterface } from '../../components/contacts/InvitationInterfa
 import { ManageContactsScreen } from '../../components/contacts/ManageContactsScreen';
 
 import { styles } from './ContactsRepertoireScreen.styles';
-import { getRelativeTime } from '../../utils/dateHelpers';
 
 export const ContactsRepertoireScreen = () => {
   const {
     isLoading,
     contactsBruts,
     repertoire,
-    contacts,
     scannerRepertoire,
     importerContactsEtSync,
     getStats,

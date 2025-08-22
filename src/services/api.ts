@@ -48,3 +48,17 @@ export const apiClient = {
     return response;
   },
 };
+
+// Export tokenStorage for compatibility
+export const tokenStorage = {
+  getToken: async () => {
+    // Implementation would go here
+    return null;
+  },
+  setToken: async (token: string) => {
+    // Implementation would go here
+  },
+  removeToken: async () => {
+    // Implementation would go here
+  }
+};

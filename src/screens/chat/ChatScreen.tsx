@@ -413,6 +413,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
       style={[styles.container, WebStyles.container]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      enabled={Platform.OS !== 'web'}
     >
       {renderHeader()}
 
@@ -425,8 +426,19 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
           style={styles.messagesList}
           contentContainerStyle={styles.messagesContainer}
           showsVerticalScrollIndicator={false}
+          maintainVisibleContentPosition={{
+            minIndexForVisible: 0,
+            autoscrollToTopThreshold: 100,
+          }}
           onContentSizeChange={() => {
-            flatListRef.current?.scrollToEnd({ animated: true });
+            setTimeout(() => {
+              flatListRef.current?.scrollToEnd({ animated: true });
+            }, 100);
+          }}
+          onLayout={() => {
+            setTimeout(() => {
+              flatListRef.current?.scrollToEnd({ animated: false });
+            }, 50);
           }}
         />
 
