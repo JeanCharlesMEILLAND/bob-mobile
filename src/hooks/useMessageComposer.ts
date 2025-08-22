@@ -9,6 +9,7 @@ import {
   getBestTemplateForContact 
 } from '../constants/messageTemplates';
 import { Contact, GroupeType } from '../types/contacts.types';
+import { formatPhoneForWhatsApp } from '../utils/contactHelpers';
 
 interface UseMessageComposerProps {
   contacts?: Contact[];
@@ -120,7 +121,13 @@ export const useMessageComposer = ({
     }
 
     const message = getMessageForContact(contact, customVars);
-    const phoneNumber = contact.telephone.replace(/[\\s\\-\\(\\)]/g, '');
+    const phoneNumber = formatPhoneForWhatsApp(contact.telephone);
+    
+    if (!phoneNumber) {
+      Alert.alert('Erreur', 'Numéro de téléphone invalide pour WhatsApp');
+      return false;
+    }
+    
     const url = `whatsapp://send?phone=${phoneNumber}&text=${encodeURIComponent(message)}`;
     
     try {

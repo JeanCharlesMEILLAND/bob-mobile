@@ -18,6 +18,7 @@ import { generateMessage } from '../../constants/messageTemplates';
 import { invitationsService } from '../../services/invitations.service';
 import { authService } from '../../services/auth.service';
 import { generateTranslatedMessageStatic } from '../../services/messageTranslation.service';
+import { formatPhoneForWhatsApp } from '../../utils/contactHelpers';
 
 const STORAGE_KEY = '@bob_invitations_history';
 const ALPHABET = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
@@ -183,20 +184,14 @@ export const InvitationInterface: React.FC<InvitationInterfaceProps> = ({
       if (method === 'sms') {
         url = `sms:${contact.telephone}?body=${encodeURIComponent(message)}`;
       } else {
-        // Formater correctement le numéro pour WhatsApp
-        let phoneNumber = contact.telephone.replace(/[^0-9+]/g, ''); // Garder seulement chiffres et +
+        // Utiliser la fonction de formatage dédiée WhatsApp
+        const phoneNumber = formatPhoneForWhatsApp(contact.telephone);
         
-        // Si le numéro commence par 0, remplacer par +33
-        if (phoneNumber.startsWith('0')) {
-          phoneNumber = '+33' + phoneNumber.substring(1);
+        if (!phoneNumber) {
+          Alert.alert('Erreur', 'Numéro de téléphone invalide pour WhatsApp');
+          return;
         }
         
-        // Si pas de +, ajouter +33
-        if (!phoneNumber.startsWith('+')) {
-          phoneNumber = '+33' + phoneNumber;
-        }
-        
-        console.log(`📱 WhatsApp - Numéro original: ${contact.telephone}, formaté: ${phoneNumber}`);
         url = `whatsapp://send?phone=${phoneNumber}&text=${encodeURIComponent(message)}`;
       }
       

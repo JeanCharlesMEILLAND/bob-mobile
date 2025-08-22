@@ -209,8 +209,11 @@ export const contactsService = {
       console.log('✅ Contact créé:', newContact.nom);
       return newContact;
     } catch (error: any) {
-      // Gestion spécifique des doublons (409 Conflict)
-      if (error.message.includes('409') || error.message.includes('existe déjà')) {
+      console.error('❌ Détail erreur création contact:', error);
+      console.error('❌ Status:', error.response?.status || 'unknown');
+      
+      // Gestion spécifique des doublons (409 Conflict) 
+      if (error.response?.status === 409 || error.message?.includes('409') || error.message?.includes('existe déjà')) {
         console.log('⚠️ Contact existe déjà, tentative de récupération...');
         try {
           console.log('🔍 Recherche contact existant pour téléphone:', data.telephone);
@@ -360,13 +363,23 @@ export const contactsService = {
     console.log('🔍 ContactsService - Recherche par téléphone:', telephone);
     
     try {
-      const response = await apiClient.get(`/contacts/phone/${encodeURIComponent(telephone)}`, token);
+      const url = `/contacts/phone/${encodeURIComponent(telephone)}`;
+      console.log('🌐 URL recherche:', url);
+      
+      const response = await apiClient.get(url, token);
+      
+      console.log('📡 Réponse recherche:', {
+        status: response.status,
+        ok: response.ok,
+        url: response.url
+      });
       
       if (!response.ok) {
         if (response.status === 404) {
+          console.log('📱 Contact non trouvé (404) - normal si pas encore créé');
           return null;
         }
-        throw new Error('Erreur recherche contact');
+        throw new Error(`Erreur recherche contact: ${response.status}`);
       }
       
       const result = await response.json();

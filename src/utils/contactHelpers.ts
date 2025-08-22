@@ -98,6 +98,28 @@ export function formatPhoneDisplay(phoneNumber: string): string {
 }
 
 /**
+ * Formate un numéro de téléphone spécifiquement pour WhatsApp
+ * @param phoneNumber - Le numéro à formater
+ * @returns Numéro formaté pour WhatsApp avec code international
+ */
+export function formatPhoneForWhatsApp(phoneNumber: string): string {
+  if (!phoneNumber) return '';
+  
+  // Utiliser la fonction de nettoyage existante qui gère tous les cas
+  const cleaned = cleanPhoneNumber(phoneNumber);
+  
+  console.log(`📱 WhatsApp - Formatage: "${phoneNumber}" → "${cleaned}"`);
+  
+  // WhatsApp nécessite un format international avec +
+  if (!cleaned.startsWith('+')) {
+    console.warn(`⚠️ WhatsApp - Numéro sans code pays: ${cleaned}, ajout de +33`);
+    return '+33' + cleaned;
+  }
+  
+  return cleaned;
+}
+
+/**
  * Groupe les contacts par première lettre
  * @param contacts - Liste des contacts
  * @returns Objet avec les contacts groupés par lettre

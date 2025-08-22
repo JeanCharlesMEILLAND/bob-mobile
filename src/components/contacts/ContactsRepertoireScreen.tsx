@@ -30,7 +30,11 @@ export const ContactsRepertoireScreen = () => {
     getStats,
     lastScanDate,
     clearCache,
+    verifierEtatStrapi,
   } = useContactsBob();
+
+  // État de chargement initial
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
 
   // États UI
   const [showPermissionModal, setShowPermissionModal] = useState(false);
@@ -45,6 +49,30 @@ export const ContactsRepertoireScreen = () => {
   const [slideAnim] = useState(new Animated.Value(0));
 
   const [stats, setStats] = useState<any>(null);
+
+  // Détecter la fin du chargement initial
+  useEffect(() => {
+    console.log('🔄 ContactsRepertoireScreen - Vérification état initial:', {
+      contactsBruts: contactsBruts.length,
+      repertoire: repertoire.length,
+      isInitialLoading
+    });
+
+    // Le cache est considéré comme chargé après un délai minimum ou dès qu'on a des données
+    const timer = setTimeout(() => {
+      console.log('⏰ Timeout chargement initial - fin du loading');
+      setIsInitialLoading(false);
+    }, 500); // Délai minimal pour éviter le flash
+
+    // Si on a déjà des données, on peut arrêter le loading plus tôt
+    if (contactsBruts.length > 0 || repertoire.length > 0) {
+      console.log('✅ Données trouvées - fin du loading immédiate');
+      clearTimeout(timer);
+      setIsInitialLoading(false);
+    }
+
+    return () => clearTimeout(timer);
+  }, [contactsBruts.length, repertoire.length]);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -220,6 +248,33 @@ export const ContactsRepertoireScreen = () => {
     );
   };
 
+  // Vérifier l'état Strapi
+  const handleVerifierStrapi = async () => {
+    try {
+      const result = await verifierEtatStrapi();
+      
+      const message = `📊 Vérification Strapi
+      
+🗄️ Contacts dans Strapi: ${result.contactsStrapi}
+👥 Contacts avec Bob: ${result.contactsAvecBob}
+📱 Contacts téléphone (bruts): ${result.contactsTelephone}
+📱 Contacts répertoire: ${repertoire.length}
+
+🔄 Synchronisation: ${result.syncOk ? '✅ OK' : '❌ Problème'}
+
+Détails dans la console pour debug.`;
+
+      Alert.alert('Vérification Strapi', message, [
+        { text: 'OK', style: 'default' }
+      ]);
+      
+      console.log('📋 Détails complets:', result.details);
+      
+    } catch (error: any) {
+      Alert.alert('Erreur', `Impossible de vérifier Strapi: ${error.message}`);
+    }
+  };
+
   // Vider cache complet
   const handleViderCache = () => {
     Alert.alert(
@@ -337,7 +392,26 @@ export const ContactsRepertoireScreen = () => {
       )}
 
       <ScrollView style={styles.content}>
-        {repertoire.length === 0 ? (
+        {(() => {
+          console.log('🖥️ ContactsRepertoireScreen - Rendu:', {
+            isInitialLoading,
+            repertoireLength: repertoire.length,
+            contactsBrutsLength: contactsBruts.length,
+            decision: isInitialLoading ? 'LOADING' : repertoire.length === 0 ? 'EMPTY' : 'DASHBOARD'
+          });
+
+          if (isInitialLoading) {
+            return (
+              /* Chargement initial */
+              <View style={styles.loadingState}>
+                <ActivityIndicator size="large" color={Colors.primary} />
+                <Text style={styles.loadingText}>Chargement de vos contacts...</Text>
+              </View>
+            );
+          }
+          
+          if (repertoire.length === 0) {
+            return (
           /* État initial - Pas de contacts */
           <View style={styles.emptyState}>
             <Text style={styles.emptyIcon}>📱</Text>
@@ -399,8 +473,11 @@ export const ContactsRepertoireScreen = () => {
               </View>
             )}
           </View>
-        ) : (
-          /* État avec contacts - Dashboard */
+            );
+          }
+          
+          // État avec contacts - Dashboard
+          return (
           <View style={styles.dashboard}>
             {/* Stats */}
             <View style={styles.statsSection}>
@@ -557,6 +634,14 @@ export const ContactsRepertoireScreen = () => {
                 </TouchableOpacity>
                 
                 <TouchableOpacity
+                  style={styles.verifyButton}
+                  onPress={handleVerifierStrapi}
+                  disabled={isLoading}
+                >
+                  <Text style={styles.verifyButtonText}>📊 Vérifier Strapi</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
                   style={styles.resetButton}
                   onPress={handleRepartirAZero}
                 >
@@ -565,7 +650,8 @@ export const ContactsRepertoireScreen = () => {
               </View>
             </View>
           </View>
-        )}
+          );
+        })()}
       </ScrollView>
 
       {/* Modal de permission */}
@@ -630,7 +716,9 @@ export const ContactsRepertoireScreen = () => {
         <Modal visible={showSelectionInterface} animationType="slide">
           <ContactsSelectionInterface
             contactsBruts={contactsBruts}
-            contactsDejaSelectionnes={repertoire.map(c => c.id)}
+            contactsDejaSelectionnes={contactsBruts
+              .filter(brut => repertoire.some(rep => rep.telephone === brut.telephone))
+              .map(c => c.id)}
             onClose={() => setShowSelectionInterface(false)}
             onImportSelected={handleImportSelected}
             isLoading={isLoading}
@@ -799,6 +887,10 @@ const ContactsSelectionInterface: React.FC<ContactSelectionProps> = ({
         renderItem={renderContact}
         keyExtractor={item => item.id}
         style={styles.contactsList}
+        contentContainerStyle={[
+          styles.contactsListContent,
+          { paddingBottom: selectedContacts.size > 0 ? 100 : 20 }
+        ]}
         showsVerticalScrollIndicator={false}
       />
 
@@ -882,6 +974,20 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     marginBottom: Spacing.xl,
   },
+  
+  // État de chargement
+  loadingState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.xl,
+    minHeight: 300,
+  },
+  loadingText: {
+    marginTop: Spacing.md,
+    fontSize: Typography.sizes.base,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+  },
 
   // Boutons scan
   scanButton: {
@@ -945,6 +1051,20 @@ const styles = StyleSheet.create({
   },
   rescanButtonText: {
     color: Colors.primary,
+    fontWeight: Typography.weights.medium,
+  },
+  verifyButton: {
+    flex: 1,
+    backgroundColor: '#E3F2FD',
+    borderWidth: 1,
+    borderColor: '#2196F3',
+    paddingVertical: Spacing.sm,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  verifyButtonText: {
+    fontSize: Typography.sizes.sm,
+    color: '#2196F3',
     fontWeight: Typography.weights.medium,
   },
   clearButton: {
@@ -1254,7 +1374,8 @@ const styles = StyleSheet.create({
   },
   advancedActions: {
     flexDirection: 'row',
-    gap: Spacing.sm,
+    gap: Spacing.xs,
+    flexWrap: 'wrap',
   },
   resetButton: {
     flex: 1,
@@ -1351,10 +1472,23 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   importContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     padding: Spacing.md,
     backgroundColor: Colors.white,
     borderTopWidth: 1,
     borderTopColor: '#E0E0E0',
+    // Ombre pour le bouton flottant
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: -2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   importButton: {
     backgroundColor: '#4CAF50',
@@ -1371,5 +1505,11 @@ const styles = StyleSheet.create({
     fontSize: 24,
     color: Colors.textSecondary,
     padding: Spacing.xs,
+  },
+  contactsList: {
+    flex: 1,
+  },
+  contactsListContent: {
+    flexGrow: 1,
   },
 });
