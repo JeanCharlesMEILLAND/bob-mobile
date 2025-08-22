@@ -1704,7 +1704,16 @@ export const useContactsBob = () => {
         const token = await authService.getValidToken();
         if (!token) throw new Error('Token invalide');
 
-        // 1. Trouver l'invitation en cours
+        // 1. Debug - lister toutes les invitations disponibles
+        console.log('🔍 DEBUG - Toutes les invitations:', invitations.map(i => ({
+          id: i.id,
+          documentId: i.documentId,
+          telephone: i.telephone,
+          statut: i.statut,
+          nom: i.nom
+        })));
+
+        // 2. Trouver l'invitation en cours
         const invitation = invitations.find(i => 
           i.telephone?.replace(/[\s\-\(\)\.]/g, '') === telephone.replace(/[\s\-\(\)\.]/g, '') &&
           i.statut === 'envoye'
@@ -1715,9 +1724,16 @@ export const useContactsBob = () => {
         }
 
         console.log('📤 Invitation trouvée:', invitation);
+        console.log('📤 ID à utiliser:', invitation.id);
+        console.log('📤 DocumentId à utiliser:', invitation.documentId);
+        console.log('📤 NumericId à utiliser:', invitation.numericId);
 
-        // 2. Mettre à jour le statut de l'invitation
-        await invitationsService.updateInvitationStatus(invitation.id, 'accepte', token);
+        // 2. Essayer d'abord avec l'ID numérique (depuis les logs: id=10)
+        // Si ça ne marche pas, on essaiera avec le documentId
+        const idToUse = invitation.numericId || invitation.id;
+        console.log('📤 ID final choisi:', idToUse);
+        
+        await invitationsService.simulateAcceptInvitation(idToUse, token);
 
         // 3. Vérifier le type d'invitation (répertoire vs externe)
         const contactRepertoire = repertoire.find(c => 

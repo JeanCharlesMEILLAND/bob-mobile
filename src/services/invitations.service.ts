@@ -77,8 +77,10 @@ export const invitationsService = {
       console.log('✅ Invitations récupérées:', result.data?.length || 0);
       
       return result.data?.map((item: any) => ({
-        // Strapi 5 : données directement dans item
+        // Strapi 5 : utiliser documentId pour les requêtes, garder id numérique pour référence
         id: item.documentId || item.id,
+        documentId: item.documentId,
+        numericId: item.id,
         telephone: item.telephone,
         nom: item.nom,
         email: item.email,
@@ -702,94 +704,38 @@ export const invitationsService = {
     }
   },
 
-  // Mettre à jour le statut d'une invitation
-  updateInvitationStatus: async (id: string | number, nouveauStatut: 'accepte' | 'refuse' | 'expire', token: string): Promise<void> => {
-    console.log('📝 Mise à jour statut invitation:', id, '→', nouveauStatut);
+  // Simuler l'acceptation d'une invitation (pour les tests)
+  simulateAcceptInvitation: async (id: string | number, token: string): Promise<void> => {
+    console.log('🎭 Simulation acceptation invitation:', id);
     
     try {
-      // 1. Debug - lister toutes les invitations pour voir les IDs corrects
-      console.log('🔍 Debug - Liste des invitations disponibles...');
-      const listResponse = await apiClient.get('/api/invitations', token);
+      // 1. Trouver le bon ID numérique si on a un documentId
+      console.log('🔍 Recherche du bon ID pour la simulation...');
+      const listResponse = await apiClient.get('/invitations', token);
       if (listResponse.ok) {
         const listData = await listResponse.json();
-        console.log('📋 Invitations disponibles:', listData.data?.map(i => ({ 
-          id: i.id, 
-          documentId: i.documentId, 
-          telephone: i.telephone, 
-          statut: i.statut 
-        })));
-      }
-
-      // 2. D'abord récupérer l'invitation actuelle pour avoir tous les champs
-      console.log('📄 Récupération invitation actuelle avec ID:', id);
-      const getResponse = await apiClient.get(`/api/invitations/${id}`, token);
-      
-      let currentInvitation;
-      if (!getResponse.ok) {
-        console.log('⚠️ Tentative avec /invitations/ au lieu de /api/invitations/...');
-        const getResponse2 = await apiClient.get(`/invitations/${id}`, token);
-        
-        if (!getResponse2.ok) {
-          throw new Error(`Impossible de récupérer l'invitation: GET /api/invitations/${id} -> ${getResponse.status}, GET /invitations/${id} -> ${getResponse2.status}`);
-        }
-        
-        currentInvitation = await getResponse2.json();
-        console.log('📄 Invitation trouvée via /invitations/:', currentInvitation);
-      } else {
-        currentInvitation = await getResponse.json();
-        console.log('📄 Invitation trouvée via /api/invitations/:', currentInvitation);
-      }
-      
-      // 2. Préparer les données complètes pour la mise à jour
-      const invitationData = currentInvitation.data || currentInvitation;
-      const updateData = {
-        data: {
-          ...invitationData,
-          statut: nouveauStatut,
-          dateReponse: new Date().toISOString(),
-        }
-      };
-      
-      console.log('📝 Données à mettre à jour:', updateData);
-
-      // 3. Mettre à jour avec PUT (structure correcte Strapi 5)
-      const endpoints = [
-        { url: `/api/invitations/${id}`, method: 'PUT', data: updateData },
-        { url: `/invitations/${id}`, method: 'PUT', data: updateData },
-      ];
-
-      let response = null;
-      let lastError = null;
-
-      for (const endpoint of endpoints) {
-        try {
-          console.log(`🔄 Tentative ${endpoint.method} ${endpoint.url}...`);
-          response = await apiClient.put(endpoint.url, endpoint.data, token);
-          
-          if (response.ok) {
-            console.log(`✅ Mise à jour réussie avec ${endpoint.method} ${endpoint.url}`);
-            break;
-          } else {
-            const errorText = await response.text();
-            console.log(`⚠️ ${endpoint.url} - Status: ${response.status} - ${errorText.substring(0, 200)}`);
-            lastError = `${endpoint.url}: ${response.status}`;
-          }
-        } catch (error: any) {
-          console.log(`❌ ${endpoint.url} - Erreur:`, error.message);
-          lastError = `${endpoint.url}: ${error.message}`;
-          continue;
+        const matchingInvitation = listData.data?.find(i => i.documentId === id || i.id === id);
+        if (matchingInvitation) {
+          console.log('🎯 Invitation trouvée pour simulation:', matchingInvitation);
+          id = matchingInvitation.id; // Utiliser l'ID numérique
+          console.log('🔄 ID final pour simulation:', id);
         }
       }
 
-      if (!response || !response.ok) {
-        console.error('❌ Tous les endpoints de mise à jour ont échoué');
-        console.error('❌ Dernière erreur:', lastError);
-        throw new Error(`Impossible de mettre à jour l'invitation: ${lastError}`);
+      // 2. Utiliser la route spécialisée pour la simulation
+      const response = await apiClient.post(`/invitations/${id}/simulate-accept`, {}, token);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.log(`⚠️ Erreur simulation - Status: ${response.status} - ${errorText}`);
+        throw new Error(`Erreur simulation: ${response.status} - ${errorText}`);
       }
       
-      console.log('✅ Statut invitation mis à jour:', nouveauStatut);
+      const result = await response.json();
+      console.log('✅ Simulation réussie:', result);
+      
     } catch (error: any) {
-      console.error('❌ Erreur updateInvitationStatus:', error.message);
+      console.error('❌ Erreur simulateAcceptInvitation:', error.message);
       throw error;
     }
   },

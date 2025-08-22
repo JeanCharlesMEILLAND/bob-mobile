@@ -232,7 +232,7 @@ export const ContactsRepertoireScreen = () => {
         contactsInvites: (() => {
           const invitationsEnCours = invitations.filter(i => i.statut === 'envoye');
           console.log('📊 DEBUG Invitations en cours:', invitationsEnCours.length);
-          console.log('📊 DEBUG Détail invitations:', invitationsEnCours.map(i => ({ telephone: i.telephone, statut: i.statut })));
+          console.log('📊 DEBUG Détail invitations:', invitationsEnCours.map(i => ({ id: i.id, documentId: i.documentId, telephone: i.telephone, statut: i.statut })));
           return invitationsEnCours.length;
         })(),
         // Recalculer contactsSansBob en excluant ceux avec invitation en cours
