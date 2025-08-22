@@ -23,7 +23,10 @@ interface VerificationResult {
   lastCreated?: ExchangeStrapi;
 }
 
-export const VerifyStrapi: React.FC = () => {
+// Debug: vérifier l'export
+console.log('📤 Export VerifyStrapi component being defined');
+
+const VerifyStrapi: React.FC = () => {
   const navigation = useSimpleNavigation();
   const { user } = useAuth();
   
@@ -365,3 +368,7 @@ export const VerifyStrapi: React.FC = () => {
     </View>
   );
 };
+
+export default VerifyStrapi;
+export { VerifyStrapi };
+

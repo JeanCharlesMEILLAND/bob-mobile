@@ -103,3 +103,5 @@ const styles = StyleSheet.create({
     width: 24, // Minimal width for spacing
   },
 });
+
+export default Header;

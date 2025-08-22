@@ -220,3 +220,5 @@ export const ProfileScreen: React.FC = () => {
     </View>
   );
 };
+
+export default ProfileScreen;

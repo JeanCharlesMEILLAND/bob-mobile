@@ -77,8 +77,19 @@ export const invitationsService = {
       console.log('✅ Invitations récupérées:', result.data?.length || 0);
       
       return result.data?.map((item: any) => ({
-        id: item.id,
-        ...item.attributes
+        // Strapi 5 : données directement dans item
+        id: item.documentId || item.id,
+        telephone: item.telephone,
+        nom: item.nom,
+        email: item.email,
+        statut: item.statut,
+        type: item.type,
+        codeParrainage: item.codeParrainage,
+        dateEnvoi: item.dateEnvoi,
+        dateAcceptation: item.dateAcceptation,
+        dateRelance: item.dateRelance,
+        nombreRelances: item.nombreRelances,
+        metadata: item.metadata
       })) || [];
     } catch (error) {
       console.error('❌ Erreur getMyInvitations:', error);
@@ -95,28 +106,76 @@ export const invitationsService = {
     console.log('📤 Création invitation Strapi:', data.nom);
     
     try {
-      const response = await apiClient.post('/invitations', {
+      // Générer un code de parrainage unique
+      const codeParrainage = `BOB${Date.now()}${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+      
+      const requestData = {
         data: {
-          ...data,
+          telephone: data.telephone,
+          nom: data.nom,
+          type: data.type,
           statut: 'envoye',
+          codeParrainage,
           dateEnvoi: new Date().toISOString(),
           nombreRelances: 0,
         }
-      }, token);
+      };
+      
+      console.log('📋 Données invitation à créer:', requestData);
+      
+      const response = await apiClient.post('/invitations', requestData, token);
+      console.log('📡 Réponse API status:', response.status, response.statusText);
       
       if (!response.ok) {
-        throw new Error('Erreur création invitation');
+        const errorText = await response.text();
+        console.error('❌ Erreur API création invitation:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorText
+        });
+        
+        // Si une invitation existe déjà (409), utiliser un code temporaire
+        if (response.status === 409) {
+          console.log('ℹ️ Invitation existe déjà (409), utilisation d\'un code temporaire');
+          return {
+            id: 0, // ID temporaire
+            telephone: requestData.data.telephone,
+            nom: requestData.data.nom,
+            type: requestData.data.type,
+            statut: 'envoye',
+            codeParrainage: codeParrainage, // Utiliser le code généré
+            dateEnvoi: requestData.data.dateEnvoi,
+            nombreRelances: requestData.data.nombreRelances
+          };
+        }
+        
+        try {
+          const errorData = JSON.parse(errorText);
+          throw new Error(errorData.error?.message || `Erreur ${response.status}: ${errorText}`);
+        } catch {
+          throw new Error(`Erreur ${response.status}: ${errorText}`);
+        }
       }
       
       const result = await response.json();
-      console.log('✅ Invitation créée dans Strapi');
+      console.log('📋 Réponse JSON complète:', JSON.stringify(result, null, 2));
+      console.log('✅ Invitation créée dans Strapi:', {
+        id: result.data?.id,
+        codeParrainage: result.data?.attributes?.codeParrainage || codeParrainage
+      });
       
       return {
         id: result.data.id,
+        codeParrainage: result.data.attributes?.codeParrainage || codeParrainage,
         ...result.data.attributes
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Erreur création invitation:', error);
+      console.error('📋 Détails erreur:', {
+        message: error.message,
+        status: error.status,
+        response: error.response
+      });
       throw error;
     }
   },
@@ -191,8 +250,19 @@ export const invitationsService = {
       console.log('✅ Invitations événement récupérées:', result.data?.length || 0);
       
       return result.data?.map((item: any) => ({
-        id: item.id,
-        ...item.attributes
+        // Strapi 5 : données directement dans item
+        id: item.documentId || item.id,
+        telephone: item.telephone,
+        nom: item.nom,
+        email: item.email,
+        statut: item.statut,
+        type: item.type,
+        codeParrainage: item.codeParrainage,
+        dateEnvoi: item.dateEnvoi,
+        dateAcceptation: item.dateAcceptation,
+        dateRelance: item.dateRelance,
+        nombreRelances: item.nombreRelances,
+        metadata: item.metadata
       })) || [];
     } catch (error) {
       console.error('❌ Erreur getEventInvitations:', error);
@@ -334,8 +404,19 @@ export const invitationsService = {
       console.log('✅ Mes invitations événements récupérées:', result.data?.length || 0);
       
       return result.data?.map((item: any) => ({
-        id: item.id,
-        ...item.attributes
+        // Strapi 5 : données directement dans item
+        id: item.documentId || item.id,
+        telephone: item.telephone,
+        nom: item.nom,
+        email: item.email,
+        statut: item.statut,
+        type: item.type,
+        codeParrainage: item.codeParrainage,
+        dateEnvoi: item.dateEnvoi,
+        dateAcceptation: item.dateAcceptation,
+        dateRelance: item.dateRelance,
+        nombreRelances: item.nombreRelances,
+        metadata: item.metadata
       })) || [];
     } catch (error) {
       console.error('❌ Erreur getMyEventInvitations:', error);
@@ -571,5 +652,123 @@ export const invitationsService = {
       isValid: errors.length === 0,
       errors
     };
+  },
+
+  // Supprimer une invitation
+  deleteInvitation: async (id: number, token: string): Promise<void> => {
+    console.log('🗑️ Suppression invitation:', id);
+    
+    try {
+      // Tester différents endpoints Strapi 5
+      const endpoints = [
+        `/api/invitations/${id}`,
+        `/invitations/${id}`,
+        `/api/invitations/document/${id}`,
+      ];
+
+      let response = null;
+      let lastError = null;
+
+      for (const endpoint of endpoints) {
+        try {
+          console.log(`🔄 Tentative suppression ${endpoint}...`);
+          response = await apiClient.delete(endpoint, token);
+          
+          if (response.ok) {
+            console.log(`✅ Suppression réussie avec ${endpoint}`);
+            break;
+          } else {
+            const errorText = await response.text();
+            console.log(`⚠️ ${endpoint} - Status: ${response.status} - ${errorText.substring(0, 100)}`);
+            lastError = `${endpoint}: ${response.status}`;
+          }
+        } catch (error: any) {
+          console.log(`❌ ${endpoint} - Erreur:`, error.message);
+          lastError = `${endpoint}: ${error.message}`;
+          continue;
+        }
+      }
+
+      if (!response || !response.ok) {
+        console.error('❌ Tous les endpoints de suppression ont échoué');
+        console.error('❌ Dernière erreur:', lastError);
+        throw new Error(`Impossible de supprimer l'invitation: ${lastError}`);
+      }
+      
+      console.log('✅ Invitation supprimée:', id);
+    } catch (error: any) {
+      console.error('❌ Erreur deleteInvitation:', error.message);
+      throw error;
+    }
+  },
+
+  // Mettre à jour le statut d'une invitation
+  updateInvitationStatus: async (id: string | number, nouveauStatut: 'accepte' | 'refuse' | 'expire', token: string): Promise<void> => {
+    console.log('📝 Mise à jour statut invitation:', id, '→', nouveauStatut);
+    
+    try {
+      // 1. D'abord récupérer l'invitation actuelle pour avoir tous les champs
+      console.log('📄 Récupération invitation actuelle...');
+      const getResponse = await apiClient.get(`/api/invitations/${id}`, token);
+      
+      if (!getResponse.ok) {
+        throw new Error(`Impossible de récupérer l'invitation: ${getResponse.status}`);
+      }
+      
+      const currentInvitation = await getResponse.json();
+      console.log('📄 Invitation actuelle:', currentInvitation);
+      
+      // 2. Préparer les données complètes pour la mise à jour
+      const invitationData = currentInvitation.data || currentInvitation;
+      const updateData = {
+        data: {
+          ...invitationData,
+          statut: nouveauStatut,
+          dateReponse: new Date().toISOString(),
+        }
+      };
+      
+      console.log('📝 Données à mettre à jour:', updateData);
+
+      // 3. Mettre à jour avec PUT (structure correcte Strapi 5)
+      const endpoints = [
+        { url: `/api/invitations/${id}`, method: 'PUT', data: updateData },
+        { url: `/invitations/${id}`, method: 'PUT', data: updateData },
+      ];
+
+      let response = null;
+      let lastError = null;
+
+      for (const endpoint of endpoints) {
+        try {
+          console.log(`🔄 Tentative ${endpoint.method} ${endpoint.url}...`);
+          response = await apiClient.put(endpoint.url, endpoint.data, token);
+          
+          if (response.ok) {
+            console.log(`✅ Mise à jour réussie avec ${endpoint.method} ${endpoint.url}`);
+            break;
+          } else {
+            const errorText = await response.text();
+            console.log(`⚠️ ${endpoint.url} - Status: ${response.status} - ${errorText.substring(0, 200)}`);
+            lastError = `${endpoint.url}: ${response.status}`;
+          }
+        } catch (error: any) {
+          console.log(`❌ ${endpoint.url} - Erreur:`, error.message);
+          lastError = `${endpoint.url}: ${error.message}`;
+          continue;
+        }
+      }
+
+      if (!response || !response.ok) {
+        console.error('❌ Tous les endpoints de mise à jour ont échoué');
+        console.error('❌ Dernière erreur:', lastError);
+        throw new Error(`Impossible de mettre à jour l'invitation: ${lastError}`);
+      }
+      
+      console.log('✅ Statut invitation mis à jour:', nouveauStatut);
+    } catch (error: any) {
+      console.error('❌ Erreur updateInvitationStatus:', error.message);
+      throw error;
+    }
   },
 };

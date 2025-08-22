@@ -138,6 +138,10 @@ export const styles = StyleSheet.create({
   contactRowSelected: {
     backgroundColor: Colors.primary + '05',
   },
+  contactRowDisabled: {
+    backgroundColor: '#F5F5F5',
+    opacity: 0.7,
+  },
   contactCheckbox: {
     width: 24,
     height: 24,
@@ -152,9 +156,27 @@ export const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
     borderColor: Colors.primary,
   },
+  contactCheckboxDisabled: {
+    backgroundColor: '#4CAF50',
+    borderColor: '#4CAF50',
+  },
+  contactCheckboxInvitation: {
+    backgroundColor: '#FF9800',
+    borderColor: '#FF9800',
+  },
   checkmark: {
     color: Colors.white,
     fontSize: 14,
+    fontWeight: Typography.weights.bold,
+  },
+  alreadyInBob: {
+    color: Colors.white,
+    fontSize: 14,
+    fontWeight: Typography.weights.bold,
+  },
+  invitationPending: {
+    color: Colors.white,
+    fontSize: 12,
     fontWeight: Typography.weights.bold,
   },
   contactAvatar: {
@@ -169,10 +191,19 @@ export const styles = StyleSheet.create({
   contactAvatarSuggested: {
     backgroundColor: '#FFE0B2',
   },
+  contactAvatarDisabled: {
+    backgroundColor: '#E0E0E0',
+  },
+  contactAvatarInvitation: {
+    backgroundColor: '#FFE0B2',
+  },
   contactInitial: {
     fontSize: Typography.sizes.base,
     fontWeight: Typography.weights.bold,
     color: Colors.primary,
+  },
+  contactInitialDisabled: {
+    color: '#999',
   },
   contactDetails: {
     flex: 1,
@@ -182,12 +213,30 @@ export const styles = StyleSheet.create({
     fontWeight: Typography.weights.medium,
     color: Colors.text,
   },
+  contactNameDisabled: {
+    color: '#999',
+  },
   contactNumber: {
     fontSize: Typography.sizes.sm,
     color: Colors.textSecondary,
     marginTop: 2,
   },
+  contactNumberDisabled: {
+    color: '#BBB',
+  },
   contactSuggestion: {
+    fontSize: Typography.sizes.xs,
+    color: '#FF9800',
+    fontWeight: Typography.weights.medium,
+    marginTop: 2,
+  },
+  contactAlreadyInBob: {
+    fontSize: Typography.sizes.xs,
+    color: '#4CAF50',
+    fontWeight: Typography.weights.medium,
+    marginTop: 2,
+  },
+  contactInvitationPending: {
     fontSize: Typography.sizes.xs,
     color: '#FF9800',
     fontWeight: Typography.weights.medium,

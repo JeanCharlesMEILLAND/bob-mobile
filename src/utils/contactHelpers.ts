@@ -110,13 +110,24 @@ export function formatPhoneForWhatsApp(phoneNumber: string): string {
   
   console.log(`📱 WhatsApp - Formatage: "${phoneNumber}" → "${cleaned}"`);
   
-  // WhatsApp nécessite un format international avec +
-  if (!cleaned.startsWith('+')) {
-    console.warn(`⚠️ WhatsApp - Numéro sans code pays: ${cleaned}, ajout de +33`);
-    return '+33' + cleaned;
+  // WhatsApp nécessite un format international SANS le + (juste les chiffres)
+  let whatsappNumber = cleaned;
+  
+  if (whatsappNumber.startsWith('+')) {
+    whatsappNumber = whatsappNumber.substring(1); // Enlever le +
   }
   
-  return cleaned;
+  // Vérifier si c'est un numéro international valide
+  const internationalPrefixes = ['1', '33', '34', '39', '44', '48', '49', '351', '352', '353', '354', '355', '356', '357', '358', '359'];
+  const hasValidPrefix = internationalPrefixes.some(prefix => whatsappNumber.startsWith(prefix));
+  
+  if (!hasValidPrefix && whatsappNumber.length >= 8) {
+    console.warn(`⚠️ WhatsApp - Numéro sans code pays: ${whatsappNumber}, ajout de 33 par défaut`);
+    whatsappNumber = '33' + whatsappNumber;
+  }
+  
+  console.log(`📱 WhatsApp - Format final: "${whatsappNumber}"`);
+  return whatsappNumber;
 }
 
 /**

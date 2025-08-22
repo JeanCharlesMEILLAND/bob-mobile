@@ -437,3 +437,5 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
   },
 });
+
+export default EventsScreen;

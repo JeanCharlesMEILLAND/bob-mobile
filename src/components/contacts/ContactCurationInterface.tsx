@@ -392,7 +392,7 @@ export const ContactCurationInterface: React.FC<ContactCurationInterfaceProps> =
           <FlatList
             data={contactsFiltered}
             renderItem={renderContact}
-            keyExtractor={item => item.id}
+            keyExtractor={(item, index) => `${item.id}_${index}_${item.nom || 'unknown'}_${item.telephone || 'no-phone'}`}
             style={styles.contactsList}
             showsVerticalScrollIndicator={false}
             initialNumToRender={20}

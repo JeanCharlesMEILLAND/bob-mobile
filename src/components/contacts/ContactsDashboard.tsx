@@ -4,6 +4,7 @@ import {
   View,
   Text,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { styles } from './ContactsDashboard.styles';
@@ -23,6 +24,7 @@ interface ContactsDashboardProps {
     contactsEnLigne: number;
     nouveauxDepuisScan: number;
   };
+  invitations?: any[];
   showTips: boolean;
   onCloseTips: () => void;
   onInvite: () => void;
@@ -30,12 +32,14 @@ interface ContactsDashboardProps {
   onManageContacts: () => void;
   onRefresh: () => void;
   onClearAll: () => void;
+  onSimulerAcceptation?: (telephone: string) => void;
   isLoading: boolean;
   getAsyncStats?: () => Promise<any>;
 }
 
 export const ContactsDashboard: React.FC<ContactsDashboardProps> = ({
   stats: initialStats,
+  invitations = [],
   showTips,
   onCloseTips,
   onInvite,
@@ -43,17 +47,42 @@ export const ContactsDashboard: React.FC<ContactsDashboardProps> = ({
   onManageContacts,
   onRefresh,
   onClearAll,
+  onSimulerAcceptation,
   isLoading,
   getAsyncStats,
 }) => {
   const { t } = useTranslation();
   const [stats, setStats] = useState(initialStats);
 
+  const loadRealStats = async () => {
+    if (getAsyncStats) {
+      try {
+        console.log('🔄 Refresh stats dashboard');
+        const realStats = await getAsyncStats();
+        setStats(realStats);
+      } catch (error) {
+        console.error('❌ Erreur refresh stats dashboard:', error);
+      }
+    }
+  };
+
   useEffect(() => {
-    loadRealStats();
+    refreshStats();
   }, [initialStats.mesContacts, initialStats.totalContactsTelephone]);
 
-  const loadRealStats = async () => {
+  // Auto-refresh désactivé temporairement pour éviter les conflits
+  // useEffect(() => {
+  //   if (getAsyncStats) {
+  //     const interval = setInterval(() => {
+  //       console.log('🔄 Auto-refresh stats dashboard');
+  //       refreshStats();
+  //     }, 30000);
+      
+  //     return () => clearInterval(interval);
+  //   }
+  // }, [getAsyncStats]);
+
+  const refreshStats = async () => {
     if (getAsyncStats) {
       try {
         const realStats = await getAsyncStats();
@@ -221,6 +250,58 @@ export const ContactsDashboard: React.FC<ContactsDashboardProps> = ({
               </View>
             </TouchableOpacity>
           )}
+
+          {stats.contactsInvites > 0 && onSimulerAcceptation && (
+            <TouchableOpacity 
+              style={[styles.actionCard, styles.actionCardSimulation]}
+              onPress={() => {
+                Alert.alert(
+                  '🎭 Simuler une acceptation',
+                  'Choisissez un contact qui a une invitation en cours pour simuler qu\'il accepte et rejoigne Bob.',
+                  [
+                    { text: 'Annuler', style: 'cancel' },
+                    { 
+                      text: 'Simuler', 
+                      onPress: () => {
+                        // Pour l'instant, on simule avec le premier contact en attente
+                        // TODO: Ajouter une interface pour choisir le contact
+                        // Trouver la première invitation en cours
+                        const invitationEnCours = invitations.find(i => i.statut === 'envoye');
+                        if (invitationEnCours) {
+                          Alert.alert(
+                            'Simuler acceptation',
+                            `Simuler l'acceptation de l'invitation pour ${invitationEnCours.nom || 'ce contact'} (${invitationEnCours.telephone}) ?`,
+                            [
+                              { text: 'Annuler', style: 'cancel' },
+                              { 
+                                text: 'Simuler', 
+                                onPress: () => {
+                                  onSimulerAcceptation(invitationEnCours.telephone);
+                                }
+                              }
+                            ]
+                          );
+                        } else {
+                          Alert.alert('Aucune invitation', 'Aucune invitation en cours à simuler.');
+                        }
+                      }
+                    }
+                  ]
+                );
+              }}
+            >
+              <View style={styles.actionIconContainer}>
+                <Text style={styles.actionIcon}>🎭</Text>
+              </View>
+              <View style={styles.actionInfo}>
+                <Text style={styles.actionTitle}>Simuler acceptation</Text>
+                <Text style={styles.actionDescription}>
+                  Tester l'acceptation d'une invitation
+                </Text>
+              </View>
+              <Text style={styles.actionArrow}>→</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
@@ -254,10 +335,13 @@ export const ContactsDashboard: React.FC<ContactsDashboardProps> = ({
           </TouchableOpacity>
           
           <TouchableOpacity
-            style={styles.dangerButton}
+            style={[styles.dangerButton, isLoading && styles.dangerButtonDisabled]}
             onPress={onClearAll}
+            disabled={isLoading}
           >
-            <Text style={styles.dangerButtonText}>🗑️ Tout effacer</Text>
+            <Text style={styles.dangerButtonText}>
+              {isLoading ? '🔄 Suppression...' : '🗑️ Tout effacer'}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>

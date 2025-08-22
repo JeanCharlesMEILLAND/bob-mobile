@@ -613,7 +613,7 @@ Détails dans la console pour debug.`;
                 <FlatList
                   data={contactsFiltered.filter(c => c.isInRepertoire)}
                   renderItem={renderContact}
-                  keyExtractor={item => item.id}
+                  keyExtractor={(item, index) => `repertoire_${item.id}_${index}_${item.nom || 'unknown'}_${item.telephone || 'no-phone'}`}
                   style={styles.contactsList}
                   showsVerticalScrollIndicator={false}
                 />
@@ -885,7 +885,7 @@ const ContactsSelectionInterface: React.FC<ContactSelectionProps> = ({
       <FlatList
         data={contactsFiltered}
         renderItem={renderContact}
-        keyExtractor={item => item.id}
+        keyExtractor={(item, index) => `${item.id}_${index}_${item.nom || 'unknown'}_${item.telephone || 'no-phone'}`}
         style={styles.contactsList}
         contentContainerStyle={[
           styles.contactsListContent,

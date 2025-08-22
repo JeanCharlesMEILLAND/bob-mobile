@@ -380,4 +380,43 @@ clearButtonText: {
   color: Colors.textSecondary,
 },
 
+// Modal de chargement
+modalOverlay: {
+  flex: 1,
+  backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  justifyContent: 'center',
+  alignItems: 'center',
+},
+
+modalContent: {
+  backgroundColor: 'white',
+  padding: 30,
+  borderRadius: 15,
+  alignItems: 'center',
+  minWidth: 250,
+  shadowColor: '#000',
+  shadowOffset: {
+    width: 0,
+    height: 4,
+  },
+  shadowOpacity: 0.25,
+  shadowRadius: 10,
+  elevation: 8,
+},
+
+modalTitle: {
+  fontSize: 18,
+  fontWeight: 'bold',
+  color: '#1F2937',
+  marginTop: 15,
+  marginBottom: 5,
+},
+
+modalMessage: {
+  fontSize: 14,
+  color: '#6B7280',
+  textAlign: 'center',
+  lineHeight: 20,
+},
+
 });

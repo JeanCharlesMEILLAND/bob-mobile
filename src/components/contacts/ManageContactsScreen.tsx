@@ -61,7 +61,7 @@ export const ManageContactsScreen: React.FC<ManageContactsScreenProps> = ({
 
   useEffect(() => {
     loadContactsData();
-  }, [repertoire, contactsAvecBob]);
+  }, []); // 🔧 Dépendances vides pour éviter la boucle infinie
 
   const loadContactsData = async () => {
     try {
@@ -383,7 +383,7 @@ export const ManageContactsScreen: React.FC<ManageContactsScreenProps> = ({
 
       <FlatList
         data={contactsFiltered}
-        keyExtractor={item => item.id}
+        keyExtractor={(item, index) => `${item.id}_${index}_${item.nom || 'unknown'}_${item.telephone || 'no-phone'}`}
         renderItem={renderContactCard}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={

@@ -6,5 +6,7 @@ export * from './CreateExchangeScreen';
 export * from './CreateBoberScreen';
 export * from './BoberCardScreen';
 export * from './BobTestScenario';
-export * from './DataInjectionScreen';
-export * from './VerifyStrapi';
+export { default as DataInjectionScreen } from './DataInjectionScreen';
+
+// Export du composant qui fonctionne
+export { default as VerifyStrapi } from './VerifyStrapi_Working';

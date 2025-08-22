@@ -37,6 +37,18 @@ export const apiClient = {
     return response;
   },
 
+  patch: async (endpoint: string, data: any, token?: string) => {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      body: JSON.stringify(data),
+    });
+    return response;
+  },
+
   delete: async (endpoint: string, token?: string) => {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method: 'DELETE',

@@ -693,7 +693,7 @@ export const ContactsGradualSelection: React.FC<ContactsGradualSelectionProps> =
           <FlatList
             data={filteredContacts}
             renderItem={renderContact}
-            keyExtractor={item => item.id}
+            keyExtractor={(item, index) => `${item.id}_${index}_${item.nom || 'unknown'}_${item.telephone || 'no-phone'}`}
             style={{ flex: 1, marginHorizontal: 16 }}
             showsVerticalScrollIndicator={false}
             ListEmptyComponent={

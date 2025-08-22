@@ -168,6 +168,12 @@ export const styles = StyleSheet.create({
     borderColor: '#F59E0B',
     borderWidth: 2,
   },
+
+  actionCardSimulation: {
+    backgroundColor: '#FFF3E0',
+    borderColor: '#FF9800',
+    borderWidth: 2,
+  },
   
   actionIconContainer: {
     width: 40,

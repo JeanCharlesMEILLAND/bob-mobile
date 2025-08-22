@@ -8,6 +8,9 @@ import {
   TextInput,
   Alert,
   ScrollView,
+  Clipboard,
+  Modal,
+  ActivityIndicator,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Linking } from 'react-native';
@@ -59,11 +62,13 @@ export const InvitationInterface: React.FC<InvitationInterfaceProps> = ({
   onClose,
   onSaveGroupAssignments,
 }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [contactsWithStatus, setContactsWithStatus] = useState<ContactWithStatus[]>([]);
   const [searchText, setSearchText] = useState('');
   const [letterFilter, setLetterFilter] = useState<string>('');
   const [filterTab, setFilterTab] = useState<'tous' | 'nouveau' | 'attente' | 'sur_bob'>('tous');
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState('');
 
   useEffect(() => {
     loadInvitationHistory();
@@ -137,7 +142,6 @@ export const InvitationInterface: React.FC<InvitationInterfaceProps> = ({
   };
 
   const getMessageForContact = (contact: ContactWithStatus, channel: 'sms' | 'whatsapp' | 'link', codeParrainage?: string): string => {
-    const { i18n } = useTranslation();
     const priorityOrder: GroupeType[] = ['famille', 'amis', 'voisins', 'bricoleurs', 'custom'];
     
     let selectedTemplate: GroupeType | undefined = undefined;
@@ -159,14 +163,27 @@ export const InvitationInterface: React.FC<InvitationInterfaceProps> = ({
   };
 
   const sendInvitation = async (contact: ContactWithStatus, method: 'sms' | 'whatsapp') => {
+    console.log('🚀 DÉBUT sendInvitation:', { contact: contact.nom, method });
+    
+    // Afficher le modal de chargement
+    setIsLoading(true);
+    setLoadingMessage(
+      method === 'sms' 
+        ? `📱 Préparation du SMS pour ${contact.nom}...` 
+        : `💬 Préparation de WhatsApp pour ${contact.nom}...`
+    );
+    
     try {
       // Créer l'invitation dans Strapi d'abord
       const token = await authService.getValidToken();
       if (!token) {
+        setIsLoading(false);
         Alert.alert(t('common.error'), t('contacts.invitation.mustBeConnected'));
         return;
       }
 
+      // Étape 1: Création invitation
+      setLoadingMessage(`🔗 Création de l'invitation pour ${contact.nom}...`);
       console.log('📤 Création invitation Strapi pour:', contact.nom);
       
       const invitation = await invitationsService.createInvitation({
@@ -176,8 +193,10 @@ export const InvitationInterface: React.FC<InvitationInterfaceProps> = ({
       }, token);
       
       console.log('✅ Invitation créée avec code:', invitation.codeParrainage);
+      console.log('📋 Objet invitation complet:', JSON.stringify(invitation, null, 2));
       
-      // Générer le message avec le vrai lien d'invitation
+      // Étape 2: Génération du message
+      setLoadingMessage(`✍️ Préparation du message d'invitation...`);
       const message = getMessageForContact(contact, method, invitation.codeParrainage);
       
       let url = '';
@@ -192,10 +211,82 @@ export const InvitationInterface: React.FC<InvitationInterfaceProps> = ({
           return;
         }
         
-        url = `whatsapp://send?phone=${phoneNumber}&text=${encodeURIComponent(message)}`;
+        // Essayer différents formats d'URL WhatsApp
+        const whatsappUrls = [
+          `whatsapp://send?phone=${phoneNumber}&text=${encodeURIComponent(message)}`,
+          `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`,
+          `https://api.whatsapp.com/send?phone=${phoneNumber}&text=${encodeURIComponent(message)}`
+        ];
+        
+        url = whatsappUrls[0]; // Commencer par le premier format
+        console.log('📱 URLs WhatsApp à tester:', whatsappUrls);
       }
       
-      await Linking.openURL(url);
+      console.log('📱 Tentative d\'ouverture URL:', url);
+      
+      if (method === 'whatsapp') {
+        // Étape 3: Préparation WhatsApp
+        setLoadingMessage(`💬 Ouverture de WhatsApp...`);
+        
+        // Pour WhatsApp, utiliser le format qui marche (wa.me accepte le +)
+        const cleanPhone = contact.telephone.startsWith('+') ? contact.telephone : '+' + contact.telephone;
+        const whatsappUrls = [
+          `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`, // Le plus universel - MARCHE !
+          `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(message)}` // API WhatsApp
+        ];
+        
+        let whatsappOpened = false;
+        for (const whatsappUrl of whatsappUrls) {
+          console.log('📱 Test WhatsApp URL:', whatsappUrl);
+          const canOpen = await Linking.canOpenURL(whatsappUrl);
+          console.log('📱 URL supportée:', canOpen);
+          
+          if (canOpen) {
+            await Linking.openURL(whatsappUrl);
+            console.log('✅ WhatsApp ouvert avec succès');
+            whatsappOpened = true;
+            setLoadingMessage(`✅ WhatsApp ouvert !`);
+            break;
+          }
+        }
+        
+        if (!whatsappOpened) {
+          setIsLoading(false);
+          console.error('❌ Aucun format WhatsApp supporté');
+          Alert.alert(
+            'WhatsApp - Contact non trouvé', 
+            `Le numéro ${contact.telephone} n'est pas dans vos contacts WhatsApp.\n\nVoulez-vous :\n• Copier le message d'invitation pour l'envoyer manuellement\n• Ou utiliser SMS à la place ?`,
+            [
+              { text: 'Copier le message', onPress: () => {
+                // Copier le message dans le presse-papiers
+                Clipboard.setString(message);
+                console.log('📋 Message copié:', message);
+                Alert.alert('Message copié !', 'Le message d\'invitation a été copié. Vous pouvez maintenant l\'envoyer via WhatsApp manuellement.');
+              }},
+              { text: 'Envoyer par SMS', onPress: () => sendInvitation(contact, 'sms') },
+              { text: 'Annuler', style: 'cancel' }
+            ]
+          );
+          return;
+        }
+      } else {
+        // Étape 3: Ouverture SMS
+        setLoadingMessage(`📱 Ouverture de l'application SMS...`);
+        
+        const canOpen = await Linking.canOpenURL(url);
+        console.log('📱 URL supportée:', canOpen);
+        
+        if (canOpen) {
+          await Linking.openURL(url);
+          console.log('✅ URL ouverte avec succès');
+          setLoadingMessage(`✅ SMS ouvert !`);
+        } else {
+          setIsLoading(false);
+          console.error('❌ URL non supportée:', url);
+          Alert.alert('Erreur', 'Impossible d\'ouvrir l\'application SMS');
+          return;
+        }
+      }
       
       const updatedContacts = contactsWithStatus.map(c => {
         if (c.id === contact.id) {
@@ -223,16 +314,17 @@ export const InvitationInterface: React.FC<InvitationInterfaceProps> = ({
       setContactsWithStatus(updatedContacts);
       await saveInvitationHistory(updatedContacts);
       
+      // Fermer le modal de chargement après le processus complet
+      setIsLoading(false);
+      
       Alert.alert(
-        t('contacts.invitation.invitationSent'), 
-        t('contacts.invitation.invitationSentDesc', { 
-          name: contact.nom, 
-          method: method.toUpperCase() 
-        })
+        'Invitation envoyée !', 
+        `L'invitation ${method.toUpperCase()} a été envoyée à ${contact.nom}`
       );
     } catch (error) {
+      setIsLoading(false);
       console.error('❌ Erreur envoi invitation:', error);
-      Alert.alert(t('common.error'), t('contacts.invitation.errorSending', { error: error instanceof Error ? error.message : 'Erreur inconnue' }));
+      Alert.alert('Erreur d\'invitation', `Impossible d'envoyer l'invitation: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
     }
   };
 
@@ -555,7 +647,7 @@ export const InvitationInterface: React.FC<InvitationInterfaceProps> = ({
 
       <FlatList
         data={filteredContacts}
-        keyExtractor={item => item.id}
+        keyExtractor={(item, index) => `${item.id}_${index}_${item.nom || 'unknown'}_${item.telephone || 'no-phone'}`}
         renderItem={renderContactCard}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
@@ -581,6 +673,22 @@ export const InvitationInterface: React.FC<InvitationInterfaceProps> = ({
           </View>
         }
       />
+
+      {/* Modal de chargement */}
+      <Modal
+        transparent={true}
+        animationType="fade"
+        visible={isLoading}
+        onRequestClose={() => {}} // Empêcher la fermeture manuelle
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <ActivityIndicator size="large" color="#3B82F6" />
+            <Text style={styles.modalTitle}>Envoi d'invitation</Text>
+            <Text style={styles.modalMessage}>{loadingMessage}</Text>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };

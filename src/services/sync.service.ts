@@ -79,7 +79,7 @@ class SyncService {
     const {
       createGroup = true,
       groupName = 'Mes contacts',
-      batchSize = 5, // Réduire de 25 à 5 pour éviter le rate limiting
+      batchSize = 1, // 1 seul contact par batch pour éviter le rate limiting
       onProgress,
       forceSync = false
     } = options;
@@ -153,22 +153,24 @@ class SyncService {
             throw new Error('Token expiré pendant la synchronisation');
           }
 
-          // Sync individuelle avec gestion des erreurs
-          const batchResults = await Promise.allSettled(
-            batch.map(contact => this.syncSingleContact(contact, currentToken, groupeMesContacts?.id))
-          );
-          
-          // Compter les succès
-          const successes = batchResults.filter(r => r.status === 'fulfilled').length;
-          const failures = batchResults.filter(r => r.status === 'rejected');
-          
-          result.contactsSync += successes;
-          
-          failures.forEach((failure, index) => {
-            const error = failure.reason as Error;
-            console.error(`❌ Erreur contact ${batch[index].nom}:`, error);
-            result.errors.push(`${batch[index].nom}: ${error?.message || 'Erreur inconnue'}`);
-          });
+          // Sync individuelle SÉQUENTIELLE pour éviter le rate limiting
+          for (let j = 0; j < batch.length; j++) {
+            const contact = batch[j];
+            try {
+              await this.syncSingleContact(contact, currentToken, groupeMesContacts?.id);
+              result.contactsSync++;
+              console.log(`✅ Contact ${j + 1}/${batch.length} du batch ${batchNumber} synchronisé`);
+              
+              // Délai entre chaque contact pour éviter le rate limiting
+              if (j < batch.length - 1) {
+                await this.sleep(8000); // 8 secondes entre chaque contact
+              }
+            } catch (error) {
+              const err = error as Error;
+              console.error(`❌ Erreur contact ${contact.nom}:`, err);
+              result.errors.push(`${contact.nom}: ${err?.message || 'Erreur inconnue'}`);
+            }
+          }
           
           // Mise à jour du progrès
           const progress = Math.round(((i + batch.length) / validContacts.length) * 100);
@@ -176,7 +178,7 @@ class SyncService {
           
           // Délai plus long entre batches pour éviter le rate limiting
           if (batchNumber < totalBatches) {
-            await this.sleep(3000); // 3 secondes pour éviter les 429 errors
+            await this.sleep(10000); // 10 secondes entre batches
           }
           
         } catch (error) {
@@ -260,8 +262,8 @@ class SyncService {
           groupeIds: groupeId ? [groupeId] : [],
         }, token);
         
-        // Petit délai entre créations pour éviter le rate limiting
-        await this.sleep(500);
+        // Délai plus long entre créations pour éviter le rate limiting
+        await this.sleep(2000);
         
         return newContact;
       }
@@ -282,26 +284,18 @@ class SyncService {
     if (!contacts.length) return contacts;
 
     try {
-      // 1. Récupérer tous les profils utilisateurs Bob
-      const usersResponse = await apiClient.get('/users?populate=*', token);
-      if (!usersResponse.ok) {
-        throw new Error('Impossible de récupérer les utilisateurs Bob');
-      }
-
-      const usersData = await usersResponse.json();
-      const users = usersData.data || [];
+      // 1. Récupérer tous les contacts Bob actifs (collection contacts = utilisateurs de l'app)
+      const contactsResponse = await contactsService.getMyContacts(token);
+      const bobContacts = contactsResponse || [];
       
-      console.log('👥 Utilisateurs Bob trouvés:', users.length);
+      console.log('👥 Contacts Bob actifs trouvés:', bobContacts.length);
 
-      // 2. Créer un mapping téléphone → user
-      const usersByPhone: Record<string, any> = {};
-      users.forEach((user: any) => {
-        if (user.attributes?.telephone) {
-          const normalizedPhone = this.normalizePhoneNumber(user.attributes.telephone);
-          usersByPhone[normalizedPhone] = {
-            id: user.id,
-            ...user.attributes
-          };
+      // 2. Créer un mapping téléphone → contact Bob
+      const bobContactsByPhone: Record<string, any> = {};
+      bobContacts.forEach((bobContact: any) => {
+        if (bobContact.telephone) {
+          const normalizedPhone = this.normalizePhoneNumber(bobContact.telephone);
+          bobContactsByPhone[normalizedPhone] = bobContact;
         }
       });
 
@@ -310,28 +304,27 @@ class SyncService {
         if (!contact.telephone) return contact;
 
         const normalizedPhone = this.normalizePhoneNumber(contact.telephone);
-        const user = usersByPhone[normalizedPhone];
+        const bobContact = bobContactsByPhone[normalizedPhone];
 
-        if (user) {
-          console.log(`✅ Contact ${contact.nom} → User Bob trouvé (ID: ${user.id})`);
+        if (bobContact) {
+          console.log(`✅ Contact ${contact.nom} → User Bob trouvé (ID: ${bobContact.id})`);
           
           return {
             ...contact,
-            userId: user.id,
+            userId: bobContact.id,
             aSurBob: true,
             userProfile: {
-              id: user.id,
-              username: user.username,
-              email: user.email,
-              telephone: user.telephone,
-              nom: user.nom || contact.nom,
-              prenom: user.prenom || contact.prenom,
-              avatar: user.avatar,
-              bobizPoints: user.bobizPoints || 0,
-              niveau: this.calculateUserLevel(user.bobizPoints || 0),
-              estEnLigne: user.estEnLigne || false,
-              derniereActivite: user.derniereActivite || new Date().toISOString(),
-              dateInscription: user.dateInscription || user.createdAt || new Date().toISOString(),
+              id: bobContact.id,
+              nom: bobContact.nom || contact.nom,
+              prenom: bobContact.prenom || contact.prenom,
+              email: bobContact.email,
+              telephone: bobContact.telephone,
+              avatar: bobContact.avatar,
+              bobizPoints: bobContact.bobizGagnes || 0,
+              niveau: this.calculateUserLevel(bobContact.bobizGagnes || 0),
+              estEnLigne: bobContact.estEnLigne || false,
+              derniereActivite: bobContact.dernierConnexion || new Date().toISOString(),
+              dateInscription: bobContact.dateInscription || new Date().toISOString(),
             }
           };
         }
@@ -653,9 +646,26 @@ class SyncService {
       if (contactsResult.status === 'fulfilled' && contactsResult.value.ok) {
         try {
           const contactsData = await contactsResult.value.json();
+          
+          // Debug: voir la vraie structure des données
+          console.log('🔍 DEBUG API /contacts response:', JSON.stringify(contactsData, null, 2));
+          if (contactsData.data && contactsData.data[0]) {
+            console.log('🔍 DEBUG Premier contact:', JSON.stringify(contactsData.data[0], null, 2));
+          }
+          
+          // Strapi 5 : structure plate, pas d'attributes, documentId au lieu d'id
           finalContacts = contactsData.data?.map((item: any) => ({
-            id: item.id,
-            ...item.attributes
+            id: item.documentId || item.id, // Strapi 5 utilise documentId
+            nom: item.nom,
+            prenom: item.prenom, 
+            telephone: item.telephone,
+            email: item.email,
+            actif: item.actif,
+            aSurBob: item.aSurBob,
+            estInvite: item.estInvite,
+            dateAjout: item.dateAjout,
+            source: item.source,
+            groupes: item.groupes || []
           })) || [];
         } catch (jsonError) {
           console.error('❌ Erreur parsing JSON contacts:', jsonError);

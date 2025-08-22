@@ -88,6 +88,54 @@ dashboardHeader: {
   content: {
     flex: 1,
   },
+
+  // Styles pour l'interface de sélection
+  selectionPrompt: {
+    backgroundColor: Colors.white,
+    margin: Spacing.md,
+    padding: Spacing.xl,
+    borderRadius: 12,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+
+  selectionTitle: {
+    fontSize: Typography.sizes.xl,
+    fontWeight: Typography.weights.bold,
+    color: Colors.text,
+    marginBottom: Spacing.md,
+    textAlign: 'center',
+  },
+
+  selectionDesc: {
+    fontSize: Typography.sizes.base,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: Spacing.xl,
+  },
+
+  selectButton: {
+    backgroundColor: Colors.primary,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.xl,
+    borderRadius: 8,
+    minWidth: 200,
+  },
+
+  selectButtonText: {
+    color: Colors.white,
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semibold,
+    textAlign: 'center',
+  },
 });
 
 // Styles partagés pour les composants enfants
@@ -140,6 +188,10 @@ export const sharedStyles = StyleSheet.create({
     color: '#D32F2F',
     fontWeight: Typography.weights.medium,
     fontSize: Typography.sizes.sm,
+  },
+  dangerButtonDisabled: {
+    opacity: 0.6,
+    backgroundColor: '#F5F5F5',
   },
 
   // Headers partagés
@@ -320,6 +372,54 @@ export const sharedStyles = StyleSheet.create({
   emptyListText: {
     fontSize: Typography.sizes.base,
     color: Colors.textSecondary,
+    textAlign: 'center',
+  },
+
+  // Styles pour la nouvelle interface de sélection
+  selectionPrompt: {
+    backgroundColor: Colors.white,
+    margin: Spacing.md,
+    padding: Spacing.xl,
+    borderRadius: 12,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+
+  selectionTitle: {
+    fontSize: Typography.sizes.xl,
+    fontWeight: Typography.weights.bold,
+    color: Colors.text,
+    marginBottom: Spacing.md,
+    textAlign: 'center',
+  },
+
+  selectionDesc: {
+    fontSize: Typography.sizes.base,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: Spacing.xl,
+  },
+
+  selectButton: {
+    backgroundColor: Colors.primary,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.xl,
+    borderRadius: 8,
+    minWidth: 200,
+  },
+
+  selectButtonText: {
+    color: Colors.white,
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semibold,
     textAlign: 'center',
   },
 });

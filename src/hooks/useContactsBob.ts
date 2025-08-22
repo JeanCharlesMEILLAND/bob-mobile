@@ -137,6 +137,7 @@ const createMockUsersBob = (): ContactBob[] => [
 export const useContactsBob = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isSyncInProgress, setIsSyncInProgress] = useState(false); // 🆕 Flag pour éviter les opérations concurrentes
   const [token, setToken] = useState<string | null>(null); // 🆕 NOUVEAU: Token JWT
   
   const [contactsBruts, setContactsBruts] = useState<ContactBrut[]>([]);
@@ -159,7 +160,7 @@ export const useContactsBob = () => {
     retryCount: 0,
   });
 
-  // 🆕 NOUVEAU: Charger le token au démarrage
+  // 🆕 NOUVEAU: Charger le token au démarrage (après le cache)
   useEffect(() => {
     const loadTokenAndSync = async () => {
       const storedToken = await storageService.getToken();
@@ -167,8 +168,10 @@ export const useContactsBob = () => {
       
       if (storedToken) {
         console.log('🔑 Token trouvé, synchronisation avec Strapi...');
-        // Utiliser directement storedToken au lieu d'attendre l'état
-        await syncAvecStrapiWithToken(storedToken);
+        // Attendre un peu que les données cache soient chargées
+        setTimeout(async () => {
+          await syncAvecStrapiWithToken(storedToken);
+        }, 1000);
       }
     };
     
@@ -217,11 +220,57 @@ export const useContactsBob = () => {
       
       setInvitations(invitationsStrapi);
       
-      // 3. Transformer les contacts en users automatiquement
-      if (repertoire.length > 0) {
+      // 3. 🆕 RÉCUPÉRER LES CONTACTS EXISTANTS depuis Strapi
+      let currentRepertoire = repertoire;
+      if (strapiState.contacts && strapiState.contacts.length > 0) {
+        console.log(`📥 Récupération de ${strapiState.contacts.length} contacts depuis Strapi...`);
+        
+        const contactsStrapi: ContactRepertoire[] = strapiState.contacts.map((contact: any, index: number) => {
+          console.log(`🔍 DEBUG Contact ${index}:`, { 
+            id: contact.id, 
+            nom: contact.nom, 
+            prenom: contact.prenom, 
+            telephone: contact.telephone 
+          });
+          
+          const nomFinal = contact.prenom && contact.nom 
+            ? `${contact.prenom} ${contact.nom}` 
+            : contact.nom || contact.prenom || 'Contact';
+            
+          console.log(`📝 Nom final: "${nomFinal}"`);
+          
+          return {
+            id: contact.id ? contact.id.toString() : `strapi-${index}-${Date.now()}`,
+            nom: nomFinal,
+            telephone: contact.telephone || '',
+            email: contact.email || undefined,
+            aSurBob: contact.aSurBob || false,
+            estInvite: !!contact.estInvite,
+            dateInvitation: contact.dateInvitation,
+            nombreInvitations: contact.nombreInvitations || 0,
+            lastUpdated: contact.lastUpdated || new Date().toISOString(),
+            source: 'strapi',
+          };
+        });
+        
+        // Éliminer les doublons par ID
+        const uniqueContactsStrapi = contactsStrapi.filter((contact, index, self) => 
+          self.findIndex(c => c.id === contact.id) === index
+        );
+        
+        currentRepertoire = uniqueContactsStrapi;
+        setRepertoire(uniqueContactsStrapi);
+        console.log(`✅ ${uniqueContactsStrapi.length} contacts importés depuis Strapi dans le répertoire local (${contactsStrapi.length - uniqueContactsStrapi.length} doublons éliminés)`);
+        
+        // Sauvegarder immédiatement
+        await saveCachedData(contactsBruts, uniqueContactsStrapi, contacts, invitationsStrapi);
+      }
+      
+      // 4. Transformer les contacts en users automatiquement (utiliser currentRepertoire)
+      if (currentRepertoire.length > 0) {
         console.log('🔄 Transformation automatique contacts → users...');
         // Convertir ContactRepertoire[] vers Contact[] pour l'API
-        const contactsForApi: Contact[] = repertoire.map(r => ({
+        const contactsForApi: Contact[] = currentRepertoire.map(r => ({
           id: typeof r.id === 'string' ? parseInt(r.id) || 0 : r.id,
           nom: r.nom,
           telephone: r.telephone,
@@ -236,7 +285,7 @@ export const useContactsBob = () => {
         
         // Convertir Contact[] vers ContactRepertoire[] pour l'état local
         const enrichedRepertoire: ContactRepertoire[] = enrichedContacts.map(c => {
-          const originalContact = repertoire.find(r => r.telephone === c.telephone);
+          const originalContact = currentRepertoire.find(r => r.telephone === c.telephone);
           return {
             id: originalContact?.id || c.id.toString(),
             nom: c.nom,
@@ -296,11 +345,57 @@ export const useContactsBob = () => {
         
         setInvitations(invitationsStrapi);
         
-        // 3. Transformer les contacts en users automatiquement
-        if (repertoire.length > 0) {
+        // 3. 🆕 RÉCUPÉRER LES CONTACTS EXISTANTS depuis Strapi
+        let currentRepertoire = repertoire;
+        if (strapiState.contacts && strapiState.contacts.length > 0) {
+          console.log(`📥 Récupération de ${strapiState.contacts.length} contacts depuis Strapi...`);
+          
+          const contactsStrapi: ContactRepertoire[] = strapiState.contacts.map((contact: any, index: number) => {
+            console.log(`🔍 DEBUG Contact ${index} (autre endroit):`, { 
+              id: contact.id, 
+              nom: contact.nom, 
+              prenom: contact.prenom, 
+              telephone: contact.telephone 
+            });
+            
+            const nomFinal = contact.prenom && contact.nom 
+              ? `${contact.prenom} ${contact.nom}` 
+              : contact.nom || contact.prenom || 'Contact';
+              
+            console.log(`📝 Nom final (autre endroit): "${nomFinal}"`);
+            
+            return {
+              id: contact.id ? contact.id.toString() : `strapi-${index}-${Date.now()}`,
+              nom: nomFinal,
+              telephone: contact.telephone || '',
+              email: contact.email || undefined,
+              aSurBob: contact.aSurBob || false,
+              estInvite: !!contact.estInvite,
+              dateInvitation: contact.dateInvitation,
+              nombreInvitations: contact.nombreInvitations || 0,
+              lastUpdated: contact.lastUpdated || new Date().toISOString(),
+              source: 'strapi',
+            };
+          });
+          
+          // Éliminer les doublons par ID
+          const uniqueContactsStrapi = contactsStrapi.filter((contact, index, self) => 
+            self.findIndex(c => c.id === contact.id) === index
+          );
+          
+          currentRepertoire = uniqueContactsStrapi;
+          setRepertoire(uniqueContactsStrapi);
+          console.log(`✅ ${uniqueContactsStrapi.length} contacts importés depuis Strapi dans le répertoire local (${contactsStrapi.length - uniqueContactsStrapi.length} doublons éliminés)`);
+          
+          // Sauvegarder immédiatement
+          await saveCachedData(contactsBruts, uniqueContactsStrapi, contacts, invitationsStrapi);
+        }
+        
+        // 4. Transformer les contacts en users automatiquement (utiliser currentRepertoire)
+        if (currentRepertoire.length > 0) {
           console.log('🔄 Transformation automatique contacts → users...');
           // Convertir ContactRepertoire[] vers Contact[] pour l'API
-          const contactsForApi: Contact[] = repertoire.map(r => ({
+          const contactsForApi: Contact[] = currentRepertoire.map(r => ({
             id: typeof r.id === 'string' ? parseInt(r.id) || 0 : r.id,
             nom: r.nom,
             telephone: r.telephone,
@@ -315,7 +410,7 @@ export const useContactsBob = () => {
           
           // Convertir Contact[] vers ContactRepertoire[] pour l'état local
           const enrichedRepertoire: ContactRepertoire[] = enrichedContacts.map(c => {
-            const originalContact = repertoire.find(r => r.telephone === c.telephone);
+            const originalContact = currentRepertoire.find(r => r.telephone === c.telephone);
             return {
               id: originalContact?.id || c.id.toString(),
               nom: c.nom,
@@ -411,9 +506,17 @@ export const useContactsBob = () => {
     }
   };
 
+  // Charger les données cache en priorité
   useEffect(() => {
     loadCachedData();
   }, []);
+
+  // Surveillance du state repertoire pour le dashboard
+  useEffect(() => {
+    if (repertoire.length > 0) {
+      console.log('✅ Répertoire chargé, dashboard prêt:', repertoire.length, 'contacts');
+    }
+  }, [repertoire.length]);
 
   const loadCachedData = async () => {
     try {
@@ -431,35 +534,35 @@ export const useContactsBob = () => {
         }, 1000);
       }
       
+      // PRIORITY: Charger le répertoire en premier pour le dashboard
+      const cachedRepertoire = await AsyncStorage.getItem(STORAGE_KEYS.REPERTOIRE);
+      if (cachedRepertoire) {
+        const parsed = JSON.parse(cachedRepertoire);
+        console.log('📱 🚀 PRIORITÉ - Cache repertoire trouvé:', parsed.length, 'mes contacts Bob');
+        setRepertoire(parsed);
+      }
+      
+      // Puis charger le reste en parallèle
       const [
         cachedContactsBruts,
-        cachedRepertoire, 
         cachedContacts, 
         cachedInvitations, 
         lastScan, 
         scanMetadata
       ] = await Promise.all([
         AsyncStorage.getItem(STORAGE_KEYS.CONTACTS_BRUTS),
-        AsyncStorage.getItem(STORAGE_KEYS.REPERTOIRE),
         AsyncStorage.getItem(STORAGE_KEYS.CONTACTS_BOB),
         AsyncStorage.getItem(STORAGE_KEYS.INVITATIONS),
         AsyncStorage.getItem(STORAGE_KEYS.LAST_SCAN),
         AsyncStorage.getItem(STORAGE_KEYS.SCAN_METADATA),
       ]);
 
-      let loadedCount = 0;
+      let loadedCount = 1; // Répertoire déjà chargé
 
       if (cachedContactsBruts) {
         const parsed = JSON.parse(cachedContactsBruts);
         console.log('📲 Cache contacts bruts trouvé:', parsed.length, 'contacts du téléphone');
         setContactsBruts(parsed);
-        loadedCount++;
-      }
-
-      if (cachedRepertoire) {
-        const parsed = JSON.parse(cachedRepertoire);
-        console.log('📱 Cache repertoire trouvé:', parsed.length, 'mes contacts Bob');
-        setRepertoire(parsed);
         loadedCount++;
       }
       
@@ -526,12 +629,24 @@ export const useContactsBob = () => {
       ]);
       
       console.log('✅ Cache sauvegardé avec succès');
+      console.log('📊 Données sauvegardées:', {
+        contactsBruts: contactsBrutsToSave.length,
+        repertoire: repertoireToSave.length, 
+        contacts: contactsToSave.length,
+        invitations: invitationsToSave.length
+      });
     } catch (error) {
       console.error('❌ Erreur sauvegarde cache:', error);
     }
   };
 
   const scannerRepertoireBrut = useCallback(async (): Promise<ContactBrut[]> => {
+    // 🚫 Empêcher le scan pendant une sync
+    if (isSyncInProgress) {
+      console.log('🚫 Scan bloqué : synchronisation en cours');
+      throw new Error('Une synchronisation est déjà en cours');
+    }
+
     setIsLoading(true);
     setError(null);
     
@@ -648,7 +763,7 @@ export const useContactsBob = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [repertoire, contacts, invitations]);
+  }, [repertoire, contacts, invitations, isSyncInProgress]);
 
   const cleanPhoneNumber = (phoneNumber: string): string => {
     if (!phoneNumber) return '';
@@ -739,6 +854,14 @@ export const useContactsBob = () => {
       await saveCachedData(contactsBruts, nouveauRepertoire, nouveauxContactsBob, invitations);
 
       console.log(`✅ Import terminé: ${contactsAImporter.length} contacts, ${nouveauxUtilisateursBob.length} nouveaux utilisateurs Bob`);
+      
+      // Logs pour debug
+      console.log('📊 État après import:', {
+        contactsBruts: contactsBruts.length,
+        repertoire: nouveauRepertoire.length,
+        contacts: nouveauxContactsBob.length,
+        invitations: invitations.length
+      });
 
     } catch (err: any) {
       console.error('❌ Erreur import contacts:', err);
@@ -759,6 +882,8 @@ export const useContactsBob = () => {
       const currentToken = await authService.getValidToken();
       if (currentToken) {
         console.log('🔄 Synchronisation des contacts avec Strapi...');
+        setIsSyncInProgress(true); // 🚫 Bloquer les autres opérations
+        
         const contactsASync = contactsBruts
           .filter(c => contactIds.includes(c.id))
           .map(c => ({
@@ -784,14 +909,14 @@ export const useContactsBob = () => {
             console.warn('⚠️ Erreurs lors de la sync:', syncResult.errors);
           }
           
-          // Récupérer le statut Bob mis à jour avec le token actuel
-          await syncAvecStrapiWithToken(currentToken);
+          // Pas besoin de re-sync car les données sont déjà cohérentes
+          console.log('🔄 Sync terminée, données locales conservées...');
           
         } catch (error: any) {
           if (error.message?.includes('409') || error.response?.status === 409) {
             console.warn('⚠️ Erreur 409: Contacts déjà existants dans Strapi - continuant...');
-            // Récupérer quand même le statut Bob mis à jour
-            await syncAvecStrapiWithToken(currentToken);
+            // Ne PAS faire de re-sync car ça écrase les données locales
+            // Les contacts existants sont déjà gérés côté sync
           } else {
             console.warn('⚠️ Sync Strapi échouée, continuant en local:', error);
             throw error; // Propager l'erreur pour l'UI
@@ -803,6 +928,8 @@ export const useContactsBob = () => {
     } catch (error: any) {
       console.error('❌ Erreur importerContactsEtSync:', error);
       throw error; // Assurer que l'erreur remonte à l'UI
+    } finally {
+      setIsSyncInProgress(false); // 🔓 Libérer le flag
     }
   }, [importerContactsSelectionnes, contactsBruts, syncAvecStrapiWithToken]);
 
@@ -1354,7 +1481,8 @@ export const useContactsBob = () => {
         'Ont Bob': stats.contactsAvecBob,
         'À inviter (jamais invités)': stats.contactsSansBob,
         'Invités en attente': stats.contactsInvites,
-        'Pourcentage Bob': stats.pourcentageBob + '%'
+        'Pourcentage Bob': stats.pourcentageBob + '%',
+        timestamp: new Date().toISOString()
       });
       
       return stats;
@@ -1392,8 +1520,108 @@ export const useContactsBob = () => {
     return diffHours > 24;
   }, [lastScanDate]);
 
+  // 🆕 NOUVEAU: Validation de l'état des données
+  const validateDataConsistency = useCallback(() => {
+    const issues: string[] = [];
+    
+    // Vérifier que les contacts du répertoire sont cohérents
+    const duplicatePhones = new Set();
+    const phoneCounts = new Map();
+    
+    repertoire.forEach(contact => {
+      if (contact.telephone) {
+        const count = phoneCounts.get(contact.telephone) || 0;
+        phoneCounts.set(contact.telephone, count + 1);
+        if (count > 0) duplicatePhones.add(contact.telephone);
+      }
+    });
+    
+    if (duplicatePhones.size > 0) {
+      issues.push(`${duplicatePhones.size} numéros en double dans le répertoire`);
+    }
+    
+    // Vérifier la cohérence des compteurs
+    const contactsAvecBob = repertoire.filter(c => c.aSurBob).length;
+    const contactsInvites = repertoire.filter(c => c.estInvite).length;
+    const contactsSansBob = repertoire.filter(c => !c.aSurBob && !c.estInvite).length;
+    const totalCalcule = contactsAvecBob + contactsInvites + contactsSansBob;
+    
+    if (totalCalcule !== repertoire.length) {
+      issues.push(`Incohérence compteurs: ${totalCalcule} calculé vs ${repertoire.length} réel`);
+    }
+    
+    if (issues.length > 0) {
+      console.warn('⚠️ Problèmes de cohérence détectés:', issues);
+    } else {
+      console.log('✅ Données cohérentes');
+    }
+    
+    return issues;
+  }, [repertoire]);
+
   const clearCache = useCallback(async (): Promise<void> => {
     try {
+      console.log('🗑️ Début suppression complète (local + Strapi)...');
+      setIsLoading(true);
+      setIsSyncInProgress(true); // 🚫 Bloquer les autres opérations
+      
+      // 1. Supprimer sur Strapi si token disponible
+      if (token) {
+        try {
+          console.log('🗑️ Suppression des contacts sur Strapi...');
+          
+          // Récupérer tous mes contacts depuis Strapi
+          const strapiState = await syncService.getFullState();
+          if (strapiState.contacts && strapiState.contacts.length > 0) {
+            console.log(`🗑️ ${strapiState.contacts.length} contacts à supprimer sur Strapi`);
+            
+            // Supprimer chaque contact un par un (avec rate limiting)
+            let deletedCount = 0;
+            for (const contact of strapiState.contacts) {
+              try {
+                await contactsService.deleteContact(contact.id, token);
+                deletedCount++;
+                console.log(`🗑️ Contact ${contact.id} supprimé (${deletedCount}/${strapiState.contacts.length})`);
+                
+                // Petit délai pour éviter le rate limiting
+                await new Promise(resolve => setTimeout(resolve, 200));
+              } catch (error) {
+                console.warn(`⚠️ Erreur suppression contact ${contact.id}:`, error);
+              }
+            }
+            
+            console.log(`✅ ${deletedCount} contacts supprimés sur Strapi`);
+          }
+          
+          // Supprimer aussi les invitations sur Strapi
+          if (strapiState.invitations && strapiState.invitations.length > 0) {
+            console.log(`🗑️ ${strapiState.invitations.length} invitations à supprimer sur Strapi`);
+            
+            let deletedInvitations = 0;
+            for (const invitation of strapiState.invitations) {
+              try {
+                await invitationsService.deleteInvitation(invitation.id, token);
+                deletedInvitations++;
+                console.log(`🗑️ Invitation ${invitation.id} supprimée (${deletedInvitations}/${strapiState.invitations.length})`);
+                
+                await new Promise(resolve => setTimeout(resolve, 200));
+              } catch (error) {
+                console.warn(`⚠️ Erreur suppression invitation ${invitation.id}:`, error);
+              }
+            }
+            
+            console.log(`✅ ${deletedInvitations} invitations supprimées sur Strapi`);
+          }
+          
+        } catch (error) {
+          console.error('❌ Erreur suppression Strapi:', error);
+          // Continuer quand même avec le nettoyage local
+        }
+      } else {
+        console.warn('⚠️ Pas de token - suppression Strapi ignorée');
+      }
+      
+      // 2. Nettoyer le cache local
       await Promise.all([
         AsyncStorage.removeItem(STORAGE_KEYS.CONTACTS_BRUTS),
         AsyncStorage.removeItem(STORAGE_KEYS.REPERTOIRE),
@@ -1404,6 +1632,7 @@ export const useContactsBob = () => {
         AsyncStorage.removeItem(STORAGE_KEYS.SCAN_METADATA),
       ]);
       
+      // 3. Réinitialiser les états
       setContactsBruts([]);
       setRepertoire([]);
       setContacts([]);
@@ -1411,12 +1640,30 @@ export const useContactsBob = () => {
       setLastScanDate(null);
       setScanProgress({ phase: 'complete', progress: 0 });
       
-      console.log('🗑️ Cache complètement vidé');
+      console.log('✅ Suppression complète terminée (local + Strapi)');
     } catch (error) {
-      console.error('❌ Erreur nettoyage cache:', error);
+      console.error('❌ Erreur nettoyage complet:', error);
       throw error;
+    } finally {
+      setIsLoading(false);
+      setIsSyncInProgress(false); // 🔓 Libérer le flag
     }
-  }, []);
+  }, [token, syncService, contactsService, invitationsService]);
+
+  // 🆕 Fonction pour forcer la mise à jour des noms depuis Strapi
+  const forcerMiseAJourNoms = useCallback(async () => {
+    if (!token) {
+      console.warn('⚠️ Pas de token pour mise à jour des noms');
+      return;
+    }
+
+    try {
+      console.log('🔄 Force mise à jour des noms depuis Strapi...');
+      await syncAvecStrapiWithToken(token);
+    } catch (error) {
+      console.error('❌ Erreur mise à jour noms:', error);
+    }
+  }, [token, syncAvecStrapiWithToken]);
 
   return {
     // États
@@ -1438,6 +1685,7 @@ export const useContactsBob = () => {
     retirerContactsDuRepertoire,
     inviterContact,
     clearCache,
+    forcerMiseAJourNoms,
     
     // 🆕 NOUVEAU: Méthodes Strapi
     syncAvecStrapi,
@@ -1448,9 +1696,104 @@ export const useContactsBob = () => {
     fetchContactsFromStrapi,
     verifierEtatStrapi,
     
+    // Simulation
+    simulerAcceptationInvitation: async (telephone: string): Promise<boolean> => {
+      try {
+        console.log('🎭 Simulation acceptation invitation pour:', telephone);
+        
+        const token = await authService.getValidToken();
+        if (!token) throw new Error('Token invalide');
+
+        // 1. Trouver l'invitation en cours
+        const invitation = invitations.find(i => 
+          i.telephone?.replace(/[\s\-\(\)\.]/g, '') === telephone.replace(/[\s\-\(\)\.]/g, '') &&
+          i.statut === 'envoye'
+        );
+
+        if (!invitation) {
+          throw new Error('Aucune invitation en cours trouvée pour ce numéro');
+        }
+
+        console.log('📤 Invitation trouvée:', invitation);
+
+        // 2. Mettre à jour le statut de l'invitation
+        await invitationsService.updateInvitationStatus(invitation.id, 'accepte', token);
+
+        // 3. Vérifier le type d'invitation (répertoire vs externe)
+        const contactRepertoire = repertoire.find(c => 
+          c.telephone?.replace(/[\s\-\(\)\.]/g, '') === telephone.replace(/[\s\-\(\)\.]/g, '')
+        );
+
+        const isInvitationRepertoire = !!contactRepertoire;
+        console.log('📋 Type invitation:', isInvitationRepertoire ? 'REPERTOIRE' : 'EXTERNE');
+
+        let contactInfo;
+        if (isInvitationRepertoire) {
+          // Contact déjà dans le répertoire
+          contactInfo = {
+            nom: contactRepertoire.nom,
+            prenom: contactRepertoire.prenom,
+            telephone: contactRepertoire.telephone,
+            email: contactRepertoire.email,
+          };
+          console.log('📱 Contact trouvé dans répertoire:', contactInfo);
+        } else {
+          // Invitation externe (QR code, etc.) - utiliser les données de l'invitation
+          contactInfo = {
+            nom: invitation.nom || 'Utilisateur',
+            prenom: invitation.prenom || '',
+            telephone: invitation.telephone,
+            email: invitation.email || `user${Date.now()}@example.com`,
+          };
+          console.log('🔗 Invitation externe:', contactInfo);
+        }
+
+        // 4. Créer l'utilisateur Bob (toujours créer dans contacts pour qu'il devienne "user")
+        const nouveauUserBob = {
+          nom: contactInfo.nom,
+          prenom: contactInfo.prenom,
+          telephone: contactInfo.telephone,
+          email: contactInfo.email,
+          statut: 'actif',
+          dateInscription: new Date().toISOString(),
+          estEnLigne: Math.random() > 0.5, // 50% de chance d'être en ligne
+          dernierConnexion: new Date().toISOString(),
+          // Données simulées
+          nombreEchanges: Math.floor(Math.random() * 10),
+          bobizGagnes: Math.floor(Math.random() * 100) + 50,
+          localisation: 'France',
+        };
+
+        console.log('👤 Création utilisateur Bob:', nouveauUserBob);
+
+        // 5. Créer l'utilisateur dans Strapi (collection contacts = utilisateurs actifs)
+        const userCree = await contactsService.createContact(nouveauUserBob, token);
+        console.log('✅ Utilisateur Bob créé:', userCree);
+
+        // 6. Si invitation externe, ajouter aussi au répertoire
+        if (!isInvitationRepertoire) {
+          console.log('📝 Ajout contact externe au répertoire...');
+          // TODO: Ajouter le contact au répertoire via le service approprié
+          // Pour l'instant on se contente de créer l'utilisateur
+        }
+
+        // 7. Forcer le refresh des données
+        await syncAvecStrapi();
+
+        console.log('🎉 Simulation terminée avec succès !');
+        return true;
+
+      } catch (error: any) {
+        console.error('❌ Erreur simulation acceptation:', error);
+        setError(`Erreur simulation: ${error.message}`);
+        return false;
+      }
+    },
+
     // Utilitaires
     getStats,
     needsRefreshScan,
+    validateDataConsistency,
     clearError: () => setError(null),
   };
 };

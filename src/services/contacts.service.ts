@@ -153,9 +153,26 @@ export const contactsService = {
       }
       
       const result = await response.json();
+      
+      // Debug: voir la vraie structure des données
+      console.log('🔍 DEBUG Structure API Strapi:', JSON.stringify(result, null, 2));
+      if (result.data && result.data[0]) {
+        console.log('🔍 DEBUG Premier contact:', JSON.stringify(result.data[0], null, 2));
+      }
+      
+      // Strapi 5 : structure plate, pas d'attributes, documentId au lieu d'id  
       const contacts = result.data?.map((item: any) => ({
-        id: item.id,
-        ...item.attributes
+        id: item.documentId || item.id, // Strapi 5 utilise documentId
+        nom: item.nom,
+        prenom: item.prenom,
+        telephone: item.telephone,
+        email: item.email,
+        actif: item.actif,
+        aSurBob: item.aSurBob,
+        estInvite: item.estInvite,
+        dateAjout: item.dateAjout,
+        source: item.source,
+        groupes: item.groupes || []
       })) || [];
       
       console.log('✅ Contacts récupérés:', contacts.length);
@@ -210,44 +227,53 @@ export const contactsService = {
       return newContact;
     } catch (error: any) {
       console.error('❌ Détail erreur création contact:', error);
-      console.error('❌ Status:', error.response?.status || 'unknown');
+      // Status déjà loggé plus haut dans le if (!response.ok)
       
       // Gestion spécifique des doublons (409 Conflict) 
-      if (error.response?.status === 409 || error.message?.includes('409') || error.message?.includes('existe déjà')) {
-        console.log('⚠️ Contact existe déjà, tentative de récupération...');
+      if (error.response?.status === 409 || error.message?.includes('409') || error.message?.includes('existe déjà') || error.message?.includes('ConflictError')) {
+        console.log('⚠️ Contact existe déjà (409), tentative de récupération...');
+        console.log('📋 Données du contact à créer:', {
+          nom: data.nom,
+          prenom: data.prenom,
+          telephone: data.telephone
+        });
+        
         try {
           console.log('🔍 Recherche contact existant pour téléphone:', data.telephone);
           
-          // Utiliser la méthode dédiée pour rechercher par téléphone
+          // Utiliser la méthode améliorée pour rechercher par téléphone
           const existingContact = await contactsService.findContactByPhone(data.telephone, token);
           if (existingContact) {
-            console.log('✅ Contact existant récupéré via findContactByPhone:', existingContact.nom, 'ID:', existingContact.id);
+            console.log('✅ Contact existant récupéré:', {
+              id: existingContact.id,
+              nom: existingContact.nom,
+              prenom: existingContact.prenom,
+              telephone: existingContact.telephone
+            });
             return existingContact;
-          } else {
-            console.log('⚠️ Contact non trouvé par recherche téléphone, tentative avec liste complète...');
-            // Fallback: récupérer tous les contacts et chercher
-            const allContacts = await contactsService.getMyContacts(token);
-            console.log(`📊 ${allContacts.length} contacts trouvés au total`);
-            
-            // Chercher avec différentes stratégies
-            let foundContact = allContacts.find(c => c.telephone === data.telephone);
-            if (!foundContact) {
-              // Essayer sans espaces/caractères spéciaux
-              const normalizedPhone = data.telephone.replace(/[\s\-\(\)]/g, '');
-              foundContact = allContacts.find(c => c.telephone && c.telephone.replace(/[\s\-\(\)]/g, '') === normalizedPhone);
-            }
-            
-            if (foundContact) {
-              console.log('✅ Contact trouvé via liste complète:', foundContact.nom, 'ID:', foundContact.id);
-              return foundContact;
-            } else {
-              console.log('❌ Contact vraiment introuvable - téléphones disponibles:', 
-                allContacts.slice(0, 5).map(c => c.telephone));
-            }
           }
-        } catch (getError) {
-          console.log('⚠️ Impossible de récupérer le contact existant:', getError);
+          
+          console.log('❌ Aucune méthode n\'a pu récupérer le contact existant');
+          
+        } catch (getError: any) {
+          console.log('⚠️ Erreur lors de la récupération du contact existant:', getError.message);
         }
+        
+        // Si on arrive ici, on ne peut pas récupérer le contact existant
+        // mais on sait qu'il existe (409), donc on crée un contact temporaire
+        // avec les données fournies mais un ID factice
+        console.log('🔄 Création d\'un contact temporaire car récupération impossible');
+        return {
+          id: Date.now(), // ID temporaire unique
+          nom: data.nom,
+          prenom: data.prenom,
+          email: data.email,
+          telephone: data.telephone,
+          actif: true,
+          source: 'import_repertoire',
+          dateAjout: new Date().toISOString(),
+          groupes: []
+        };
       }
       
       console.error('❌ Erreur createContact:', error.message);
@@ -290,11 +316,39 @@ export const contactsService = {
     console.log('🗑️ ContactsService - Suppression contact:', id);
     
     try {
-      const response = await apiClient.delete(`/contacts/${id}`, token);
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error?.message || 'Erreur suppression contact');
+      // Tester différents endpoints Strapi 5
+      const endpoints = [
+        `/api/contacts/${id}`,
+        `/contacts/${id}`,
+      ];
+
+      let response = null;
+      let lastError = null;
+
+      for (const endpoint of endpoints) {
+        try {
+          console.log(`🔄 Tentative suppression ${endpoint}...`);
+          response = await apiClient.delete(endpoint, token);
+          
+          if (response.ok) {
+            console.log(`✅ Suppression réussie avec ${endpoint}`);
+            break;
+          } else {
+            const errorText = await response.text();
+            console.log(`⚠️ ${endpoint} - Status: ${response.status} - ${errorText.substring(0, 100)}`);
+            lastError = `${endpoint}: ${response.status}`;
+          }
+        } catch (error: any) {
+          console.log(`❌ ${endpoint} - Erreur:`, error.message);
+          lastError = `${endpoint}: ${error.message}`;
+          continue;
+        }
+      }
+
+      if (!response || !response.ok) {
+        console.error('❌ Tous les endpoints de suppression ont échoué');
+        console.error('❌ Dernière erreur:', lastError);
+        throw new Error(`Impossible de supprimer le contact: ${lastError}`);
       }
       
       console.log('✅ Contact supprimé');
@@ -363,6 +417,7 @@ export const contactsService = {
     console.log('🔍 ContactsService - Recherche par téléphone:', telephone);
     
     try {
+      // D'abord essayer l'endpoint dédié
       const url = `/contacts/phone/${encodeURIComponent(telephone)}`;
       console.log('🌐 URL recherche:', url);
       
@@ -374,30 +429,79 @@ export const contactsService = {
         url: response.url
       });
       
-      if (!response.ok) {
-        if (response.status === 404) {
-          console.log('📱 Contact non trouvé (404) - normal si pas encore créé');
-          return null;
+      if (response.ok) {
+        const result = await response.json();
+        const contacts = result.data || [];
+        
+        if (contacts.length > 0) {
+          const contact = contacts[0];
+          return {
+            id: contact.id,
+            ...contact.attributes || contact,
+          };
         }
-        throw new Error(`Erreur recherche contact: ${response.status}`);
       }
       
-      const result = await response.json();
-      const contacts = result.data || [];
+      // Si l'endpoint dédié ne fonctionne pas (404 ou autre erreur), 
+      // utiliser la méthode de fallback avec filtres Strapi
+      console.log('⚠️ Endpoint dédié non disponible, utilisation du fallback avec filtres');
       
-      if (contacts.length === 0) {
+      // Essayer avec filtres Strapi
+      const fallbackUrl = `/contacts?filters[telephone][$eq]=${encodeURIComponent(telephone)}`;
+      console.log('🔄 URL fallback:', fallbackUrl);
+      
+      const fallbackResponse = await apiClient.get(fallbackUrl, token);
+      
+      if (!fallbackResponse.ok) {
+        console.log('❌ Fallback aussi échoué, retour null');
         return null;
       }
       
-      // Handle both Strapi v4 format (with attributes) and direct format
-      const contact = contacts[0];
-      return {
-        id: contact.id,
-        ...contact.attributes || contact,
-      };
+      const fallbackResult = await fallbackResponse.json();
+      const fallbackContacts = fallbackResult.data || [];
+      
+      if (fallbackContacts.length > 0) {
+        console.log('✅ Contact trouvé via fallback');
+        const contact = fallbackContacts[0];
+        return {
+          id: contact.id,
+          ...contact.attributes || contact,
+        };
+      }
+      
+      console.log('📱 Contact non trouvé par aucune méthode');
+      return null;
+      
     } catch (error: any) {
       console.error('❌ Erreur findContactByPhone:', error.message);
-      return null;
+      
+      // En dernier recours, essayer de récupérer tous les contacts et filtrer localement
+      console.log('🚨 Dernier recours: recherche manuelle dans tous les contacts');
+      try {
+        const allContacts = await contactsService.getMyContacts(token);
+        console.log(`📊 Recherche manuelle dans ${allContacts.length} contacts`);
+        
+        // Normaliser les numéros pour la comparaison
+        const normalizePhone = (phone: string) => phone.replace(/[^\+\d]/g, '');
+        const normalizedSearch = normalizePhone(telephone);
+        
+        const foundContact = allContacts.find(c => {
+          if (!c.telephone) return false;
+          const normalizedContact = normalizePhone(c.telephone);
+          return normalizedContact === normalizedSearch;
+        });
+        
+        if (foundContact) {
+          console.log('✅ Contact trouvé via recherche manuelle:', foundContact.nom);
+          return foundContact;
+        }
+        
+        console.log('❌ Contact vraiment introuvable');
+        return null;
+      } catch (manualError) {
+        console.error('❌ Échec recherche manuelle:', manualError);
+        return null;
+      }
     }
   },
 

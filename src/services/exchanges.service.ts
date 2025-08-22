@@ -198,8 +198,21 @@ export const exchangesService = {
       if (result.data && Array.isArray(result.data)) {
         // Format Strapi v4 standard
         exchanges = result.data.map((item: any) => ({
-          id: item.id,
-          ...(item.attributes || item)
+          // Strapi 5 : données directement dans item
+          id: item.documentId || item.id,
+          titre: item.titre,
+          description: item.description,
+          type: item.type,
+          statut: item.statut,
+          dateCreation: item.dateCreation,
+          dateExpiration: item.dateExpiration,
+          localisation: item.localisation,
+          images: item.images,
+          tags: item.tags,
+          valeur: item.valeur,
+          devise: item.devise,
+          auteur: item.auteur,
+          participants: item.participants
         }));
       } else if (Array.isArray(result)) {
         // Format direct array
@@ -252,8 +265,20 @@ export const exchangesService = {
       console.log('✅ Échanges disponibles:', result.data?.length || 0);
       
       return result.data?.map((item: any) => ({
-        id: item.id,
-        ...item.attributes
+        id: item.documentId || item.id,
+        titre: item.titre,
+        description: item.description,
+        type: item.type,
+        categorie: item.categorie,
+        dureeJours: item.dureeJours,
+        conditions: item.conditions,
+        statut: item.statut,
+        bobizRecompense: item.bobizGagnes || item.bobizRecompense,
+        createur: item.createur,
+        contactsCibles: item.contactsCibles,
+        dateCreation: item.dateCreation,
+        dateModification: item.dateModification,
+        metadata: item.metadata
       })) || [];
     } catch (error) {
       console.error('❌ Erreur getAvailableExchanges:', error);
@@ -295,10 +320,41 @@ export const exchangesService = {
     console.log('🗑️ Suppression échange:', exchangeId);
     
     try {
-      const response = await apiClient.delete(`/exchanges/${exchangeId}`, token);
-      
-      if (!response.ok) {
-        throw new Error('Erreur suppression échange');
+      // Tester différents endpoints Strapi 5
+      const endpoints = [
+        `/api/echanges/${exchangeId}`,
+        `/echanges/${exchangeId}`,
+        `/api/exchanges/${exchangeId}`,
+        `/exchanges/${exchangeId}`,
+      ];
+
+      let response = null;
+      let lastError = null;
+
+      for (const endpoint of endpoints) {
+        try {
+          console.log(`🔄 Tentative suppression ${endpoint}...`);
+          response = await apiClient.delete(endpoint, token);
+          
+          if (response.ok) {
+            console.log(`✅ Suppression réussie avec ${endpoint}`);
+            break;
+          } else {
+            const errorText = await response.text();
+            console.log(`⚠️ ${endpoint} - Status: ${response.status} - ${errorText.substring(0, 100)}`);
+            lastError = `${endpoint}: ${response.status}`;
+          }
+        } catch (error: any) {
+          console.log(`❌ ${endpoint} - Erreur:`, error.message);
+          lastError = `${endpoint}: ${error.message}`;
+          continue;
+        }
+      }
+
+      if (!response || !response.ok) {
+        console.error('❌ Tous les endpoints de suppression ont échoué');
+        console.error('❌ Dernière erreur:', lastError);
+        throw new Error(`Impossible de supprimer l'échange: ${lastError}`);
       }
       
       console.log('✅ Échange supprimé');

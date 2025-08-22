@@ -1,6 +1,6 @@
 ﻿// App.tsx - Version avec navigation interne simple + ContactsRepertoireScreen
 import React from 'react';
-import { SafeAreaView, StatusBar, View } from 'react-native';
+import { SafeAreaView, StatusBar, View, Text } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { AuthProvider } from './src/context';
 import { useAuth } from './src/hooks';
@@ -12,6 +12,16 @@ import {
 } from './src/screens';
 import { ExchangesScreen } from './src/screens/exchanges';
 import { CreateExchangeScreen, CreateBoberScreen, BoberCardScreen, BobTestScenario, DataInjectionScreen, VerifyStrapi } from './src/screens/exchanges';
+
+// Debug: vérifier que VerifyStrapi est bien importé
+console.log('🔍 Debug imports exchanges:', { 
+  CreateExchangeScreen: typeof CreateExchangeScreen,
+  CreateBoberScreen: typeof CreateBoberScreen, 
+  BoberCardScreen: typeof BoberCardScreen,
+  BobTestScenario: typeof BobTestScenario,
+  DataInjectionScreen: typeof DataInjectionScreen,
+  VerifyStrapi: typeof VerifyStrapi 
+});
 import { CreateEventScreen } from './src/screens/events';
 import { ContactsRepertoireScreen } from './src/screens/contacts/ContactsRepertoireScreen';
 import { ChatScreen, ContactsListScreen } from './src/screens/chat';
@@ -81,6 +91,19 @@ const AppContentSimple: React.FC = () => {
       }
 
       if (currentStackItem.screen === 'VerifyStrapi') {
+        if (!VerifyStrapi) {
+          console.error('❌ VerifyStrapi est undefined ! Problème d\'import');
+          return (
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8F9FA' }}>
+              <Text style={{ fontSize: 18, color: '#DC2626', textAlign: 'center', margin: 20 }}>
+                Erreur: Composant VerifyStrapi non trouvé
+              </Text>
+              <Text style={{ fontSize: 14, color: '#6B7280', textAlign: 'center' }}>
+                Problème d'import/export du composant
+              </Text>
+            </View>
+          );
+        }
         return <VerifyStrapi />;
       }
 

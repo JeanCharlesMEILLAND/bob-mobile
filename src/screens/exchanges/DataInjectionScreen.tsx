@@ -306,3 +306,5 @@ export const DataInjectionScreen: React.FC = () => {
     </View>
   );
 };
+
+export default DataInjectionScreen;
