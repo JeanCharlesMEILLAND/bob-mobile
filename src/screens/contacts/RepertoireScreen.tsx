@@ -33,6 +33,7 @@ export const RepertoireScreen = () => {
 
   const [showCurationInterface, setShowCurationInterface] = useState(false);
   const [showInvitationInterface, setShowInvitationInterface] = useState(false);
+  const [skipContactSelection, setSkipContactSelection] = useState(false);
 
   const stats = getStats();
 
@@ -167,230 +168,158 @@ export const RepertoireScreen = () => {
         }
       >
         {/* Section principale */}
-        {repertoire.length === 0 ? (
-          // État initial - Pas de contacts sélectionnés
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyStateIcon}>📱</Text>
-            <Text style={styles.emptyStateTitle}>Choisissez vos contacts</Text>
-            <Text style={styles.emptyStateDescription}>
-              Sélectionnez manuellement les contacts de votre répertoire que vous souhaitez avoir dans Bob.
+        {isLoading ? (
+          // État de chargement
+          <View style={styles.loadingState}>
+            <Text style={styles.loadingIcon}>⏳</Text>
+            <Text style={styles.loadingTitle}>Chargement...</Text>
+            <Text style={styles.loadingDescription}>
+              Récupération de vos contacts Bob
             </Text>
-
-            {contactsBruts.length === 0 ? (
-              // Pas encore scanné
-              <View style={styles.actionsContainer}>
-                <Button
-                  title="🔄 Scanner mon répertoire"
-                  onPress={handleScanContacts}
-                  style={styles.primaryButton}
-                  disabled={isLoading}
-                />
-                <Text style={styles.scanHint}>
-                  Nous allons lire vos contacts mais rien ne sera importé automatiquement
-                </Text>
-              </View>
-            ) : (
-              // Contacts scannés mais aucun sélectionné
-              <View style={styles.actionsContainer}>
-                <View style={styles.scanResultContainer}>
-                  <Text style={styles.scanResultText}>
-                    📊 {contactsBruts.length} contacts trouvés dans votre téléphone
-                  </Text>
-                  {lastScanDate && (
-                    <Text style={styles.scanDateText}>
-                      Scanné le {new Date(lastScanDate).toLocaleDateString('fr-FR')}
-                    </Text>
-                  )}
-                </View>
-
-                <Button
-                  title="🎯 Choisir mes contacts"
-                  onPress={handleOuvrirCuration}
-                  style={styles.primaryButton}
-                />
-
-                <View style={styles.secondaryActions}>
-                  <Button
-                    title="🔄 Rescanner"
-                    onPress={handleScanContacts}
-                    variant="secondary"
-                    style={styles.secondaryButton}
-                    disabled={isLoading}
-                  />
-                  
-                  {__DEV__ && (
-                    <Button
-                      title="🗑️ Vider cache"
-                      onPress={handleViderCache}
-                      variant="secondary"
-                      style={styles.debugButton}
-                    />
-                  )}
-                </View>
-              </View>
-            )}
           </View>
         ) : (
-          // État avec contacts - Montrer le dashboard
+          // TOUJOURS afficher le dashboard - même avec 0 contacts
           <View style={styles.dashboard}>
-            {/* Stats principales */}
-            <View style={styles.statsSection}>
-              <Text style={styles.sectionTitle}>📊 Vue d'ensemble</Text>
-              
-              <View style={styles.statsGrid}>
-                <View style={styles.statCard}>
-                  <Text style={styles.statNumber}>{stats.mesContacts}</Text>
-                  <Text style={styles.statLabel}>Mes contacts</Text>
-                  <Text style={styles.statSubLabel}>dans Bob</Text>
-                </View>
-                
-                <View style={styles.statCard}>
-                  <Text style={styles.statNumber}>{stats.contactsAvecBob}</Text>
-                  <Text style={styles.statLabel}>Ont Bob</Text>
-                  <Text style={styles.statSubLabel}>déjà inscrits</Text>
-                </View>
-                
-                <View style={styles.statCard}>
-                  <Text style={styles.statNumber}>{stats.contactsSansBob}</Text>
-                  <Text style={styles.statLabel}>À inviter</Text>
-                  <Text style={styles.statSubLabel}>potentiels</Text>
-                </View>
-              </View>
-
-              {/* Taux de curation */}
-              <View style={styles.curationInfo}>
-                <Text style={styles.curationText}>
-                  📈 Vous avez sélectionné {stats.tauxCuration}% de vos contacts téléphone
+            {repertoire.length === 0 ? (
+              // État initial - Invitation à ajouter des contacts
+              <View style={styles.welcomeSection}>
+                <Text style={styles.welcomeIcon}>👋</Text>
+                <Text style={styles.welcomeTitle}>Bienvenue dans vos contacts Bob !</Text>
+                <Text style={styles.welcomeDescription}>
+                  Votre réseau est vide pour l'instant. Vous pouvez commencer à utiliser Bob même sans contacts, ou ajouter des contacts depuis votre répertoire téléphone quand vous le souhaitez.
                 </Text>
-                <Text style={styles.curationSubText}>
-                  {stats.contactsDisponibles} contacts encore disponibles
-                </Text>
-              </View>
-            </View>
-
-            {/* Actions principales */}
-            <View style={styles.actionsSection}>
-              <Text style={styles.sectionTitle}>🎯 Actions</Text>
-              
-              <View style={styles.actionsList}>
-                {stats.contactsSansBob > 0 && (
-                  <TouchableOpacity 
-                    style={styles.actionCard}
-                    onPress={() => setShowInvitationInterface(true)}
-                  >
-                    <Text style={styles.actionIcon}>🚀</Text>
-                    <View style={styles.actionInfo}>
-                      <Text style={styles.actionTitle}>Inviter des contacts</Text>
-                      <Text style={styles.actionDescription}>
-                        {stats.contactsSansBob} contact{stats.contactsSansBob > 1 ? 's' : ''} à inviter
-                      </Text>
-                    </View>
-                    <Text style={styles.actionArrow}>›</Text>
-                  </TouchableOpacity>
-                )}
-
-                {stats.contactsDisponibles > 0 && (
-                  <TouchableOpacity 
-                    style={styles.actionCard}
+                
+                <View style={styles.welcomeActions}>
+                  <Button
+                    title="📱 Ajouter des contacts"
                     onPress={handleOuvrirCuration}
-                  >
-                    <Text style={styles.actionIcon}>📱</Text>
-                    <View style={styles.actionInfo}>
-                      <Text style={styles.actionTitle}>Ajouter des contacts</Text>
-                      <Text style={styles.actionDescription}>
-                        {stats.contactsDisponibles} contact{stats.contactsDisponibles > 1 ? 's' : ''} disponible{stats.contactsDisponibles > 1 ? 's' : ''}
+                    style={styles.primaryButton}
+                  />
+                  <Text style={styles.welcomeNote}>
+                    Vous pourrez toujours ajouter des contacts plus tard !
+                  </Text>
+                </View>
+              </View>
+            ) : (
+              // Dashboard normal avec statistiques
+              <>
+                {/* Stats principales */}
+                <View style={styles.statsSection}>
+                  <Text style={styles.sectionTitle}>📊 Vue d'ensemble</Text>
+                  
+                  <View style={styles.statsGrid}>
+                    <View style={styles.statCard}>
+                      <Text style={styles.statNumber}>{stats.mesContacts}</Text>
+                      <Text style={styles.statLabel}>Mes contacts</Text>
+                      <Text style={styles.statSubLabel}>dans Bob</Text>
+                    </View>
+                    
+                    <View style={styles.statCard}>
+                      <Text style={styles.statNumber}>{stats.contactsAvecBob}</Text>
+                      <Text style={styles.statLabel}>Ont Bob</Text>
+                      <Text style={styles.statSubLabel}>{stats.pourcentageBob}</Text>
+                    </View>
+                  </View>
+                  
+                  {/* Taux de curation */}
+                  {stats.totalContactsTelephone > 0 && (
+                    <View style={styles.curationInfo}>
+                      <Text style={styles.curationText}>
+                        📈 Vous avez sélectionné {stats.tauxCuration}% de vos contacts téléphone
+                      </Text>
+                      <Text style={styles.curationSubText}>
+                        {stats.contactsDisponibles} contacts encore disponibles
                       </Text>
                     </View>
-                    <Text style={styles.actionArrow}>›</Text>
-                  </TouchableOpacity>
-                )}
+                  )}
+                </View>
 
-                <TouchableOpacity 
-                  style={styles.actionCard}
-                  onPress={handleScanContacts}
-                >
-                  <Text style={styles.actionIcon}>🔄</Text>
-                  <View style={styles.actionInfo}>
-                    <Text style={styles.actionTitle}>Rescanner le répertoire</Text>
-                    <Text style={styles.actionDescription}>
-                      {needsRefreshScan && needsRefreshScan() ? 
-                        'Recommandé (scan >24h)' : 
-                        'Chercher de nouveaux contacts'
-                      }
-                    </Text>
+                {/* Actions principales */}
+                <View style={styles.actionsSection}>
+                  <Text style={styles.sectionTitle}>🎯 Actions rapides</Text>
+                  
+                  <View style={styles.actionsList}>
+                    {stats.contactsSansBob > 0 && (
+                      <TouchableOpacity 
+                        style={styles.actionCard}
+                        onPress={() => setShowInvitationInterface(true)}
+                      >
+                        <Text style={styles.actionIcon}>🚀</Text>
+                        <View style={styles.actionInfo}>
+                          <Text style={styles.actionTitle}>Inviter des contacts</Text>
+                          <Text style={styles.actionDescription}>
+                            {stats.contactsSansBob} contact{stats.contactsSansBob > 1 ? 's' : ''} à inviter
+                          </Text>
+                        </View>
+                        <Text style={styles.actionArrow}>›</Text>
+                      </TouchableOpacity>
+                    )}
+
+                    {stats.contactsDisponibles > 0 && (
+                      <TouchableOpacity 
+                        style={styles.actionCard}
+                        onPress={handleOuvrirCuration}
+                      >
+                        <Text style={styles.actionIcon}>📱</Text>
+                        <View style={styles.actionInfo}>
+                          <Text style={styles.actionTitle}>Ajouter des contacts</Text>
+                          <Text style={styles.actionDescription}>
+                            {stats.contactsDisponibles} contact{stats.contactsDisponibles > 1 ? 's' : ''} disponible{stats.contactsDisponibles > 1 ? 's' : ''}
+                          </Text>
+                        </View>
+                        <Text style={styles.actionArrow}>›</Text>
+                      </TouchableOpacity>
+                    )}
+
+                    <TouchableOpacity 
+                      style={styles.actionCard}
+                      onPress={handleScanContacts}
+                    >
+                      <Text style={styles.actionIcon}>🔄</Text>
+                      <View style={styles.actionInfo}>
+                        <Text style={styles.actionTitle}>Scanner nouveaux contacts</Text>
+                        <Text style={styles.actionDescription}>
+                          {needsRefreshScan && needsRefreshScan() ? 
+                            'Recommandé (scan >24h)' : 
+                            'Chercher de nouveaux contacts'
+                          }
+                        </Text>
+                      </View>
+                      <Text style={styles.actionArrow}>›</Text>
+                    </TouchableOpacity>
                   </View>
-                  <Text style={styles.actionArrow}>›</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
+                </View>
+              </>
+            )}
 
-            {/* Détails contacts */}
-            <View style={styles.detailsSection}>
-              <Text style={styles.sectionTitle}>📋 Détails</Text>
-              
-              <View style={styles.detailsList}>
-                <View style={styles.detailItem}>
-                  <Text style={styles.detailLabel}>Total répertoire téléphone</Text>
-                  <Text style={styles.detailValue}>{stats.totalContactsTelephone}</Text>
-                </View>
+            {/* Actions avancées pour débogage en mode dev */}
+            {__DEV__ && (
+              <View style={styles.advancedSection}>
+                <Text style={styles.sectionTitle}>⚙️ Gestion avancée (Développement)</Text>
                 
-                <View style={styles.detailItem}>
-                  <Text style={styles.detailLabel}>Avec adresse email</Text>
-                  <Text style={styles.detailValue}>{stats.contactsAvecEmail}</Text>
-                </View>
-                
-                <View style={styles.detailItem}>
-                  <Text style={styles.detailLabel}>Profils complets</Text>
-                  <Text style={styles.detailValue}>{stats.contactsComplets}</Text>
-                </View>
-                
-                <View style={styles.detailItem}>
-                  <Text style={styles.detailLabel}>Invitations envoyées</Text>
-                  <Text style={styles.detailValue}>{stats.totalInvitationsEnvoyees}</Text>
-                </View>
-
-                {lastScanDate && (
-                  <View style={styles.detailItem}>
-                    <Text style={styles.detailLabel}>Dernier scan</Text>
-                    <Text style={styles.detailValue}>
-                      {new Date(lastScanDate).toLocaleDateString('fr-FR', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </Text>
-                  </View>
-                )}
-              </View>
-            </View>
-
-            {/* Actions avancées */}
-            <View style={styles.advancedSection}>
-              <Text style={styles.sectionTitle}>⚙️ Gestion avancée</Text>
-              
-              <View style={styles.advancedActions}>
-                <Button
-                  title="🗑️ Repartir à zéro"
-                  onPress={handleRepartirAZero}
-                  variant="secondary"
-                  style={styles.dangerButton}
-                />
-                
-                {__DEV__ && (
+                <View style={styles.advancedActions}>
+                  {repertoire.length > 0 && (
+                    <Button
+                      title="🗑️ Repartir à zéro"
+                      onPress={handleRepartirAZero}
+                      variant="secondary"
+                      style={styles.dangerButton}
+                    />
+                  )}
+                  
                   <Button
                     title="💾 Vider tout le cache"
                     onPress={handleViderCache}
                     variant="secondary"
                     style={styles.debugButton}
                   />
-                )}
+                </View>
+                
+                <Text style={styles.advancedHint}>
+                  Actions de débogage - Repartir à zéro supprime vos contacts Bob mais garde vos contacts téléphone scannés
+                </Text>
               </View>
-              
-              <Text style={styles.advancedHint}>
-                Repartir à zéro supprime vos contacts Bob mais garde vos contacts téléphone scannés
-              </Text>
-            </View>
+            )}
           </View>
         )}
       </ScrollView>
@@ -426,6 +355,31 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     fontWeight: Typography.weights.medium,
     padding: Spacing.xs,
+  },
+
+  // État de chargement
+  loadingState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.xl,
+  },
+  loadingIcon: {
+    fontSize: 64,
+    marginBottom: Spacing.lg,
+  },
+  loadingTitle: {
+    fontSize: Typography.sizes.lg,
+    fontWeight: Typography.weights.bold,
+    color: Colors.text,
+    marginBottom: Spacing.md,
+    textAlign: 'center',
+  },
+  loadingDescription: {
+    fontSize: Typography.sizes.base,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: Spacing.xl,
   },
 
   // État vide
@@ -468,6 +422,12 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     flex: 1,
+  },
+  skipButton: {
+    marginTop: Spacing.md,
+    backgroundColor: Colors.success + '20',
+    borderColor: Colors.success,
+    borderWidth: 1,
   },
   debugButton: {
     backgroundColor: Colors.error + '20',
@@ -643,6 +603,48 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.base,
     color: Colors.primary,
     fontWeight: Typography.weights.medium,
+  },
+
+  // Welcome section
+  welcomeSection: {
+    backgroundColor: Colors.white,
+    padding: Spacing.xl,
+    borderRadius: 12,
+    alignItems: 'center',
+    ...GlobalStyles.shadow,
+  },
+  welcomeIcon: {
+    fontSize: 80,
+    marginBottom: Spacing.lg,
+  },
+  welcomeTitle: {
+    fontSize: Typography.sizes.xl,
+    fontWeight: Typography.weights.bold,
+    color: Colors.text,
+    textAlign: 'center',
+    marginBottom: Spacing.md,
+  },
+  welcomeDescription: {
+    fontSize: Typography.sizes.base,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: Spacing.xl,
+  },
+  welcomeActions: {
+    alignItems: 'center',
+    width: '100%',
+  },
+  welcomeNote: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    marginTop: Spacing.md,
+    fontStyle: 'italic',
+  },
+  addContactsButton: {
+    paddingHorizontal: Spacing.xl,
+    marginBottom: Spacing.md,
   },
 
   // Actions avancées

@@ -1,7 +1,7 @@
 // src/hooks/useMessageComposer.ts - Hook pour composer et envoyer des messages
 import { useState, useCallback, useMemo } from 'react';
 import { Alert, Linking, Platform } from 'react-native';
-import Clipboard from '@react-native-clipboard/clipboard';
+// import Clipboard from '@react-native-clipboard/clipboard'; // Temporairement désactivé
 import { 
   MessageChannel, 
   MessageType, 
@@ -167,8 +167,8 @@ export const useMessageComposer = ({
         return true;
       case 'link':
         const message = getMessageForContact(contact, customVars);
-        Clipboard.setString(message);
-        Alert.alert('Lien copié', 'Le message avec le lien a été copié dans le presse-papier');
+        // Clipboard.setString(message); // Temporairement désactivé
+        Alert.alert('Lien copié', 'Le message avec le lien a été préparé (clipboard temporairement désactivé)');
         return true;
       default:
         return false;
@@ -236,8 +236,8 @@ export const useMessageComposer = ({
 
   const copyMessage = useCallback(async (contact: Contact, customVars?: MessageVariables) => {
     const message = getMessageForContact(contact, customVars);
-    Clipboard.setString(message);
-    Alert.alert('Copié', 'Message copié dans le presse-papier');
+    // Clipboard.setString(message); // Temporairement désactivé
+    Alert.alert('Copié', 'Message préparé (clipboard temporairement désactivé)');
   }, [getMessageForContact]);
 
   return {

@@ -209,6 +209,44 @@ export const contactsService = {
       console.log('✅ Contact créé:', newContact.nom);
       return newContact;
     } catch (error: any) {
+      // Gestion spécifique des doublons (409 Conflict)
+      if (error.message.includes('409') || error.message.includes('existe déjà')) {
+        console.log('⚠️ Contact existe déjà, tentative de récupération...');
+        try {
+          console.log('🔍 Recherche contact existant pour téléphone:', data.telephone);
+          
+          // Utiliser la méthode dédiée pour rechercher par téléphone
+          const existingContact = await contactsService.findContactByPhone(data.telephone, token);
+          if (existingContact) {
+            console.log('✅ Contact existant récupéré via findContactByPhone:', existingContact.nom, 'ID:', existingContact.id);
+            return existingContact;
+          } else {
+            console.log('⚠️ Contact non trouvé par recherche téléphone, tentative avec liste complète...');
+            // Fallback: récupérer tous les contacts et chercher
+            const allContacts = await contactsService.getMyContacts(token);
+            console.log(`📊 ${allContacts.length} contacts trouvés au total`);
+            
+            // Chercher avec différentes stratégies
+            let foundContact = allContacts.find(c => c.telephone === data.telephone);
+            if (!foundContact) {
+              // Essayer sans espaces/caractères spéciaux
+              const normalizedPhone = data.telephone.replace(/[\s\-\(\)]/g, '');
+              foundContact = allContacts.find(c => c.telephone && c.telephone.replace(/[\s\-\(\)]/g, '') === normalizedPhone);
+            }
+            
+            if (foundContact) {
+              console.log('✅ Contact trouvé via liste complète:', foundContact.nom, 'ID:', foundContact.id);
+              return foundContact;
+            } else {
+              console.log('❌ Contact vraiment introuvable - téléphones disponibles:', 
+                allContacts.slice(0, 5).map(c => c.telephone));
+            }
+          }
+        } catch (getError) {
+          console.log('⚠️ Impossible de récupérer le contact existant:', getError);
+        }
+      }
+      
       console.error('❌ Erreur createContact:', error.message);
       throw error;
     }
@@ -338,9 +376,11 @@ export const contactsService = {
         return null;
       }
       
+      // Handle both Strapi v4 format (with attributes) and direct format
+      const contact = contacts[0];
       return {
-        id: contacts[0].id,
-        ...contacts[0].attributes || contacts[0],
+        id: contact.id,
+        ...contact.attributes || contact,
       };
     } catch (error: any) {
       console.error('❌ Erreur findContactByPhone:', error.message);

@@ -124,7 +124,8 @@ class EventsService {
         }
       });
 
-      return response.data.data.map((event: any) => ({
+      const events = response.data?.data || response.data || [];
+      return events.map((event: any) => ({
         ...event,
         besoins: event.metadata?.besoins || []
       }));

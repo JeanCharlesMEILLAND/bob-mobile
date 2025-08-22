@@ -176,7 +176,7 @@ class SyncService {
           
           // Délai plus long entre batches pour éviter le rate limiting
           if (batchNumber < totalBatches) {
-            await this.sleep(2000); // 2 secondes au lieu de 500ms
+            await this.sleep(3000); // 3 secondes pour éviter les 429 errors
           }
           
         } catch (error) {
@@ -259,6 +259,9 @@ class SyncService {
           email: contact.email?.trim(),
           groupeIds: groupeId ? [groupeId] : [],
         }, token);
+        
+        // Petit délai entre créations pour éviter le rate limiting
+        await this.sleep(500);
         
         return newContact;
       }
