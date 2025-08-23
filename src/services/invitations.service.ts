@@ -709,30 +709,34 @@ export const invitationsService = {
     console.log('🎭 Simulation acceptation invitation:', id);
     
     try {
-      // 1. Trouver le bon ID numérique si on a un documentId
-      console.log('🔍 Recherche du bon ID pour la simulation...');
+      // 1. Trouver le bon ID et le code de parrainage
+      console.log('🔍 Recherche de l\'invitation pour récupérer le code de parrainage...');
       const listResponse = await apiClient.get('/invitations', token);
-      if (listResponse.ok) {
-        const listData = await listResponse.json();
-        const matchingInvitation = listData.data?.find(i => i.documentId === id || i.id === id);
-        if (matchingInvitation) {
-          console.log('🎯 Invitation trouvée pour simulation:', matchingInvitation);
-          id = matchingInvitation.id; // Utiliser l'ID numérique
-          console.log('🔄 ID final pour simulation:', id);
-        }
-      }
-
-      // 2. Utiliser la route spécialisée pour la simulation
-      const response = await apiClient.post(`/invitations/${id}/simulate-accept`, {}, token);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.log(`⚠️ Erreur simulation - Status: ${response.status} - ${errorText}`);
-        throw new Error(`Erreur simulation: ${response.status} - ${errorText}`);
+      if (!listResponse.ok) {
+        throw new Error('Impossible de récupérer les invitations');
       }
       
-      const result = await response.json();
-      console.log('✅ Simulation réussie:', result);
+      const listData = await listResponse.json();
+      const matchingInvitation = listData.data?.find(i => i.documentId === id || i.id === id);
+      if (!matchingInvitation) {
+        throw new Error('Invitation non trouvée');
+      }
+      
+      console.log('🎯 Invitation trouvée:', matchingInvitation);
+      
+      // 2. Utiliser l'endpoint acceptByCode qui existe déjà et fonctionne
+      const acceptResponse = await apiClient.post('/invitations/accept-by-code', {
+        codeParrainage: matchingInvitation.codeParrainage
+      }, token);
+      
+      if (!acceptResponse.ok) {
+        const errorText = await acceptResponse.text();
+        console.log(`⚠️ Erreur simulation - Status: ${acceptResponse.status} - ${errorText}`);
+        throw new Error(`Erreur simulation: ${acceptResponse.status} - ${errorText}`);
+      }
+      
+      const result = await acceptResponse.json();
+      console.log('✅ Simulation réussie via acceptByCode:', result);
       
     } catch (error: any) {
       console.error('❌ Erreur simulateAcceptInvitation:', error.message);

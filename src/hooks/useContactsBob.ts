@@ -208,7 +208,9 @@ export const useContactsBob = () => {
       
       // 2. Mettre à jour les invitations depuis Strapi
       const invitationsStrapi = strapiState.invitations.map((inv: any) => ({
-        id: inv.id,
+        id: inv.documentId || inv.id, // Utiliser documentId en priorité pour Strapi 5
+        documentId: inv.documentId,
+        numericId: inv.id, // Garder l'ID numérique pour les opérations
         telephone: inv.telephone,
         nom: inv.nom,
         type: inv.type as 'sms' | 'whatsapp',
@@ -308,6 +310,13 @@ export const useContactsBob = () => {
       
       console.log('✅ Sync Strapi terminée');
       console.log('  📤 Invitations Strapi:', invitationsStrapi.length);
+      console.log('  🔍 DEBUG Invitations détaillées:', invitationsStrapi.map(i => ({
+        id: i.id,
+        documentId: i.documentId,
+        telephone: i.telephone,
+        statut: i.statut,
+        nom: i.nom
+      })));
       console.log('  📱 Contacts vérifiés:', repertoire.length);
       
     } catch (error) {
