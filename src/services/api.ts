@@ -1,5 +1,6 @@
 ﻿// src/services/api.ts
-export const API_BASE_URL = 'http://46.202.153.43:1337/api';
+export const API_BASE_URL = 'http://46.202.153.43:1337/api'; // VPS
+// export const API_BASE_URL = 'http://localhost:1337/api'; // Local backend
 
 export const apiClient = {
   get: async (endpoint: string, token?: string) => {

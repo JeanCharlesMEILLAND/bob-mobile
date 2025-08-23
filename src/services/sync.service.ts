@@ -284,47 +284,48 @@ class SyncService {
     if (!contacts.length) return contacts;
 
     try {
-      // 1. Récupérer tous les contacts Bob actifs (collection contacts = utilisateurs de l'app)
-      const contactsResponse = await contactsService.getMyContacts(token);
-      const bobContacts = contactsResponse || [];
+      // 1. Récupérer tous les utilisateurs Bob enregistrés (vraie source de vérité)
+      const usersResponse = await apiClient.get('/users', token);
+      const bobUsers = usersResponse.ok ? (await usersResponse.json()) : [];
       
-      console.log('👥 Contacts Bob actifs trouvés:', bobContacts.length);
+      console.log('👥 Utilisateurs Bob inscrits:', bobUsers.length);
 
-      // 2. Créer un mapping téléphone → contact Bob
-      const bobContactsByPhone: Record<string, any> = {};
-      bobContacts.forEach((bobContact: any) => {
-        if (bobContact.telephone) {
-          const normalizedPhone = this.normalizePhoneNumber(bobContact.telephone);
-          bobContactsByPhone[normalizedPhone] = bobContact;
+      // 2. Créer un mapping téléphone → utilisateur Bob (vraie détection)
+      const bobUsersByPhone: Record<string, any> = {};
+      bobUsers.forEach((bobUser: any) => {
+        if (bobUser.telephone) {
+          const normalizedPhone = this.normalizePhoneNumber(bobUser.telephone);
+          bobUsersByPhone[normalizedPhone] = bobUser;
+          console.log(`📞 Utilisateur Bob détecté: ${bobUser.username} (${bobUser.telephone})`);
         }
       });
 
-      // 3. Enrichir les contacts avec les données utilisateur
+      // 3. Enrichir les contacts avec les données utilisateur (utiliser les vrais users)
       const enrichedContacts = contacts.map(contact => {
         if (!contact.telephone) return contact;
 
         const normalizedPhone = this.normalizePhoneNumber(contact.telephone);
-        const bobContact = bobContactsByPhone[normalizedPhone];
+        const bobUser = bobUsersByPhone[normalizedPhone];
 
-        if (bobContact) {
-          console.log(`✅ Contact ${contact.nom} → User Bob trouvé (ID: ${bobContact.id})`);
+        if (bobUser) {
+          console.log(`✅ Contact ${contact.nom} → User Bob trouvé (ID: ${bobUser.documentId})`);
           
           return {
             ...contact,
-            userId: bobContact.id,
+            userId: bobUser.id,
             aSurBob: true,
             userProfile: {
-              id: bobContact.id,
-              nom: bobContact.nom || contact.nom,
-              prenom: bobContact.prenom || contact.prenom,
-              email: bobContact.email,
-              telephone: bobContact.telephone,
-              avatar: bobContact.avatar,
-              bobizPoints: bobContact.bobizGagnes || 0,
-              niveau: this.calculateUserLevel(bobContact.bobizGagnes || 0),
-              estEnLigne: bobContact.estEnLigne || false,
-              derniereActivite: bobContact.dernierConnexion || new Date().toISOString(),
-              dateInscription: bobContact.dateInscription || new Date().toISOString(),
+              id: bobUser.documentId,
+              nom: bobUser.nom || contact.nom,
+              prenom: bobUser.prenom || contact.prenom,
+              email: bobUser.email,
+              telephone: bobUser.telephone,
+              avatar: bobUser.avatar,
+              bobizPoints: bobUser.bobizPoints || 0,
+              niveau: bobUser.niveau || 'Débutant',
+              estEnLigne: bobUser.estEnLigne || false,
+              derniereActivite: bobUser.dernierConnexion || new Date().toISOString(),
+              dateInscription: bobUser.dateInscription || new Date().toISOString(),
             }
           };
         }

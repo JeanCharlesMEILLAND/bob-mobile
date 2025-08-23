@@ -59,7 +59,8 @@ export const ContactsDashboard: React.FC<ContactsDashboardProps> = ({
       try {
         console.log('🔄 Refresh stats dashboard');
         const realStats = await getAsyncStats();
-        setStats(realStats);
+        console.log('🔍 Nouvelles stats reçues:', realStats.contactsSansBob, 'à inviter');
+        setStats({...realStats, timestamp: Date.now()}); // 🔧 Force re-render avec timestamp
       } catch (error) {
         console.error('❌ Erreur refresh stats dashboard:', error);
       }
@@ -67,8 +68,13 @@ export const ContactsDashboard: React.FC<ContactsDashboardProps> = ({
   };
 
   useEffect(() => {
+    console.log('📊 Dashboard - Nouvelles stats reçues:', {
+      mesContacts: initialStats.mesContacts,
+      contactsAvecBob: initialStats.contactsAvecBob,
+      contactsSansBob: initialStats.contactsSansBob
+    });
     refreshStats();
-  }, [initialStats.mesContacts, initialStats.totalContactsTelephone]);
+  }, [initialStats.mesContacts, initialStats.contactsAvecBob, initialStats.contactsSansBob, initialStats.totalContactsTelephone]);
 
   // Auto-refresh désactivé temporairement pour éviter les conflits
   // useEffect(() => {
@@ -83,19 +89,22 @@ export const ContactsDashboard: React.FC<ContactsDashboardProps> = ({
   // }, [getAsyncStats]);
 
   const refreshStats = async () => {
-    if (getAsyncStats) {
-      try {
-        const realStats = await getAsyncStats();
-        console.log('📊 Stats réelles chargées:', realStats);
-        setStats(realStats);
-      } catch (error) {
-        console.error('Erreur chargement stats:', error);
-        setStats(initialStats);
-      }
-    } else {
-      setStats(initialStats);
-    }
+    // 🔧 UTILISER DIRECTEMENT initialStats au lieu de rappeler getAsyncStats
+    console.log('📊 Dashboard refreshStats avec:', {
+      mesContacts: initialStats.mesContacts,
+      contactsAvecBob: initialStats.contactsAvecBob,
+      contactsSansBob: initialStats.contactsSansBob
+    });
+    console.log('🔧 Dashboard - Force re-render avec timestamp:', Date.now());
+    setStats({...initialStats, timestamp: Date.now()}); // Force re-render
   };
+
+  // 🔧 DEBUG: Logs des vraies valeurs affichées dans le dashboard
+  console.log('🎨 Dashboard RENDER avec stats:', {
+    mesContacts: stats.mesContacts,
+    contactsAvecBob: stats.contactsAvecBob,
+    contactsSansBob: stats.contactsSansBob
+  });
 
   return (
     <View style={styles.dashboard}>
@@ -326,12 +335,12 @@ export const ContactsDashboard: React.FC<ContactsDashboardProps> = ({
           <TouchableOpacity
             style={styles.secondaryButton}
             onPress={() => {
+              console.log('🔄 Actualisation stats dashboard seulement');
               loadRealStats();
-              onRefresh();
             }}
             disabled={isLoading}
           >
-            <Text style={styles.secondaryButtonText}>🔄 Actualiser</Text>
+            <Text style={styles.secondaryButtonText}>🔄 Actualiser stats</Text>
           </TouchableOpacity>
           
           <TouchableOpacity

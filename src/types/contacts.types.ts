@@ -35,7 +35,7 @@ export interface UpdateGroupeData {
 
 // =================== USER BOB ===================
 export interface UserProfile {
-  id: number;
+  id: string | number; // Strapi 5 peut utiliser documentId (string) ou id (number)
   username: string;
   email: string;
   telephone: string;
@@ -51,7 +51,8 @@ export interface UserProfile {
 
 // =================== CONTACT ===================
 export interface Contact {
-  id: number;
+  id: string; // Strapi 5 utilise documentId comme clé primaire
+  internalId?: number; // ID numérique interne Strapi
   nom: string;
   prenom?: string;
   email?: string;
@@ -60,9 +61,14 @@ export interface Contact {
   groupes: Groupe[];
   dateAjout: string;
   actif: boolean;
-  // Nouveaux champs pour la relation avec les users Bob
+  source?: string;
+  // 🔧 STRAPI 5: Nouveaux champs pour détection utilisateurs Bob
+  estUtilisateurBob?: boolean; // Champ principal Strapi 5
+  utilisateurBobProfile?: any; // Relation vers plugin::users-permissions.user
+  estInvite?: boolean;
+  // Champs de compatibilité
   userId?: number; // ID de l'utilisateur Bob correspondant
-  aSurBob?: boolean; // Indique si ce contact utilise Bob
+  aSurBob?: boolean; // Indique si ce contact utilise Bob (calculé)
   userProfile?: UserProfile; // Profil de l'utilisateur Bob (quand disponible)
 }
 
@@ -81,7 +87,12 @@ export interface UpdateContactData {
   telephone?: string;
   groupeIds?: number[];
   actif?: boolean;
-  // Nouveaux champs pour la relation avec les users
+  source?: string;
+  // 🔧 STRAPI 5: Champs pour la relation avec les utilisateurs Bob
+  estUtilisateurBob?: boolean;
+  utilisateurBobProfile?: string | number; // documentId ou id de l'utilisateur
+  estInvite?: boolean;
+  // Champs de compatibilité
   userId?: number;
   aSurBob?: boolean;
 }

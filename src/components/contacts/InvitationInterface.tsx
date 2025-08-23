@@ -52,6 +52,7 @@ interface ContactWithStatus {
 interface InvitationInterfaceProps {
   contactsSansBob: any[];
   contactsAvecBob?: any[];
+  contactsBruts?: any[]; // 🔧 Ajout pour vérification de doublons
   onClose: () => void;
   onSaveGroupAssignments?: (assignments: { contactId: string; groupes: GroupeType[] }[]) => void;
 }
@@ -59,6 +60,7 @@ interface InvitationInterfaceProps {
 export const InvitationInterface: React.FC<InvitationInterfaceProps> = ({
   contactsSansBob,
   contactsAvecBob = [],
+  contactsBruts = [], // 🔧 Ajout pour vérification de doublons
   onClose,
   onSaveGroupAssignments,
 }) => {
@@ -69,6 +71,30 @@ export const InvitationInterface: React.FC<InvitationInterfaceProps> = ({
   const [filterTab, setFilterTab] = useState<'tous' | 'nouveau' | 'attente' | 'sur_bob'>('tous');
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('');
+
+  // 🔧 Fonction de normalisation des numéros (même que ContactsSelectionInterface)
+  const normalizePhone = (phone: string) => {
+    return phone?.replace(/[\s\-\(\)\.]/g, '') || '';
+  };
+
+  // 🔧 Fonction de vérification si un numéro est déjà dans le répertoire
+  const checkIfInRepertoire = (telephone: string) => {
+    const normalizedPhone = normalizePhone(telephone);
+    
+    const contactInRepertoire = contactsBruts.find(contact => 
+      normalizePhone(contact.telephone) === normalizedPhone
+    );
+    
+    if (contactInRepertoire) {
+      return {
+        existe: true,
+        nom: contactInRepertoire.nom || contactInRepertoire.name || 'Contact sans nom',
+        telephone: contactInRepertoire.telephone
+      };
+    }
+    
+    return { existe: false };
+  };
 
   useEffect(() => {
     loadInvitationHistory();
@@ -165,13 +191,33 @@ export const InvitationInterface: React.FC<InvitationInterfaceProps> = ({
   const sendInvitation = async (contact: ContactWithStatus, method: 'sms' | 'whatsapp') => {
     console.log('🚀 DÉBUT sendInvitation:', { contact: contact.nom, method });
     
-    // Afficher le modal de chargement
-    setIsLoading(true);
-    setLoadingMessage(
-      method === 'sms' 
-        ? `📱 Préparation du SMS pour ${contact.nom}...` 
-        : `💬 Préparation de WhatsApp pour ${contact.nom}...`
-    );
+    // 🔧 VÉRIFICATION 1: Vérifier si le contact est déjà dans le répertoire
+    const checkResult = checkIfInRepertoire(contact.telephone);
+    if (checkResult.existe) {
+      Alert.alert(
+        '📱 Contact déjà dans votre répertoire',
+        `Ce numéro (${contact.telephone}) correspond à "${checkResult.nom}" qui est déjà dans vos contacts téléphoniques.\n\nVoulez-vous l'inviter quand même ?`,
+        [
+          { text: 'Annuler', style: 'cancel' },
+          { text: 'Inviter quand même', onPress: () => {
+            console.log('📤 Invitation confirmée malgré doublon répertoire');
+            proceedWithInvitation();
+          }}
+        ]
+      );
+      return;
+    }
+
+    proceedWithInvitation();
+
+    async function proceedWithInvitation() {
+      // Afficher le modal de chargement
+      setIsLoading(true);
+      setLoadingMessage(
+        method === 'sms' 
+          ? `📱 Préparation du SMS pour ${contact.nom}...` 
+          : `💬 Préparation de WhatsApp pour ${contact.nom}...`
+      );
     
     try {
       // Créer l'invitation dans Strapi d'abord
@@ -326,7 +372,8 @@ export const InvitationInterface: React.FC<InvitationInterfaceProps> = ({
       console.error('❌ Erreur envoi invitation:', error);
       Alert.alert('Erreur d\'invitation', `Impossible d'envoyer l'invitation: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
     }
-  };
+    } // 🔧 Fin de proceedWithInvitation
+  }; // 🔧 Fin de sendInvitation
 
   const markAsJoinedBob = async (contact: ContactWithStatus) => {
     const updatedContacts = contactsWithStatus.map(c => {

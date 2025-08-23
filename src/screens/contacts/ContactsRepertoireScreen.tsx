@@ -10,7 +10,9 @@ import {
   Animated,
   TouchableOpacity,
 } from 'react-native';
-import { useContactsBob } from '../../hooks/useContactsBob';
+// import { useContactsBob } from '../../hooks/useContactsBob';
+import { useContactsRealTime } from '../../hooks/useContactsRealTime';
+import { logger, logContacts } from '../../utils/logger';
 import { Colors } from '../../styles';
 import { WebStyles } from '../../styles/web';
 
@@ -22,10 +24,12 @@ import { ContactsSelectionInterface } from '../../components/contacts/ContactsSe
 import { InvitationInterface } from '../../components/contacts/InvitationInterface';
 import { ManageContactsScreen } from '../../components/contacts/ManageContactsScreen';
 import { NetworkIntroductionScreen } from '../../components/contacts/NetworkIntroductionScreen';
+import { SyncIndicator } from '../../components/common/SyncIndicator';
 
 import { styles } from './ContactsRepertoireScreen.styles';
 
 export const ContactsRepertoireScreen = () => {
+  // 🚀 UTILISER DIRECTEMENT LE HOOK TEMPS RÉEL
   const {
     isLoading,
     contactsBruts,
@@ -33,13 +37,23 @@ export const ContactsRepertoireScreen = () => {
     contacts,
     invitations,
     scannerRepertoire,
-    importerContactsEtSync,
     getStats,
     lastScanDate,
     clearCache,
     forcerMiseAJourNoms,
     simulerAcceptationInvitation,
-  } = useContactsBob();
+    // Nouvelles méthodes temps réel
+    addContact,
+    addMultipleContacts,
+    removeContact,
+    sendInvitation,
+    syncState,
+    syncStats,
+    forcePullFromStrapi
+  } = useContactsRealTime();
+
+  // 🔧 Alias pour compatibilité avec l'ancien code
+  const importerContactsEtSync = addMultipleContacts;
 
   // États UI
   const [showPermissionModal, setShowPermissionModal] = useState(false);
@@ -47,7 +61,7 @@ export const ContactsRepertoireScreen = () => {
   const [showInvitationInterface, setShowInvitationInterface] = useState(false);
   const [showManageContactsScreen, setShowManageContactsScreen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [showTips, setShowTips] = useState(true);
+  const [showTips, setShowTips] = useState(false); // 🔧 Désactivé par défaut
   const [isFirstTime, setIsFirstTime] = useState(true);
 
   // Animation
@@ -80,10 +94,16 @@ export const ContactsRepertoireScreen = () => {
   useEffect(() => {
     const fetchStats = async () => {
       const result = await getStats();
+      console.log('🔄 Stats mises à jour dans le screen:', {
+        mesContacts: result.mesContacts,
+        contactsAvecBob: result.contactsAvecBob,
+        contactsSansBob: result.contactsSansBob
+      });
       setStats(result);
     };
     fetchStats();
-  }, [contactsBruts, repertoire, contacts, invitations]); // Supprimé getStats des dépendances
+  }, [contactsBruts, repertoire, contacts, invitations]); // Mise à jour quand les états changent
+
 
   // Animation pulse pour boutons importants
   useEffect(() => {
@@ -192,7 +212,7 @@ export const ContactsRepertoireScreen = () => {
     }
   };
 
-  // Importer les contacts sélectionnés
+  // Importer les contacts sélectionnés - VERSION TEMPS RÉEL
   const handleImportSelected = async (contactIds: string[]) => {
     if (isLoading) {
       console.log('⏳ Import déjà en cours, ignorer...');
@@ -200,22 +220,48 @@ export const ContactsRepertoireScreen = () => {
     }
     
     try {
-      await importerContactsEtSync(contactIds);
+      // Convertir les IDs en objets contacts complets depuis contactsBruts
+      const selectedContacts = contactsBruts.filter(contact => 
+        contactIds.includes(contact.id)
+      );
+
+      console.log('📱 Contacts sélectionnés:', selectedContacts.map(c => ({ id: c.id, nom: c.nom, telephone: c.telephone })));
+      
+      // Utiliser la nouvelle méthode temps réel
+      await addMultipleContacts(selectedContacts);
+      
+      // 🔧 ATTENDRE que la synchronisation soit terminée avant de recalculer les stats
+      console.log('🔄 Attente 2 secondes pour la synchronisation Strapi complète...');
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // 🔧 FORCER la mise à jour des stats après synchronisation
+      console.log('🔄 FORCE refresh stats après synchronisation');
+      const newStats = await getStats();
+      console.log('🔄 Stats après synchronisation:', {
+        mesContacts: newStats.mesContacts,
+        contactsAvecBob: newStats.contactsAvecBob,
+        contactsSansBob: newStats.contactsSansBob
+      });
+      
+      // 🔧 FORCER le re-render complet avec timestamp
+      const statsWithTimestamp = { ...newStats, renderTimestamp: Date.now() };
+      console.log('🎨 FORCE re-render screen avec timestamp:', statsWithTimestamp.renderTimestamp);
+      setStats(statsWithTimestamp);
+      
       setShowSelectionInterface(false);
       
-      // Les stats seront refreshed automatiquement par le useEffect
-      
-      Alert.alert(
-        '✅ Contacts ajoutés !',
-        `${contactIds.length} contact(s) ajouté(s) à votre réseau Bob.`,
-        [{ text: 'Super !', style: 'default' }]
-      );
+      // 🔧 Alert native supprimée - on garde seulement les notifications vertes
+      // Alert.alert(
+      //   '✅ Contacts ajoutés !',
+      //   `${contactIds.length} contact(s) ajouté(s) à votre réseau Bob.`,
+      //   [{ text: 'Super !', style: 'default' }]
+      // );
     } catch (error: any) {
       Alert.alert('Erreur', error.message);
     }
   };
 
-  // Statistiques enrichies
+  // 🔧 CORRECTION: Utiliser directement les stats du hook qui sont correctes
   const enrichedStats = stats
     ? {
         ...stats,
@@ -228,22 +274,9 @@ export const ContactsRepertoireScreen = () => {
         invitationsEnCours: stats.invitationsEnCours ?? 0,
         invitationsAcceptees: stats.invitationsAcceptees ?? 0,
         contactsEnLigne: stats.contactsEnLigne ?? 0,
-        // Calculer le nombre d'invitations en cours depuis les invitations réelles
-        contactsInvites: (() => {
-          const invitationsEnCours = invitations.filter(i => i.statut === 'envoye');
-          console.log('📊 DEBUG Invitations en cours:', invitationsEnCours.length);
-          console.log('📊 DEBUG Détail invitations:', invitationsEnCours.map(i => ({ id: i.id, documentId: i.documentId, telephone: i.telephone, statut: i.statut })));
-          return invitationsEnCours.length;
-        })(),
-        // Recalculer contactsSansBob en excluant ceux avec invitation en cours
-        contactsSansBob: (() => {
-          const phonesBob = new Set(contacts.map(c => c.telephone?.replace(/[\s\-\(\)\.]/g, '')));
-          const phonesInvitations = new Set(invitations.map(i => i.telephone?.replace(/[\s\-\(\)\.]/g, '')));
-          return repertoire.filter(c => {
-            const phone = c.telephone?.replace(/[\s\-\(\)\.]/g, '');
-            return !phonesBob.has(phone) && !phonesInvitations.has(phone);
-          }).length;
-        })(),
+        // 🔧 UTILISER LES STATS DU HOOK (correctes) au lieu de recalculer localement
+        contactsInvites: stats.contactsInvites, // Déjà calculé correctement dans le hook
+        contactsSansBob: stats.contactsSansBob, // Déjà calculé correctement dans le hook
       }
     : {
         totalContactsTelephone: 0,
@@ -311,6 +344,7 @@ export const ContactsRepertoireScreen = () => {
         ) : (
           /* État avec contacts - Dashboard */
           <ContactsDashboard
+            key={`dashboard-${enrichedStats.mesContacts}-${enrichedStats.contactsAvecBob}-${enrichedStats.contactsSansBob}`}
             stats={enrichedStats}
             invitations={invitations}
             showTips={showTips}
@@ -323,6 +357,7 @@ export const ContactsRepertoireScreen = () => {
             }}
             onAddContacts={() => setShowSelectionInterface(true)}
             onManageContacts={() => setShowManageContactsScreen(true)}
+            getAsyncStats={getStats} // 🔧 Ajout de getAsyncStats pour le bouton Actualiser
             onSimulerAcceptation={async (telephone: string) => {
               const success = await simulerAcceptationInvitation(telephone);
               if (success) {
@@ -401,6 +436,7 @@ export const ContactsRepertoireScreen = () => {
               );
               return filtered;
             })()}
+            contactsBruts={contactsBruts} // 🔧 Ajout pour vérification de doublons
             onClose={() => setShowInvitationInterface(false)}
           />
         </Modal>
@@ -416,6 +452,19 @@ export const ContactsRepertoireScreen = () => {
           />
         </Modal>
       )}
+
+      {/* 🚀 NOUVEAU: Indicateur de synchronisation temps réel */}
+      <SyncIndicator 
+        position="top" 
+        showDetails={false}
+        onTap={() => {
+          logContacts('Indicateur sync tapé', { 
+            pending: syncStats.pendingOps,
+            failed: syncStats.failedOps
+          });
+          // Optionnel: Ouvrir une modal de détails
+        }}
+      />
     </View>
   );
 };

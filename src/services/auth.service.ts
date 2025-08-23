@@ -2,6 +2,7 @@
 import { apiClient } from './api';
 import { storageService } from './storage.service';
 import { LoginData, RegisterData, AuthResponse } from '../types';
+import { logger, logAuth } from '../utils/logger';
 
 // Export types for external use
 export type { LoginData, RegisterData };
@@ -16,7 +17,7 @@ class AuthService {
   // ==========================================
 
   async login(data: LoginData): Promise<AuthResponse> {
-    console.log('🔄 AuthService - Tentative de connexion avec:', data.identifier);
+    logAuth('Tentative de connexion', { identifier: data.identifier });
     
     // 🧪 MODE TEST LOCAL - Identifiants prédéfinis
     const localTestCredentials = [
@@ -33,7 +34,7 @@ class AuthService {
     );
 
     if (localUser) {
-      console.log('✅ Connexion locale réussie! User:', localUser.username);
+      logAuth('Connexion locale réussie', { username: localUser.username });
       
       const mockResult = {
         jwt: 'mock-jwt-token-' + Date.now(),
@@ -48,9 +49,9 @@ class AuthService {
       // 💾 Sauvegarder automatiquement la session avec cache
       try {
         await this.setSession(mockResult.jwt, mockResult.user);
-        console.log('💾 Session locale sauvegardée automatiquement');
+        logAuth('Session locale sauvegardée automatiquement');
       } catch (error) {
-        console.warn('⚠️ Erreur sauvegarde session:', error);
+        logger.warn('auth', 'Erreur sauvegarde session locale', error);
       }
 
       return mockResult;
@@ -58,39 +59,38 @@ class AuthService {
 
     // Si pas de match local, essayer le serveur distant
     try {
-      console.log('📡 Envoi requête vers: /auth/local');
+      logger.debug('auth', 'Envoi requête vers /auth/local');
       const response = await apiClient.post('/auth/local', data);
       
-      console.log('📥 Réponse status:', response.status);
-      console.log('📥 Réponse OK:', response.ok);
+      logger.debug('auth', 'Réponse reçue', { status: response.status, ok: response.ok });
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('❌ Erreur réponse serveur:', errorText);
+        logger.error('auth', 'Erreur réponse serveur', { status: response.status, error: errorText.substring(0, 200) });
         throw new Error('Identifiants incorrects. Utilisez les identifiants de test:\n• test@bob.com / password123\n• admin@bob.com / admin123\n• marie@bob.com / marie123\n• test / test');
       }
 
       const result = await response.json();
-      console.log('✅ Connexion serveur réussie! User:', result.user.username);
+      logAuth('Connexion serveur réussie', { username: result.user.username });
       
       // 💾 Sauvegarder automatiquement la session avec cache
       try {
         await this.setSession(result.jwt, result.user);
-        console.log('💾 Session serveur sauvegardée automatiquement');
+        logAuth('Session serveur sauvegardée automatiquement');
       } catch (error) {
-        console.warn('⚠️ Erreur sauvegarde session:', error);
+        logger.warn('auth', 'Erreur sauvegarde session serveur', error);
       }
       
       return result;
 
     } catch (serverError) {
-      console.error('❌ Erreur serveur, utilisation du mode local uniquement');
+      logger.error('auth', 'Erreur serveur, utilisation du mode local uniquement', serverError);
       throw new Error('Connexion impossible. Utilisez les identifiants de test:\n• test@bob.com / password123\n• admin@bob.com / admin123\n• marie@bob.com / marie123\n• test / test');
     }
   }
 
   async register(data: RegisterData): Promise<AuthResponse> {
-    console.log('📝 AuthService - Inscription:', data.username);
+    logAuth('Tentative inscription', { username: data.username });
     
     const response = await apiClient.post('/auth/local/register', data);
     
@@ -100,37 +100,37 @@ class AuthService {
     }
 
     const result = await response.json();
-    console.log('✅ Inscription réussie! User:', result.user.username);
+    logAuth('Inscription réussie', { username: result.user.username });
     
     // 💾 Sauvegarder automatiquement la session après inscription
     try {
       await this.setSession(result.jwt, result.user);
-      console.log('💾 Session sauvegardée après inscription');
+      logAuth('Session sauvegardée après inscription');
     } catch (error) {
-      console.warn('⚠️ Erreur sauvegarde session:', error);
+      logger.warn('auth', 'Erreur sauvegarde session inscription', error);
     }
     
     return result;
   }
 
   async restoreSession(): Promise<AuthResponse | null> {
-    console.log('🔄 AuthService - Tentative de restauration session');
+    logAuth('Tentative de restauration session');
     
     try {
       // 1. Vérifier d'abord le cache mémoire
       if (AuthService._token && AuthService._user) {
-        console.log('🧠 Session trouvée en mémoire');
+        logger.debug('auth', 'Session trouvée en mémoire');
         
         // Valider que le token est encore bon
         const isValid = await this.validateCurrentToken();
         if (isValid) {
-          console.log('✅ Session mémoire valide');
+          logger.debug('auth', 'Session mémoire valide');
           return {
             jwt: AuthService._token,
             user: AuthService._user,
           };
         } else {
-          console.warn('⚠️ Token mémoire invalide, nettoyage...');
+          logger.warn('auth', 'Token mémoire invalide, nettoyage');
           await this.clearSession();
         }
       }
@@ -139,14 +139,14 @@ class AuthService {
       const session = await storageService.getSession();
       
       if (!session) {
-        console.log('❌ Aucune session à restaurer');
+        logger.debug('auth', 'Aucune session à restaurer');
         return null;
       }
 
       // 3. Valider le token restauré
       const isValid = await this.validateToken(session.token);
       if (!isValid) {
-        console.warn('⚠️ Token stocké invalide, suppression...');
+        logger.warn('auth', 'Token stocké invalide, suppression');
         await this.clearSession();
         return null;
       }
@@ -155,20 +155,20 @@ class AuthService {
       AuthService._token = session.token;
       AuthService._user = session.user;
 
-      console.log('✅ Session complète récupérée:', session.user.username || session.user);
+      logAuth('Session complète récupérée', { username: session.user.username || 'unknown' });
       return {
         jwt: session.token,
         user: session.user,
       };
     } catch (error) {
-      console.error('❌ Erreur restauration session:', error);
+      logger.error('auth', 'Erreur restauration session', error);
       await this.clearSession(); // Nettoyer en cas d'erreur
       return null;
     }
   }
 
   async logout(): Promise<void> {
-    console.log('🚪 AuthService - Déconnexion');
+    logAuth('Déconnexion');
     await this.clearSession();
   }
 
@@ -178,7 +178,7 @@ class AuthService {
       const response = await apiClient.get('/users/me', token ?? undefined);
       return { status: response.status, ok: response.ok };
     } catch (error: any) {
-      console.error('❌ Test connexion erreur:', error);
+      logger.error('auth', 'Test connexion erreur', error);
       throw error;
     }
   }
@@ -191,7 +191,7 @@ class AuthService {
     try {
       // 1. Vérifier d'abord en mémoire
       if (AuthService._token) {
-        console.log('🔑 Token depuis mémoire: PRÉSENT');
+        logger.debug('auth', 'Token depuis mémoire: PRÉSENT');
         
         // Valider le token périodiquement (pas à chaque appel)
         if (!AuthService._isValidating) {
@@ -202,11 +202,11 @@ class AuthService {
       }
       
       // 2. Essayer de restaurer depuis le storage
-      console.log('🔄 Tentative restauration token depuis storage...');
+      logger.debug('auth', 'Tentative restauration token depuis storage');
       const session = await storageService.getSession();
       
       if (!session?.token) {
-        console.warn('⚠️ Aucun token trouvé dans le storage');
+        logger.debug('auth', 'Aucun token trouvé dans le storage');
         return null;
       }
       
@@ -214,7 +214,7 @@ class AuthService {
       const isValid = await this.validateToken(session.token);
       
       if (!isValid) {
-        console.warn('⚠️ Token stocké expiré, suppression...');
+        logger.warn('auth', 'Token stocké expiré, suppression');
         await this.clearSession();
         return null;
       }
@@ -222,12 +222,12 @@ class AuthService {
       // 4. Mettre en cache en mémoire
       AuthService._token = session.token;
       AuthService._user = session.user;
-      console.log('🔑 Token valide récupéré et mis en cache');
+      logger.debug('auth', 'Token valide récupéré et mis en cache');
       
       return session.token;
       
     } catch (error) {
-      console.error('❌ Erreur récupération token:', error);
+      logger.error('auth', 'Erreur récupération token', error);
       return null;
     }
   }
@@ -248,7 +248,7 @@ class AuthService {
 
       return null;
     } catch (error) {
-      console.error('❌ Erreur récupération utilisateur:', error);
+      logger.error('auth', 'Erreur récupération utilisateur', error);
       return null;
     }
   }
@@ -260,24 +260,30 @@ class AuthService {
   private async validateToken(token: string): Promise<boolean> {
     try {
       // 1. Vérifier la structure basique du token
-      if (!token || token.length < 10 || !token.includes('.')) {
-        console.warn('⚠️ Token malformé');
+      if (!token || token.length < 10) {
+        logger.warn('auth', 'Token malformé');
         return false;
       }
       
-      // 2. Vérifier auprès du serveur
+      // 2. Si c'est un token mock local, accepter directement
+      if (token.startsWith('mock-jwt-token-')) {
+        logger.debug('auth', 'Token mock local accepté');
+        return true;
+      }
+      
+      // 3. Sinon vérifier auprès du serveur
       const response = await apiClient.get('/users/me', token);
       
       if (response.ok) {
-        console.log('✅ Token validé avec succès');
+        logger.debug('auth', 'Token Strapi validé avec succès');
         return true;
       } else {
-        console.warn('⚠️ Token rejeté par le serveur:', response.status);
+        logger.warn('auth', 'Token rejeté par le serveur', { status: response.status });
         return false;
       }
       
     } catch (error) {
-      console.error('❌ Erreur validation token:', error);
+      logger.error('auth', 'Erreur validation token', error);
       return false;
     }
   }
@@ -296,12 +302,12 @@ class AuthService {
     this.validateToken(AuthService._token)
       .then(isValid => {
         if (!isValid) {
-          console.warn('⚠️ Token invalide détecté en arrière-plan, nettoyage...');
+          logger.warn('auth', 'Token invalide détecté en arrière-plan, nettoyage');
           this.clearSession();
         }
       })
       .catch(error => {
-        console.error('❌ Erreur validation arrière-plan:', error);
+        logger.error('auth', 'Erreur validation arrière-plan', error);
       })
       .finally(() => {
         AuthService._isValidating = false;

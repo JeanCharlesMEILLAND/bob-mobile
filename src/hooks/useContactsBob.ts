@@ -302,8 +302,25 @@ export const useContactsBob = () => {
           };
         });
         
+        // Extraire les contacts Bob depuis le répertoire enrichi
+        const contactsBobDetectes: ContactBob[] = enrichedContacts
+          .filter(c => c.aSurBob)
+          .map(c => ({
+            id: c.id.toString(),
+            nom: c.nom,
+            telephone: c.telephone || '',
+            email: c.email,
+            aSurBob: true,
+            estInvite: false,
+            dateInvitation: null,
+            nombreInvitations: 0,
+            lastUpdated: new Date().toISOString(),
+            source: 'strapi',
+          }));
+
         setRepertoire(enrichedRepertoire);
-        await saveCachedData(contactsBruts, enrichedRepertoire, contacts, invitationsStrapi);
+        setContacts(contactsBobDetectes); // 🔧 Mettre à jour l'état des contacts Bob
+        await saveCachedData(contactsBruts, enrichedRepertoire, contactsBobDetectes, invitationsStrapi);
         
         console.log(`✅ ${enrichedRepertoire.filter(c => c.aSurBob).length} contacts transformés en users Bob`);
       }
@@ -434,8 +451,25 @@ export const useContactsBob = () => {
             };
           });
           
+          // Extraire les contacts Bob depuis le répertoire enrichi  
+          const contactsBobDetectes: ContactBob[] = enrichedContacts
+            .filter(c => c.aSurBob)
+            .map(c => ({
+              id: c.id.toString(),
+              nom: c.nom,
+              telephone: c.telephone || '',
+              email: c.email,
+              aSurBob: true,
+              estInvite: false,
+              dateInvitation: null,
+              nombreInvitations: 0,
+              lastUpdated: new Date().toISOString(),
+              source: 'strapi',
+            }));
+
           setRepertoire(enrichedRepertoire);
-          await saveCachedData(contactsBruts, enrichedRepertoire, contacts, invitationsStrapi);
+          setContacts(contactsBobDetectes); // 🔧 Mettre à jour l'état des contacts Bob
+          await saveCachedData(contactsBruts, enrichedRepertoire, contactsBobDetectes, invitationsStrapi);
           
           console.log(`✅ ${enrichedRepertoire.filter(c => c.aSurBob).length} contacts transformés en users Bob`);
         }
@@ -644,6 +678,7 @@ export const useContactsBob = () => {
         contacts: contactsToSave.length,
         invitations: invitationsToSave.length
       });
+      console.log('🔍 DEBUG Contacts Bob sauvés:', contactsToSave.map(c => ({ nom: c.nom, telephone: c.telephone, aSurBob: c.aSurBob })));
     } catch (error) {
       console.error('❌ Erreur sauvegarde cache:', error);
     }

@@ -4,7 +4,7 @@ import { SafeAreaView, StatusBar, View, Text } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { AuthProvider } from './src/context';
 import { useAuth } from './src/hooks';
-import { LoadingScreen } from './src/components/common';
+import { LoadingScreen, SmartNotifications } from './src/components/common';
 import { 
   LoginScreen, 
   EventsScreen, 
@@ -165,6 +165,8 @@ const AppContentSimple: React.FC = () => {
             onScreenChange={setCurrentScreen}
           />
         )}
+        {/* Notifications intelligentes toujours visibles */}
+        <SmartNotifications position="top" maxVisible={3} />
       </View>
     </NavigationContext.Provider>
   );

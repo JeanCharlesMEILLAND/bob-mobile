@@ -11,3 +11,5 @@ export * from './LoadingScreen';
 export { default as LoadingScreen } from './LoadingScreen';
 export * from './CreateGroupModal';
 export * from './GroupeCard';
+export { SmartDashboard } from './SmartDashboard';
+export { SmartNotifications, useNotifications } from './SmartNotifications';

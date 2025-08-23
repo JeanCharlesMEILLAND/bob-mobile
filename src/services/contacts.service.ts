@@ -1,5 +1,6 @@
 // src/services/contacts.service.ts
 import { apiClient } from './api';
+import { logger, logContacts } from '../utils/logger';
 import { 
   Groupe, 
   Contact, 
@@ -18,7 +19,7 @@ export const contactsService = {
    * Récupérer tous mes groupes
    */
   getMyGroupes: async (token: string): Promise<Groupe[]> => {
-    console.log('📋 ContactsService - Récupération des groupes');
+    logContacts('Récupération des groupes');
     
     try {
       const response = await apiClient.get('/groupes?populate=*', token);
@@ -28,11 +29,11 @@ export const contactsService = {
       }
       
       const result = await response.json();
-      console.log('✅ Groupes récupérés:', result.data?.length || 0);
+      logContacts('Groupes récupérés', { count: result.data?.length || 0 });
       
       return result.data || [];
     } catch (error: any) {
-      console.error('❌ Erreur getMyGroupes:', error.message);
+      logger.error('contacts', 'Erreur getMyGroupes', error);
       throw error;
     }
   },
@@ -41,7 +42,7 @@ export const contactsService = {
    * Créer un nouveau groupe
    */
   createGroupe: async (data: CreateGroupeData, token: string): Promise<Groupe> => {
-    console.log('📝 ContactsService - Création groupe:', data.nom);
+    logContacts('Création groupe', { nom: data.nom });
     
     try {
       const response = await apiClient.post('/groupes', { data }, token);
@@ -52,14 +53,17 @@ export const contactsService = {
       }
       
       const result = await response.json();
-      console.log('✅ Groupe créé:', result.data.attributes.nom);
+      logContacts('Groupe créé', { nom: result.data.nom });
       
       return {
-        id: result.data.id,
-        ...result.data.attributes,
+        id: result.data.documentId || result.data.id, // Strapi 5 utilise documentId
+        nom: result.data.nom,
+        couleur: result.data.couleur,
+        description: result.data.description,
+        membres: result.data.membres || []
       };
     } catch (error: any) {
-      console.error('❌ Erreur createGroupe:', error.message);
+      logger.error('contacts', 'Erreur createGroupe', error);
       throw error;
     }
   },
@@ -79,11 +83,14 @@ export const contactsService = {
       }
       
       const result = await response.json();
-      console.log('✅ Groupe modifié:', result.data.attributes.nom);
+      console.log('✅ Groupe modifié:', result.data.nom);
       
       return {
-        id: result.data.id,
-        ...result.data.attributes,
+        id: result.data.documentId || result.data.id, // Strapi 5 utilise documentId
+        nom: result.data.nom,
+        couleur: result.data.couleur,
+        description: result.data.description,
+        membres: result.data.membres || []
       };
     } catch (error: any) {
       console.error('❌ Erreur updateGroupe:', error.message);
@@ -128,8 +135,11 @@ export const contactsService = {
       console.log('✅ Groupe avec contacts récupéré');
       
       return {
-        id: result.data.id,
-        ...result.data.attributes,
+        id: result.data.documentId || result.data.id, // Strapi 5 utilise documentId
+        nom: result.data.nom,
+        couleur: result.data.couleur,
+        description: result.data.description,
+        membres: result.data.membres || []
       };
     } catch (error: any) {
       console.error('❌ Erreur getGroupeWithContacts:', error.message);
@@ -146,39 +156,82 @@ export const contactsService = {
     console.log('👥 ContactsService - Récupération des contacts');
     
     try {
-      const response = await apiClient.get('/contacts?populate=groupes', token);
+      // 🔧 POPULATE les champs utilisateur Bob pour détection correcte
+      // Essayer d'abord avec populate simple, puis fallback si ça échoue
+      let response;
+      try {
+        console.log('🔍 Tentative avec populate utilisateurBobProfile...');
+        response = await apiClient.get('/contacts?populate[groupes]=*&populate[utilisateurBobProfile]=*', token);
+      } catch (populateError) {
+        console.warn('⚠️ Populate utilisateurBobProfile échoué, fallback vers populate simple');
+        response = await apiClient.get('/contacts?populate=*', token);
+      }
+      
+      // Si populate complexe échoue, essayer populate simple
+      if (!response.ok) {
+        console.warn('⚠️ Populate complexe échoué, tentative avec populate simple...');
+        response = await apiClient.get('/contacts?populate=*', token);
+      }
+      
+      // Si populate simple échoue aussi, essayer sans populate
+      if (!response.ok) {
+        console.warn('⚠️ Populate simple échoué, tentative sans populate...');
+        response = await apiClient.get('/contacts', token);
+      }
       
       if (!response.ok) {
-        throw new Error('Erreur récupération contacts');
+        const errorText = await response.text();
+        console.error('❌ Erreur API contacts:', {
+          status: response.status,
+          statusText: response.statusText,
+          url: response.url,
+          error: errorText.substring(0, 200)
+        });
+        throw new Error(`Erreur récupération contacts: ${response.status} - ${response.statusText}`);
       }
       
       const result = await response.json();
       
-      // Debug: voir la vraie structure des données
-      console.log('🔍 DEBUG Structure API Strapi:', JSON.stringify(result, null, 2));
-      if (result.data && result.data[0]) {
-        console.log('🔍 DEBUG Premier contact:', JSON.stringify(result.data[0], null, 2));
-      }
+      // Debug: voir la vraie structure des données (filtrage automatique des données sensibles)
+      logger.debug('contacts', 'Structure API Strapi', { 
+        dataCount: result.data?.length,
+        hasData: !!result.data,
+        structure: result.data?.[0] ? 'Premier contact présent' : 'Aucun contact'
+      });
+      
+      console.log('🔍 Structure réponse Strapi:', {
+        hasData: !!result.data,
+        dataLength: result.data?.length,
+        metaInfo: result.meta,
+        firstItem: result.data?.[0] ? Object.keys(result.data[0]) : 'pas de premier item'
+      });
       
       // Strapi 5 : structure plate, pas d'attributes, documentId au lieu d'id  
-      const contacts = result.data?.map((item: any) => ({
-        id: item.documentId || item.id, // Strapi 5 utilise documentId
-        nom: item.nom,
-        prenom: item.prenom,
-        telephone: item.telephone,
-        email: item.email,
-        actif: item.actif,
-        aSurBob: item.aSurBob,
-        estInvite: item.estInvite,
-        dateAjout: item.dateAjout,
-        source: item.source,
-        groupes: item.groupes || []
-      })) || [];
+      const contacts = result.data?.map((item: any) => {
+        return {
+          id: item.documentId || item.id, // Strapi 5 utilise documentId
+          nom: item.nom,
+          prenom: item.prenom,
+          telephone: item.telephone,
+          email: item.email,
+          actif: item.actif,
+          // 🔧 VRAIS CHAMPS pour détection utilisateurs Bob
+          estUtilisateurBob: item.estUtilisateurBob,
+          utilisateurBobProfile: item.utilisateurBobProfile,
+          // Fallback pour compatibilité
+          aSurBob: item.aSurBob || item.estUtilisateurBob,
+          estInvite: item.estInvite,
+          dateAjout: item.dateAjout,
+          source: item.source,
+          groupes: item.groupes || []
+        };
+      }) || [];
       
-      console.log('✅ Contacts récupérés:', contacts.length);
+      console.log('✅ Contacts traités avec succès:', contacts.length);
+      logContacts('Contacts récupérés', { count: contacts.length });
       return contacts;
     } catch (error: any) {
-      console.error('❌ Erreur getMyContacts:', error.message);
+      logger.error('contacts', 'Erreur getMyContacts', error);
       throw error;
     }
   },
@@ -187,14 +240,15 @@ export const contactsService = {
    * Créer un nouveau contact
    */
   createContact: async (data: CreateContactData, token: string): Promise<Contact> => {
-    console.log('👤 ContactsService - Création contact:', data.nom);
+    logContacts('Création contact', { nom: data.nom });
     
     try {
+      // 🔧 VALIDATION et nettoyage des données avant envoi
       const contactData = {
-        nom: data.nom,
-        prenom: data.prenom,
-        email: data.email,
-        telephone: data.telephone,
+        nom: (data.nom || '').trim() || 'Nom manquant',
+        prenom: (data.prenom || '').trim(),
+        email: (data.email || '').trim() || null, // null au lieu de string vide
+        telephone: (data.telephone || '').trim(),
         // Temporairement commenter groupes pour éviter l'erreur de relation
         // groupes: data.groupeIds,
         actif: true,
@@ -202,25 +256,119 @@ export const contactsService = {
         dateAjout: new Date().toISOString(),
       };
       
+      // 🔧 DEBUG: Loguer les données exactes envoyées
+      console.log('📤 Données contact envoyées à Strapi:', {
+        nom: contactData.nom,
+        prenom: contactData.prenom,
+        email: contactData.email,
+        telephone: contactData.telephone,
+        source: contactData.source
+      });
+      
+      // 🔧 VALIDATION: Vérifier les champs obligatoires
+      if (!contactData.nom || contactData.nom === 'Nom manquant') {
+        console.warn('⚠️ Nom manquant ou invalide, utilisation nom généré');
+        contactData.nom = `Contact_${Date.now()}`;
+      }
+      
+      if (!contactData.telephone) {
+        throw new Error('Le téléphone est obligatoire pour créer un contact');
+      }
+      
       const response = await apiClient.post('/contacts', { data: contactData }, token);
       
       if (!response.ok) {
         const errorText = await response.text();
+        console.error('❌ Status HTTP:', response.status);
         console.error('❌ Détail erreur création contact:', errorText);
-        console.error('❌ Status:', response.status);
+        
+        // 🔧 ANALYSE SPÉCIFIQUE DES ERREURS 500
+        if (response.status === 500) {
+          console.error('🚨 ERREUR 500 STRAPI - Analyse:');
+          console.error('📤 Données qui ont causé l\'erreur:', {
+            nom: contactData.nom,
+            prenom: contactData.prenom,
+            email: contactData.email,
+            telephone: contactData.telephone,
+            source: contactData.source
+          });
+          
+          // Vérifier si c'est un problème de caractères spéciaux
+          if (contactData.nom.includes('é') || contactData.nom.includes('è') || contactData.nom.includes('à') || contactData.nom.includes('ç')) {
+            console.warn('⚠️ Caractères spéciaux détectés dans le nom, possible cause de l\'erreur 500');
+          }
+          
+          // Essayer de créer une version "safe" du contact
+          console.log('🔄 Tentative de création avec données nettoyées...');
+          const safeContactData = {
+            ...contactData,
+            nom: contactData.nom
+              .normalize('NFD') // Décomposer les caractères accentués
+              .replace(/[\u0300-\u036f]/g, '') // Supprimer les accents
+              .replace(/[^a-zA-Z0-9\s\-\.]/g, '') // Supprimer caractères spéciaux
+              .trim(),
+            prenom: (contactData.prenom || '')
+              .normalize('NFD')
+              .replace(/[\u0300-\u036f]/g, '')
+              .replace(/[^a-zA-Z0-9\s\-\.]/g, '')
+              .trim(),
+            email: contactData.email ? contactData.email.toLowerCase().trim() : null
+          };
+          
+          console.log('🧹 Données nettoyées:', safeContactData);
+          
+          try {
+            const retryResponse = await apiClient.post('/contacts', { data: safeContactData }, token);
+            if (retryResponse.ok) {
+              console.log('✅ Création réussie avec données nettoyées !');
+              const result = await retryResponse.json();
+              const newContact: Contact = {
+                id: result.data.documentId, // Strapi 5 clé primaire
+                internalId: result.data.id,
+                nom: result.data.nom,
+                prenom: result.data.prenom,
+                telephone: result.data.telephone,
+                email: result.data.email,
+                actif: result.data.actif !== false,
+                estUtilisateurBob: result.data.estUtilisateurBob === true,
+                utilisateurBobProfile: result.data.utilisateurBobProfile,
+                aSurBob: result.data.estUtilisateurBob === true || result.data.aSurBob === true,
+                estInvite: result.data.estInvite === true,
+                dateAjout: result.data.dateAjout || result.data.createdAt,
+                source: result.data.source || 'import_repertoire',
+                groupes: Array.isArray(result.data.groupes) ? result.data.groupes : []
+              };
+              return newContact;
+            }
+          } catch (retryError) {
+            console.error('❌ Même avec données nettoyées, échec:', retryError);
+          }
+        }
         
         try {
           const errorData = JSON.parse(errorText);
-          throw new Error(errorData.error?.message || `Erreur ${response.status}: ${errorText}`);
+          throw new Error(errorData.error?.message || `Erreur ${response.status}: ${errorText.substring(0, 200)}`);
         } catch {
-          throw new Error(`Erreur ${response.status}: ${errorText}`);
+          throw new Error(`Erreur ${response.status}: ${errorText.substring(0, 200)}`);
         }
       }
       
       const result = await response.json();
       const newContact: Contact = {
-        id: result.data.id,
-        ...result.data.attributes,
+        id: result.data.documentId, // Strapi 5 clé primaire
+        internalId: result.data.id,
+        nom: result.data.nom,
+        prenom: result.data.prenom,
+        telephone: result.data.telephone,
+        email: result.data.email,
+        actif: result.data.actif !== false,
+        estUtilisateurBob: result.data.estUtilisateurBob === true,
+        utilisateurBobProfile: result.data.utilisateurBobProfile,
+        aSurBob: result.data.estUtilisateurBob === true || result.data.aSurBob === true,
+        estInvite: result.data.estInvite === true,
+        dateAjout: result.data.dateAjout || result.data.createdAt,
+        source: result.data.source || 'import_repertoire',
+        groupes: Array.isArray(result.data.groupes) ? result.data.groupes : []
       };
       
       console.log('✅ Contact créé:', newContact.nom);
@@ -284,21 +432,64 @@ export const contactsService = {
   /**
    * Modifier un contact
    */
-  updateContact: async (id: number, data: UpdateContactData, token: string): Promise<Contact> => {
+  updateContact: async (id: number | string, data: UpdateContactData, token: string): Promise<Contact> => {
     console.log('✏️ ContactsService - Modification contact:', id);
     
     try {
-      const response = await apiClient.put(`/contacts/${id}`, { data }, token);
+      // 🔧 STRAPI 5: Utiliser directement le documentId dans l'URL standard
+      console.log('🔧 Strapi 5 - Tentative PUT /contacts/' + id);
+      let response = await apiClient.put(`/contacts/${id}`, { data }, token);
+      
+      // Si PUT échoue, essayer avec PATCH (parfois requis dans Strapi 5)
+      if (!response.ok && response.status === 405) {
+        console.log('⚠️ PUT Method Not Allowed, tentative avec PATCH...');
+        response = await apiClient.patch(`/contacts/${id}`, { data }, token);
+      }
       
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error?.message || 'Erreur modification contact');
+        const errorText = await response.text();
+        console.error('❌ Erreur updateContact détail:', {
+          status: response.status,
+          statusText: response.statusText,
+          url: response.url,
+          contactId: id,
+          method: response.status === 405 ? 'PUT puis PATCH échoués' : 'PUT échoué',
+          dataEnvoyee: JSON.stringify(data).substring(0, 150),
+          error: errorText.substring(0, 200)
+        });
+        
+        // Si même PATCH échoue, peut-être que le champ n'est pas modifiable
+        if (response.status === 405) {
+          console.warn('🚨 Erreur 405: Le champ estUtilisateurBob ou utilisateurBobProfile n\'est peut-être pas modifiable via l\'API');
+          console.warn('💡 Solution: Vérifier les permissions dans Strapi Admin ou utiliser un endpoint custom');
+        }
+        
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { error: { message: errorText } };
+        }
+        
+        throw new Error(errorData.error?.message || `Erreur modification contact ${response.status}`);
       }
       
       const result = await response.json();
       const updatedContact: Contact = {
-        id: result.data.id,
-        ...result.data.attributes,
+        id: result.data.documentId, // Strapi 5 utilise documentId comme clé primaire
+        internalId: result.data.id, // ID numérique interne
+        nom: result.data.nom,
+        prenom: result.data.prenom,
+        telephone: result.data.telephone,
+        email: result.data.email,
+        actif: result.data.actif !== false,
+        estUtilisateurBob: result.data.estUtilisateurBob === true,
+        utilisateurBobProfile: result.data.utilisateurBobProfile,
+        aSurBob: result.data.estUtilisateurBob === true || result.data.aSurBob === true,
+        estInvite: result.data.estInvite === true,
+        dateAjout: result.data.dateAjout || result.data.updatedAt,
+        source: result.data.source || 'import_repertoire',
+        groupes: Array.isArray(result.data.groupes) ? result.data.groupes : []
       };
       
       console.log('✅ Contact modifié:', updatedContact.nom);
@@ -562,6 +753,108 @@ export const contactsService = {
       return result.data;
     } catch (error: any) {
       console.error('❌ Erreur bulkCreateContacts:', error.message);
+      throw error;
+    }
+  },
+
+  /**
+   * Vérifier et détecter les vrais utilisateurs Bob (méthode robuste)
+   */
+  detectRealBobUsers: async (token: string): Promise<{
+    bobUsers: any[];
+    contactsWithBob: Contact[];
+    stats: {
+      totalUsers: number;
+      contactsUpdated: number;
+    };
+  }> => {
+    console.log('🔍 ContactsService - Détection vrais utilisateurs Bob');
+    
+    try {
+      // 1. Récupérer tous les vrais utilisateurs Bob inscrits
+      const usersResponse = await apiClient.get('/users?populate=*', token);
+      
+      if (!usersResponse.ok) {
+        throw new Error('Erreur récupération utilisateurs Bob');
+      }
+      
+      const usersResult = await usersResponse.json();
+      const bobUsers = usersResult || [];
+      
+      console.log(`👥 ${bobUsers.length} utilisateurs Bob inscrits détectés`);
+      
+      // 2. Récupérer tous mes contacts
+      const allContacts = await contactsService.getMyContacts(token);
+      console.log(`📋 ${allContacts.length} contacts à vérifier`);
+      
+      // 3. Créer un mapping téléphone -> utilisateur Bob (Strapi 5)
+      const bobUsersByPhone: Record<string, any> = {};
+      bobUsers.forEach((user: any) => {
+        if (user.telephone) {
+          const normalizedPhone = user.telephone.replace(/[^\+\d]/g, '');
+          bobUsersByPhone[normalizedPhone] = user;
+          console.log(`📞 User Bob Strapi 5: ${user.username} (${user.telephone}) - documentId: ${user.documentId}`);
+        }
+      });
+      
+      // 4. Identifier les contacts qui sont des utilisateurs Bob
+      const contactsWithBob: Contact[] = [];
+      let contactsUpdated = 0;
+      
+      for (const contact of allContacts) {
+        if (!contact.telephone) continue;
+        
+        const normalizedPhone = contact.telephone.replace(/[^\+\d]/g, '');
+        const bobUser = bobUsersByPhone[normalizedPhone];
+        
+        if (bobUser) {
+          console.log(`✅ ${contact.nom} EST un utilisateur Bob (${bobUser.username})`);
+          
+          // 🔧 SOLUTION ALTERNATIVE: Enrichir côté client sans modifier Strapi
+          // (car les champs estUtilisateurBob/utilisateurBobProfile semblent read-only)
+          console.log('💡 Enrichissement côté client (pas de modification Strapi)');
+          
+          const enrichedContact = {
+            ...contact,
+            // 🔧 Marquer comme utilisateur Bob côté client
+            estUtilisateurBob: true,
+            utilisateurBobProfile: bobUser,
+            aSurBob: true, // Pour compatibilité avec l'ancien code
+            userProfile: {
+              id: bobUser.documentId || bobUser.id,
+              nom: bobUser.nom || contact.nom,
+              prenom: bobUser.prenom || contact.prenom,
+              email: bobUser.email,
+              telephone: bobUser.telephone,
+              bobizPoints: bobUser.bobizPoints || 0,
+              niveau: bobUser.niveau || 'Débutant',
+              estEnLigne: bobUser.estEnLigne || false,
+              derniereActivite: bobUser.dernierConnexion,
+              dateInscription: bobUser.dateInscription,
+            }
+          };
+          
+          contactsWithBob.push(enrichedContact);
+          contactsUpdated++; // Compte comme "mis à jour" même si c'est côté client
+          
+          // 💡 Enrichissement réussi côté client - pas besoin de modifier Strapi
+          console.log(`💡 ${contact.nom} enrichi avec profil utilisateur Bob`);
+        }
+      }
+      
+      console.log(`✅ Détection terminée: ${contactsWithBob.length} utilisateurs Bob détectés, ${contactsUpdated} contacts mis à jour`);
+      
+      return {
+        bobUsers,
+        contactsWithBob,
+        stats: {
+          totalUsers: bobUsers.length,
+          contactsUpdated
+        }
+      };
+      
+    } catch (error: any) {
+      console.error('❌ Erreur detectRealBobUsers:', error);
       throw error;
     }
   },
