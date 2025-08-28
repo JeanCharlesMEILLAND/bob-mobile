@@ -1,8 +1,26 @@
 ﻿// src/services/api.ts
-export const API_BASE_URL = 'http://46.202.153.43:1337/api'; // VPS - PRODUCTION
-// export const API_BASE_URL = 'http://localhost:1337/api'; // Local backend - DEV
+// Configuration multi-environnement avec variables d'environnement
+import Constants from 'expo-constants';
 
-console.log('🔗 API_BASE_URL configuré pour:', API_BASE_URL);
+const isDev = __DEV__ || process.env.NODE_ENV === 'development';
+
+export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 
+  (isDev 
+    ? 'http://localhost:1337/api' 
+    : 'https://bobv2.strapi-pro.com/api');
+
+export const STAGING_API_URL = process.env.EXPO_PUBLIC_STAGING_API_URL || 'https://staging.bobv2.strapi-pro.com/api';
+export const WEB_APP_URL = process.env.EXPO_PUBLIC_WEB_URL || 'https://web-bobv2.strapi-pro.com';
+export const SOCKET_URL = process.env.EXPO_PUBLIC_SOCKET_URL || 
+  (isDev 
+    ? 'http://localhost:1338' 
+    : 'https://bobv2.strapi-pro.com');
+
+console.log('🔗 Configuration BOB v2:');
+console.log('   API_BASE_URL:', API_BASE_URL);
+console.log('   SOCKET_URL:', SOCKET_URL);
+console.log('   Environment:', isDev ? 'DEVELOPMENT' : 'PRODUCTION');
+console.log('   App Version:', Constants.expoConfig?.version || '2.0.0');
 
 export const apiClient = {
   get: async (endpoint: string, token?: string) => {

@@ -60,8 +60,9 @@ class SocketService {
         return false;
       }
 
-      // URL du serveur Socket.io (port Strapi + 1)
-      const socketUrl = 'http://46.202.153.43:1338'; // Port Socket.io
+      // URL du serveur Socket.io avec variables d'environnement
+      const { SOCKET_URL } = await import('./api');
+      const socketUrl = SOCKET_URL;
 
       console.log('🔄 Connexion Socket.io à:', socketUrl);
 
