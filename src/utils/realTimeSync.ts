@@ -1,4 +1,5 @@
 // src/utils/realTimeSync.ts - Synchronisation temps réel cache ↔ Strapi
+import React from 'react';
 import { logger, logSync } from './logger';
 import { performanceManager } from './performance';
 import { useNotifications } from '../components/common/SmartNotifications';
@@ -92,7 +93,7 @@ class RealTimeSync {
       if (syncFn) {
         try {
           await performanceManager.measure('sync_operation', syncFn, 2000);
-        } catch (error) {
+        } catch (error: any) {
           logger.error('sync', 'Erreur traitement queue', error);
         }
       }
@@ -100,9 +101,19 @@ class RealTimeSync {
 
     this.syncInProgress = false;
     this.syncState.lastSync = Date.now();
+    
+    // 🔧 NOUVEAU: Forcer nettoyage complet état sync
+    this.syncState.pending = [];
+    this.syncState.inProgress = [];
+    this.syncState.failed = [];
+    
     this.notifySubscribers();
     
-    logSync('Queue sync terminée');
+    logSync('Queue sync terminée - État nettoyé', { 
+      pending: this.syncState.pending.length,
+      inProgress: this.syncState.inProgress.length,
+      syncInProgress: this.syncInProgress 
+    });
   }
 
   // Exécuter une opération de sync
@@ -125,9 +136,13 @@ class RealTimeSync {
       // Succès - retirer de inProgress
       this.syncState.inProgress = this.syncState.inProgress.filter(op => op.id !== operation.id);
       
-      logSync('Sync Strapi réussie', { type: operation.type, table: operation.table });
+      logSync('Sync Strapi réussie', { 
+        type: operation.type, 
+        table: operation.table,
+        inProgressCount: this.syncState.inProgress.length
+      });
 
-    } catch (error) {
+    } catch (error: any) {
       // Échec - déplacer vers failed pour retry
       this.syncState.inProgress = this.syncState.inProgress.filter(op => op.id !== operation.id);
       this.syncState.failed.push({ ...operation, error });
@@ -245,7 +260,7 @@ class RealTimeSync {
       await performanceManager.measure('force_sync_pull', pullFn, 3000);
       this.syncState.lastSync = Date.now();
       this.notifySubscribers();
-    } catch (error) {
+    } catch (error: any) {
       logger.error('sync', 'Erreur sync forcée', error);
       throw error;
     }
@@ -267,8 +282,6 @@ class RealTimeSync {
 export const realTimeSync = RealTimeSync.getInstance();
 
 // Hook React pour utiliser la sync temps réel
-import React from 'react';
-
 export const useRealTimeSync = () => {
   const [syncState, setSyncState] = React.useState<SyncState>(realTimeSync.getState());
 

@@ -46,7 +46,7 @@ export const useBobStore = create<BobStore>((set, get) => ({
       set({ isLoading: true });
       const groupes = await bobService.getGroupes();
       set({ groupes, isLoading: false });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erreur chargement groupes:', error);
       set({ isLoading: false });
     }
@@ -57,7 +57,7 @@ export const useBobStore = create<BobStore>((set, get) => ({
       const newGroupe = await bobService.createGroupe(data);
       const groupes = [...get().groupes, newGroupe];
       set({ groupes });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erreur crÃ©ation groupe:', error);
       throw error;
     }
@@ -69,7 +69,7 @@ export const useBobStore = create<BobStore>((set, get) => ({
       set({ isLoading: true });
       const echanges = await bobService.getEchanges();
       set({ echanges, isLoading: false });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erreur chargement Ã©changes:', error);
       set({ isLoading: false });
     }
@@ -80,7 +80,7 @@ export const useBobStore = create<BobStore>((set, get) => ({
       const newEchange = await bobService.createEchange(data);
       const echanges = [...get().echanges, newEchange];
       set({ echanges });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erreur crÃ©ation Ã©change:', error);
       throw error;
     }
@@ -92,7 +92,7 @@ export const useBobStore = create<BobStore>((set, get) => ({
       set({ isLoading: true });
       const evenements = await bobService.getEvenements();
       set({ evenements, isLoading: false });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erreur chargement Ã©vÃ©nements:', error);
       set({ isLoading: false });
     }
@@ -103,7 +103,7 @@ export const useBobStore = create<BobStore>((set, get) => ({
       const newEvenement = await bobService.createEvenement(data);
       const evenements = [...get().evenements, newEvenement];
       set({ evenements });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erreur crÃ©ation Ã©vÃ©nement:', error);
       throw error;
     }
@@ -114,7 +114,7 @@ export const useBobStore = create<BobStore>((set, get) => ({
     try {
       const messages = await bobService.getMessages(type, id);
       set({ messages });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erreur chargement messages:', error);
     }
   },
@@ -124,7 +124,7 @@ export const useBobStore = create<BobStore>((set, get) => ({
       const newMessage = await bobService.sendMessage(data);
       const messages = [...get().messages, newMessage];
       set({ messages });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erreur envoi message:', error);
       throw error;
     }
@@ -135,7 +135,7 @@ export const useBobStore = create<BobStore>((set, get) => ({
     try {
       const bobizTransactions = await bobService.getBobizTransactions();
       set({ bobizTransactions });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erreur chargement transactions Bobiz:', error);
     }
   },

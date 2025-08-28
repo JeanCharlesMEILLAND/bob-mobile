@@ -15,12 +15,13 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../hooks';
 import { useSimpleNavigation } from '../../navigation/SimpleNavigation';
 import { Header } from '../../components/common';
-import { chatService } from '../../services/chat.service';
+import { realtimeChatService, RealtimeChatMessage } from '../../services/realtime-chat.service';
+import { socketService, useSocket } from '../../services/socket.service';
 import { ChatMessage, ChatRoom, TypingIndicator } from '../../types/chat.types';
 import { MessageBubble } from './components/MessageBubble';
 import { EmojiPicker } from './components/EmojiPicker';
 import { TypingIndicatorComponent } from './components/TypingIndicator';
-import { WebStyles, getWebStyle } from '../../styles/web';
+import { WebStyles, getWebStyle, isWebDesktop } from '../../styles/web';
 import { styles } from './ChatScreen.styles';
 
 interface ChatScreenProps {
@@ -44,224 +45,139 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
   const { user } = useAuth();
   const navigation = useSimpleNavigation();
   
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [room, setRoom] = useState<ChatRoom | null>(null);
+  const [messages, setMessages] = useState<RealtimeChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
-  const [typingUsers, setTypingUsers] = useState<TypingIndicator[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [typingUsers, setTypingUsers] = useState<TypingIndicator[]>([]);
+  
+  // Hook Socket.io
+  const { connected, socket } = useSocket();
+  const [replyTo, setReplyTo] = useState<RealtimeChatMessage | null>(null);
 
   const flatListRef = useRef<FlatList>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
 
   useEffect(() => {
-    loadChatData();
-    subscribeToUpdates();
+    loadRealtimeChat();
     
     return () => {
+      // Cleanup
+      realtimeChatService.offNewMessage(chatId);
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
       }
     };
   }, [chatId]);
 
-  const loadChatData = async () => {
+  const loadRealtimeChat = async () => {
     try {
       setIsLoading(true);
       
-      // Charger les messages
-      const chatMessages = await chatService.getMessages(chatId);
+      console.log('📱 Chargement conversation temps réel:', chatId);
+      
+      // Charger les messages de la conversation
+      const chatMessages = await realtimeChatService.getConversationMessages(chatId);
       setMessages(chatMessages);
       
-      // Charger les infos de la room
-      const rooms = await chatService.getChatRooms(user?.id || '');
-      let currentRoom = rooms.find(r => r.id === chatId);
-      
-      // Si la room n'existe pas, la créer automatiquement
-      if (!currentRoom && user?.id && contactName) {
-        console.log('🆕 Création automatique de la room de chat:', chatId);
-        currentRoom = {
-          id: chatId,
-          name: chatTitle || contactName,
-          type: 'private' as const,
-          participants: [
-            {
-              id: user.id,
-              name: user.username || 'Moi',
-              avatar: undefined,
-              isOnline: true,
-              lastSeen: new Date().toISOString(),
-            },
-            {
-              id: contactId || 'contact',
-              name: contactName,
-              avatar: undefined,
-              isOnline: isOnline || false,
-              lastSeen: new Date().toISOString(),
-            }
-          ],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          lastMessage: undefined,
-          unreadCount: 0,
-          isActive: true,
-        };
-      }
-      
-      setRoom(currentRoom || null);
-      
-      // Marquer comme lu
-      if (user?.id) {
-        const unreadIds = chatMessages
-          .filter(m => !m.isRead && m.senderId !== user.id)
-          .map(m => m.id);
+      // Écouter les nouveaux messages en temps réel
+      realtimeChatService.onNewMessage(chatId, (newMessages) => {
+        console.log('📨 Nouveaux messages reçus:', newMessages.length);
+        setMessages(newMessages);
         
-        if (unreadIds.length > 0) {
-          await chatService.markAsRead(chatId, user.id, unreadIds);
+        // Marquer comme lus automatiquement
+        if (user?.id && newMessages.length > 0) {
+          const unreadMessageIds = newMessages
+            .filter(msg => !msg.readBy[user.id.toString()] && msg.sender?.id !== user.id)
+            .map(msg => msg.id);
+          
+          if (unreadMessageIds.length > 0) {
+            realtimeChatService.markAsRead(chatId, unreadMessageIds);
+          }
         }
-      }
+      });
       
       setIsLoading(false);
-      
-      // Scroll vers le bas
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
+      console.log('✅ Conversation temps réel chargée');
       
     } catch (error) {
-      console.error('Erreur chargement chat:', error);
+      console.error('❌ Erreur chargement conversation temps réel:', error);
       setIsLoading(false);
     }
   };
 
-  const subscribeToUpdates = () => {
-    // Écouter les nouveaux messages
-    const unsubscribeMessages = chatService.subscribe(`messages_${chatId}`, (message: ChatMessage) => {
-      setMessages(prev => {
-        const exists = prev.find(m => m.id === message.id);
-        if (exists) {
-          // Mettre à jour le message existant (réactions, etc.)
-          return prev.map(m => m.id === message.id ? message : m);
-        } else {
-          // Nouveau message
-          setTimeout(() => {
-            flatListRef.current?.scrollToEnd({ animated: true });
-          }, 100);
-          return [...prev, message];
-        }
-      });
-    });
+  // Fonction d'envoi de message
+  const sendMessage = async () => {
+    if (!inputText.trim() || !user?.id) {
+      return;
+    }
 
-    // Écouter les indicateurs de frappe
-    const unsubscribeTyping = chatService.subscribe(`typing_${chatId}`, (indicators: TypingIndicator[]) => {
-      setTypingUsers(indicators.filter(i => i.userId !== user?.id));
-    });
-
-    return () => {
-      unsubscribeMessages();
-      unsubscribeTyping();
-    };
-  };
-
-  const handleSendMessage = async () => {
-    if (!inputText.trim() || !user?.id) return;
-
+    console.log('📤 Envoi message temps réel:', inputText.substring(0, 50) + '...');
+    
     try {
-      const content = inputText.trim();
-      const messageType = content.match(/^[\p{Emoji}\s]+$/u) ? 'emoji' : 'text';
+      // Arrêter l'indicateur de saisie
+      realtimeChatService.stopTyping(chatId);
       
-      console.log('📤 Envoi message:', { chatId, senderId: user.id, content, type: messageType });
+      // Envoyer le message via le service temps réel
+      await realtimeChatService.sendMessage(
+        chatId, 
+        inputText.trim(), 
+        'text',
+        replyTo?.id
+      );
       
-      // Créer le message localement d'abord pour un affichage immédiat
-      const newMessage: ChatMessage = {
-        id: `msg_${Date.now()}_${Math.random()}`,
-        chatId,
-        senderId: user.id,
-        senderName: user.username || 'Moi',
-        content,
-        type: messageType,
-        timestamp: new Date().toISOString(),
-        isRead: false,
-        reactions: [],
-        replyTo: replyTo ? {
-          messageId: replyTo.id,
-          content: replyTo.content,
-          senderName: replyTo.senderName
-        } : undefined
-      };
-      
-      // Ajouter le message à la liste localement
-      setMessages(prev => [...prev, newMessage]);
-      
-      // Puis envoyer via le service (en arrière-plan)
-      try {
-        await chatService.sendMessage(
-          chatId,
-          user.id,
-          content,
-          messageType,
-          replyTo ? {
-            messageId: replyTo.id,
-            content: replyTo.content,
-            senderName: replyTo.senderName
-          } : undefined
-        );
-        console.log('✅ Message envoyé avec succès');
-      } catch (serviceError) {
-        console.warn('⚠️ Service d\'envoi échoué, message gardé localement:', serviceError);
-      }
-
+      // Nettoyer l'input et la réponse
       setInputText('');
       setReplyTo(null);
       setShowEmojiPicker(false);
       
-      // Scroll vers le bas
+      // Scroller vers le bas
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
       
-      // Arrêter l'indicateur de frappe
-      try {
-        await chatService.setTyping(chatId, user.id, false);
-      } catch (typingError) {
-        console.warn('⚠️ Erreur indicateur frappe:', typingError);
-      }
-      
     } catch (error) {
       console.error('❌ Erreur envoi message:', error);
-      Alert.alert('Erreur', 'Impossible d\'envoyer le message');
+      Alert.alert(
+        'Erreur',
+        'Impossible d\'envoyer le message. Vérifiez votre connexion.',
+        [{ text: 'OK' }]
+      );
     }
   };
 
-  const handleInputChange = async (text: string) => {
+  // Gestion de la saisie
+  const handleTextChange = (text: string) => {
     setInputText(text);
     
-    if (!user?.id) return;
-    
-    // Indicateur de frappe
-    if (text.trim()) {
-      await chatService.setTyping(chatId, user.id, true);
+    // Indicateur de saisie
+    if (text.length > 0) {
+      realtimeChatService.startTyping(chatId);
       
-      // Reset timeout
+      // Arrêter l'indicateur après 3 secondes d'inactivité
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
       }
       
       typingTimeoutRef.current = setTimeout(() => {
-        chatService.setTyping(chatId, user.id, false);
-      }, 1000);
+        realtimeChatService.stopTyping(chatId);
+      }, 3000);
     } else {
-      await chatService.setTyping(chatId, user.id, false);
+      realtimeChatService.stopTyping(chatId);
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
     }
   };
+
+
 
   const handleEmojiSelect = (emoji: string) => {
     setInputText(prev => prev + emoji);
     setShowEmojiPicker(false);
   };
 
-  const handleReply = (message: ChatMessage) => {
+  const handleReply = (message: RealtimeChatMessage) => {
     setReplyTo(message);
     setShowEmojiPicker(false);
   };
@@ -270,7 +186,8 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
     if (!user?.id) return;
     
     try {
-      await chatService.addReaction(messageId, chatId, user.id, emoji);
+      // TODO: Implémenter les réactions avec le service temps réel
+      console.log('🎭 Réaction:', { messageId, emoji });
     } catch (error) {
       console.error('Erreur réaction:', error);
     }
@@ -280,9 +197,9 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
     setReplyTo(null);
   };
 
-  const renderMessage = ({ item, index }: { item: ChatMessage, index: number }) => {
-    const isOwn = item.senderId === user?.id;
-    const showAvatar = !isOwn && (index === 0 || messages[index - 1]?.senderId !== item.senderId);
+  const renderMessage = ({ item, index }: { item: RealtimeChatMessage, index: number }) => {
+    const isOwn = item.sender?.id === user?.id;
+    const showAvatar = !isOwn && (index === 0 || messages[index - 1]?.sender?.id !== item.sender?.id);
     
     return (
       <MessageBubble
@@ -296,12 +213,8 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
   };
 
   const renderHeader = () => {
-    const title = room?.name || chatTitle || contactName || 'Chat';
-    const subtitle = room 
-      ? room.type === 'bob' 
-        ? `${room.bobTitle} • ${room.participants.filter(p => p.id !== user?.id).map(p => p.name).join(', ')}`
-        : room.participants.filter(p => p.id !== user?.id).map(p => p.name).join(', ')
-      : isOnline ? t('contacts.online') : '';
+    const title = chatTitle || contactName || 'Chat';
+    const subtitle = contactName ? (isOnline ? t('contacts.online') : '') : '';
 
     return (
       <Header
@@ -311,17 +224,6 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
         onBackPress={() => navigation.goBack()}
         rightComponent={() => (
           <View style={styles.headerActions}>
-            {room?.type === 'bob' && (
-              <TouchableOpacity 
-                style={styles.headerAction}
-                onPress={() => {
-                  // Navigation vers la fiche Bob
-                  navigation.navigate('BoberCard', { boberId: room.bobId });
-                }}
-              >
-                <Text style={styles.headerActionIcon}>📋</Text>
-              </TouchableOpacity>
-            )}
             <TouchableOpacity 
               style={styles.headerAction}
               onPress={() => {
@@ -373,12 +275,12 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
         <TextInput
           style={styles.textInput}
           value={inputText}
-          onChangeText={handleInputChange}
+          onChangeText={handleTextChange}
           placeholder="Tapez votre message..."
           multiline
           maxLength={1000}
           returnKeyType="send"
-          onSubmitEditing={handleSendMessage}
+          onSubmitEditing={sendMessage}
           blurOnSubmit={false}
         />
 
@@ -388,7 +290,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
             styles.sendButton,
             inputText.trim() ? styles.sendButtonActive : styles.sendButtonInactive
           ]}
-          onPress={handleSendMessage}
+          onPress={sendMessage}
           disabled={!inputText.trim()}
         >
           <Text style={styles.sendButtonText}>➤</Text>
@@ -408,23 +310,41 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
     );
   }
 
+  const isDesktop = isWebDesktop();
+
   return (
     <KeyboardAvoidingView
-      style={[styles.container, WebStyles.container]}
+      style={[
+        styles.container, 
+        getWebStyle(WebStyles.container),
+        isDesktop && { maxWidth: 1000, alignSelf: 'center', margin: '20px auto' }
+      ]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       enabled={Platform.OS !== 'web'}
     >
       {renderHeader()}
 
-      <View style={styles.chatContainer}>
+      <View style={[
+        styles.chatContainer,
+        isDesktop && {
+          borderRadius: 12,
+          borderWidth: 1,
+          borderColor: '#E5E7EB',
+          backgroundColor: '#FFFFFF',
+          ...(Platform.OS === 'web' && { boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' })
+        }
+      ]}>
         <FlatList
           ref={flatListRef}
           data={messages}
           renderItem={renderMessage}
           keyExtractor={(item) => item.id}
           style={styles.messagesList}
-          contentContainerStyle={styles.messagesContainer}
+          contentContainerStyle={[
+            styles.messagesContainer,
+            isDesktop && { padding: 16 }
+          ]}
           showsVerticalScrollIndicator={false}
           maintainVisibleContentPosition={{
             minIndexForVisible: 0,

@@ -59,6 +59,14 @@ export const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
     fontSize: Typography.sizes.base,
   },
+  searchClear: {
+    padding: Spacing.sm,
+    marginLeft: Spacing.sm,
+  },
+  searchClearText: {
+    color: Colors.textSecondary,
+    fontSize: Typography.sizes.lg,
+  },
 
   // Status filters
   statusFilters: {
@@ -105,6 +113,7 @@ export const styles = StyleSheet.create({
   contactHeader: {
     flexDirection: 'row',
     marginBottom: Spacing.md,
+    position: 'relative',
   },
 
   contactAvatar: {
@@ -501,5 +510,22 @@ refreshButtonText: {
   color: Colors.primary,
 },
 
+// Delete button
+deleteButton: {
+  position: 'absolute',
+  top: 8,
+  right: 8,
+  width: 32,
+  height: 32,
+  borderRadius: 16,
+  backgroundColor: '#FFE5E5',
+  justifyContent: 'center',
+  alignItems: 'center',
+  zIndex: 1,
+},
+deleteButtonText: {
+  fontSize: 16,
+  color: '#D32F2F',
+},
 
 });

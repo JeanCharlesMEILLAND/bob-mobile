@@ -1,179 +1,150 @@
-// src/screens/contacts/ContactsRepertoireScreen.tsx - Screen principal
-import React, { useState, useEffect } from 'react';
+// src/screens/contacts/ContactsRepertoireScreen.tsx - Interface complète de gestion répertoire
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
+  StyleSheet,
+  TouchableOpacity,
   Alert,
   ScrollView,
-  RefreshControl,
+  TextInput,
+  FlatList,
+  ActivityIndicator,
   Modal,
   Animated,
-  TouchableOpacity,
 } from 'react-native';
-// import { useContactsBob } from '../../hooks/useContactsBob';
-import { useContactsRealTime } from '../../hooks/useContactsRealTime';
-import { logger, logContacts } from '../../utils/logger';
-import { Colors } from '../../styles';
-import { WebStyles } from '../../styles/web';
-
-// Import des composants découpés
-import { PermissionModal } from '../../components/contacts/PermissionModal';
-import { EmptyStateView } from '../../components/contacts/EmptyStateView';
-import { ContactsDashboard } from '../../components/contacts/ContactsDashboard';
-import { ContactsSelectionInterface } from '../../components/contacts/ContactsSelectionInterface';
-import { InvitationInterface } from '../../components/contacts/InvitationInterface';
-import { ManageContactsScreen } from '../../components/contacts/ManageContactsScreen';
-import { NetworkIntroductionScreen } from '../../components/contacts/NetworkIntroductionScreen';
-import { SyncIndicator } from '../../components/common/SyncIndicator';
-
-import { styles } from './ContactsRepertoireScreen.styles';
+import { Colors, Typography, Spacing } from '../../styles';
+import { useContacts } from '../../hooks/contacts/useContacts';
+// import { ContactsSelectionInterface } from '../../components/contacts/ContactsSelectionInterface';
 
 export const ContactsRepertoireScreen = () => {
-  // 🚀 UTILISER DIRECTEMENT LE HOOK TEMPS RÉEL
   const {
-    isLoading,
-    contactsBruts,
-    repertoire,
-    contacts,
-    invitations,
+    loading: isLoading,
+    phoneContacts: contactsBruts,
+    repertoireContacts: repertoire,
     scannerRepertoire,
+    importerContactsEtSync,
+    removeContact: retirerContactsDuRepertoire,
+    supprimerTousLesContacts: repartirAZero,
     getStats,
     lastScanDate,
     clearCache,
-    forcerMiseAJourNoms,
-    simulerAcceptationInvitation,
-    // Nouvelles méthodes temps réel
-    addContact,
-    addMultipleContacts,
-    removeContact,
-    sendInvitation,
-    syncState,
-    syncStats,
-    forcePullFromStrapi
-  } = useContactsRealTime();
+    // verifierEtatStrapi, // Pas disponible dans useContacts
+  } = useContacts();
 
-  // 🔧 Alias pour compatibilité avec l'ancien code
-  const importerContactsEtSync = addMultipleContacts;
+  // État de chargement initial
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
 
   // États UI
   const [showPermissionModal, setShowPermissionModal] = useState(false);
   const [showSelectionInterface, setShowSelectionInterface] = useState(false);
   const [showInvitationInterface, setShowInvitationInterface] = useState(false);
-  const [showManageContactsScreen, setShowManageContactsScreen] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [showTips, setShowTips] = useState(false); // 🔧 Désactivé par défaut
-  const [isFirstTime, setIsFirstTime] = useState(true);
+  const [searchText, setSearchText] = useState('');
+  const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set());
+  const [sortBy, setSortBy] = useState<'name' | 'smart' | 'recent'>('smart');
+  const [showManageMode, setShowManageMode] = useState(false);
 
   // Animation
   const [slideAnim] = useState(new Animated.Value(0));
-  const [pulseAnim] = useState(new Animated.Value(1));
 
-  const [stats, setStats] = useState<{
-    totalContactsTelephone: number;
-    contactsAvecEmail: number;
-    contactsComplets: number;
-    mesContacts: number;
-    contactsAvecBob: number;
-    contactsSansBob: number;
-    contactsInvites: number;
-    nouveauxDepuisScan: number;
-    contactsDisponibles?: number;
-    tauxCuration?: number;
-    invitationsEnCours?: number;
-    invitationsAcceptees?: number;
-    contactsEnLigne?: number;
-  } | null>(null);
+  const [stats, setStats] = useState<any>(null);
 
-
-  // L'état first-time dépend uniquement du répertoire
-  // Si pas de contacts dans le réseau = première fois / recommencer à zéro
+  // Détecter la fin du chargement initial
   useEffect(() => {
-    setIsFirstTime(repertoire.length === 0);
-  }, [repertoire.length]);
+    console.log('🔄 ContactsRepertoireScreen - Vérification état initial:', {
+      contactsBruts: contactsBruts.length,
+      repertoire: repertoire.length,
+      isInitialLoading
+    });
+
+    // Le cache est considéré comme chargé après un délai minimum ou dès qu'on a des données
+    const timer = setTimeout(() => {
+      console.log('⏰ Timeout chargement initial - fin du loading');
+      setIsInitialLoading(false);
+    }, 500); // Délai minimal pour éviter le flash
+
+    // Si on a déjà des données, on peut arrêter le loading plus tôt
+    if (contactsBruts.length > 0 || repertoire.length > 0) {
+      console.log('✅ Données trouvées - fin du loading immédiate');
+      clearTimeout(timer);
+      setIsInitialLoading(false);
+    }
+
+    return () => clearTimeout(timer);
+  }, [contactsBruts.length, repertoire.length]);
 
   useEffect(() => {
     const fetchStats = async () => {
       const result = await getStats();
-      console.log('🔄 Stats mises à jour dans le screen:', {
-        mesContacts: result.mesContacts,
-        contactsAvecBob: result.contactsAvecBob,
-        contactsSansBob: result.contactsSansBob
-      });
       setStats(result);
     };
     fetchStats();
-  }, [contactsBruts, repertoire, contacts, invitations]); // Mise à jour quand les états changent
+  }, [getStats]);
 
+  // Contacts intelligents (avec priorité basée sur fréquence estimée)
+  const contactsAvecPriorite = useMemo(() => {
+    return contactsBruts.map(contact => ({
+      ...contact,
+      priorite: calculerPriorite(contact),
+      isInRepertoire: repertoire.some(r => r.id === contact.id),
+    }));
+  }, [contactsBruts, repertoire]);
 
-  // Animation pulse pour boutons importants
-  useEffect(() => {
-    if (repertoire.length === 0 && contactsBruts.length > 0) {
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseAnim, {
-            toValue: 1.05,
-            duration: 1000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(pulseAnim, {
-            toValue: 1,
-            duration: 1000,
-            useNativeDriver: true,
-          }),
-        ])
-      ).start();
-    }
-  }, [repertoire, contactsBruts]);
+  // Filtrage et tri des contacts
+  const contactsFiltered = useMemo(() => {
+    let filtered = [...contactsAvecPriorite];
 
-  // Pull to refresh
-  const onRefresh = React.useCallback(async () => {
-    if (refreshing || isLoading) {
-      console.log('⏳ Refresh/scan déjà en cours, ignorer...');
-      return;
+    // Recherche
+    if (searchText.trim()) {
+      const search = searchText.toLowerCase();
+      filtered = filtered.filter(c => 
+        c.nom.toLowerCase().includes(search) ||
+        c.telephone.includes(search) ||
+        (c.email && c.email.toLowerCase().includes(search))
+      );
     }
-    
-    setRefreshing(true);
-    try {
-      await scannerRepertoire();
-    } finally {
-      setRefreshing(false);
-    }
-  }, [refreshing, isLoading]);
 
-  // Démarrer directement le processus de sélection
-  const handleGetStarted = async () => {
-    if (isLoading) {
-      console.log('⏳ Scan déjà en cours, ignorer...');
-      return;
+    // Tri
+    switch (sortBy) {
+      case 'smart':
+        filtered.sort((a, b) => (b.priorite || 0) - (a.priorite || 0));
+        break;
+      case 'recent':
+        // Simuler tri par récence (dans vraie app: utiliser logs d'appels)
+        filtered.sort((a, b) => a.nom.localeCompare(b.nom));
+        break;
+      case 'name':
+      default:
+        filtered.sort((a, b) => a.nom.localeCompare(b.nom));
     }
-    
-    try {
-      // Scanner directement le répertoire
-      console.log('🚀 Démarrage direct du scan contacts...');
-      const contactsScannés = await scannerRepertoire();
-      
-      // Ouvrir directement la sélection si des contacts trouvés
-      if (contactsScannés && contactsScannés.length > 0) {
-        console.log(`📱 Ouverture directe de la sélection avec ${contactsScannés.length} contacts`);
-        setShowSelectionInterface(true);
-      } else {
-        Alert.alert(
-          'Aucun contact trouvé',
-          'Vérifiez que vous avez des contacts dans votre téléphone.',
-          [{ text: 'OK' }]
-        );
-      }
-    } catch (error: any) {
-      console.warn('Erreur démarrage process:', error);
-      
-      // En cas d'erreur, afficher la modal de permission
-      if (error.message?.includes('Permission')) {
-        setShowPermissionModal(true);
-      } else {
-        Alert.alert('Erreur', error.message || 'Impossible de scanner les contacts');
-      }
-    }
-  };
+
+    return filtered;
+  }, [contactsAvecPriorite, searchText, sortBy]);
+
+  // Calculer priorité intelligente
+  function calculerPriorite(contact: any): number {
+    let score = 0;
+    const nom = contact.nom.toLowerCase();
+
+    // Famille proche (heuristiques)
+    const motsFamille = ['papa', 'maman', 'marie', 'pierre', 'jean', 'sophie', 'paul', 'anne'];
+    if (motsFamille.some(mot => nom.includes(mot))) score += 10;
+
+    // Prénom seul = plus proche
+    if (!nom.includes(' ') && nom.length < 15) score += 8;
+
+    // A un email = plus complet
+    if (contact.hasEmail) score += 5;
+
+    // Éviter entreprises
+    const motsEntreprise = ['sarl', 'sas', 'auto', 'garage', 'docteur', 'cabinet', 'service'];
+    if (motsEntreprise.some(mot => nom.includes(mot))) score -= 5;
+
+    // Nom court = plus proche
+    if (nom.length < 12) score += 3;
+
+    return Math.max(0, score);
+  }
 
   // Demander permission avec style
   const demanderPermissionRepertoire = () => {
@@ -191,280 +162,1355 @@ export const ContactsRepertoireScreen = () => {
     try {
       await scannerRepertoire();
       
-      if (contactsBruts.length > 0) {
-        Alert.alert(
-          '📱 Scan terminé !',
-          `${contactsBruts.length} contacts trouvés dans votre téléphone.\n\nChoisissez maintenant ceux que vous voulez dans votre réseau Bob.`,
-          [
-            { text: 'Plus tard', style: 'cancel' },
-            { text: 'Choisir maintenant', onPress: () => setShowSelectionInterface(true) }
-          ]
-        );
-      } else {
-        Alert.alert(
-          'Aucun contact trouvé',
-          'Vérifiez que vous avez des contacts dans votre téléphone.',
-          [{ text: 'OK' }]
-        );
-      }
+      Alert.alert(
+        '📱 Scan terminé !',
+        `${contactsBruts.length} contacts trouvés dans votre téléphone.\n\nChoisissez maintenant ceux que vous voulez dans votre réseau Bob.`,
+        [
+          { text: 'Plus tard', style: 'cancel' },
+          { text: 'Choisir maintenant', onPress: () => setShowSelectionInterface(true) }
+        ]
+      );
     } catch (error: any) {
       Alert.alert('Erreur', error.message);
     }
   };
 
-  // Importer les contacts sélectionnés - VERSION TEMPS RÉEL
+  // Importer les contacts sélectionnés
   const handleImportSelected = async (contactIds: string[]) => {
-    if (isLoading) {
-      console.log('⏳ Import déjà en cours, ignorer...');
+    try {
+      await importerContactsEtSync(contactIds);
+      setShowSelectionInterface(false);
+      setSelectedContacts(new Set());
+      
+      Alert.alert(
+        '✅ Contacts ajoutés !',
+        `${contactIds.length} contact(s) ajouté(s) à votre réseau Bob.`,
+        [{ text: 'Super !', style: 'default' }]
+      );
+    } catch (error: any) {
+      Alert.alert('Erreur', error.message);
+    }
+  };
+
+  // Retirer des contacts du répertoire
+  const handleRetirerContacts = async () => {
+    if (selectedContacts.size === 0) {
+      Alert.alert('Aucune sélection', 'Sélectionnez des contacts à retirer.');
       return;
     }
-    
-    try {
-      // Convertir les IDs en objets contacts complets depuis contactsBruts
-      const selectedContacts = contactsBruts.filter(contact => 
-        contactIds.includes(contact.id)
-      );
 
-      console.log('📱 Contacts sélectionnés:', selectedContacts.map(c => ({ id: c.id, nom: c.nom, telephone: c.telephone })));
+    Alert.alert(
+      'Retirer des contacts',
+      `Retirer ${selectedContacts.size} contact(s) de votre réseau Bob ?`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Retirer',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await retirerContactsDuRepertoire(Array.from(selectedContacts));
+              setSelectedContacts(new Set());
+              setShowManageMode(false);
+              Alert.alert('Succès', 'Contacts retirés de votre réseau.');
+            } catch (error: any) {
+              Alert.alert('Erreur', error.message);
+            }
+          }
+        },
+      ]
+    );
+  };
+
+  // Repartir à zéro
+  const handleRepartirAZero = () => {
+    Alert.alert(
+      '🗑️ Repartir à zéro',
+      `Supprimer tous vos ${stats?.mesContacts || 0} contacts Bob et recommencer ?\n\nVos contacts téléphone ne seront pas affectés.`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Repartir à zéro',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await repartirAZero();
+              setSelectedContacts(new Set());
+              setShowManageMode(false);
+              Alert.alert('Remis à zéro', 'Vous pouvez maintenant re-sélectionner vos contacts.');
+            } catch (error: any) {
+              Alert.alert('Erreur', error.message);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  // Vérifier l'état Strapi
+  const handleVerifierStrapi = async () => {
+    try {
+      const result = await verifierEtatStrapi();
       
-      // Utiliser la nouvelle méthode temps réel
-      await addMultipleContacts(selectedContacts);
+      const message = `📊 Vérification Strapi
       
-      // 🔧 ATTENDRE que la synchronisation soit terminée avant de recalculer les stats
-      console.log('🔄 Attente 2 secondes pour la synchronisation Strapi complète...');
-      await new Promise(resolve => setTimeout(resolve, 2000));
+🗄️ Contacts dans Strapi: ${result.contactsStrapi}
+👥 Contacts avec Bob: ${result.contactsAvecBob}
+📱 Contacts téléphone (bruts): ${result.contactsTelephone}
+📱 Contacts répertoire: ${repertoire.length}
+
+🔄 Synchronisation: ${result.syncOk ? '✅ OK' : '❌ Problème'}
+
+Détails dans la console pour debug.`;
+
+      Alert.alert('Vérification Strapi', message, [
+        { text: 'OK', style: 'default' }
+      ]);
       
-      // 🔧 FORCER la mise à jour des stats après synchronisation
-      console.log('🔄 FORCE refresh stats après synchronisation');
-      const newStats = await getStats();
-      console.log('🔄 Stats après synchronisation:', {
-        mesContacts: newStats.mesContacts,
-        contactsAvecBob: newStats.contactsAvecBob,
-        contactsSansBob: newStats.contactsSansBob
-      });
+      console.log('📋 Détails complets:', result.details);
       
-      // 🔧 FORCER le re-render complet avec timestamp
-      const statsWithTimestamp = { ...newStats, renderTimestamp: Date.now() };
-      console.log('🎨 FORCE re-render screen avec timestamp:', statsWithTimestamp.renderTimestamp);
-      setStats(statsWithTimestamp);
-      
-      setShowSelectionInterface(false);
-      
-      // 🔧 Alert native supprimée - on garde seulement les notifications vertes
-      // Alert.alert(
-      //   '✅ Contacts ajoutés !',
-      //   `${contactIds.length} contact(s) ajouté(s) à votre réseau Bob.`,
-      //   [{ text: 'Super !', style: 'default' }]
-      // );
     } catch (error: any) {
-      Alert.alert('Erreur', error.message);
+      Alert.alert('Erreur', `Impossible de vérifier Strapi: ${error.message}`);
     }
   };
 
-  // 🔧 CORRECTION: Utiliser directement les stats du hook qui sont correctes
-  const enrichedStats = stats
-    ? {
-        ...stats,
-        pourcentageBob: stats.mesContacts > 0 
-          ? Math.round((stats.contactsAvecBob / stats.mesContacts) * 100)
-          : 0,
-        nouveauxDepuisScan: contactsBruts.length - repertoire.length,
-        contactsDisponibles: stats.contactsDisponibles ?? 0,
-        tauxCuration: stats.tauxCuration ?? 0,
-        invitationsEnCours: stats.invitationsEnCours ?? 0,
-        invitationsAcceptees: stats.invitationsAcceptees ?? 0,
-        contactsEnLigne: stats.contactsEnLigne ?? 0,
-        // 🔧 UTILISER LES STATS DU HOOK (correctes) au lieu de recalculer localement
-        contactsInvites: stats.contactsInvites, // Déjà calculé correctement dans le hook
-        contactsSansBob: stats.contactsSansBob, // Déjà calculé correctement dans le hook
-      }
-    : {
-        totalContactsTelephone: 0,
-        mesContacts: 0,
-        contactsAvecBob: 0,
-        contactsSansBob: 0,
-        pourcentageBob: 0,
-        contactsDisponibles: 0,
-        tauxCuration: 0,
-        contactsInvites: 0,
-        invitationsEnCours: 0,
-        invitationsAcceptees: 0,
-        contactsEnLigne: 0,
-        nouveauxDepuisScan: 0,
-        contactsAvecEmail: 0,
-        contactsComplets: 0,
-      };
+  // Vider cache complet - VERSION CORRIGÉE 
+  const handleViderCache = () => {
+    Alert.alert(
+      '💾 Vider le cache complet',
+      'Supprimer TOUTES les données (contacts téléphone scannés + répertoire Bob) ?\n\n⚠️ Vous devrez rescanner votre téléphone après.',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Tout effacer',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // 🔧 CORRECTION: clearCache a été corrigé pour éviter les erreurs 405
+              // Il fait maintenant un nettoyage propre sans suppression individuelle
+              await clearCache();
+              Alert.alert(
+                '✅ Cache vidé', 
+                'Toutes les données ont été supprimées.\n\nVous pouvez maintenant rescanner votre téléphone.'
+              );
+            } catch (error: any) {
+              Alert.alert('Erreur', error.message);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  // Sélectionner/désélectionner contact
+  const toggleContactSelection = (contactId: string) => {
+    const newSelected = new Set(selectedContacts);
+    if (newSelected.has(contactId)) {
+      newSelected.delete(contactId);
+    } else {
+      newSelected.add(contactId);
+    }
+    setSelectedContacts(newSelected);
+  };
+
+  // Rendu d'un contact dans le répertoire
+  const renderContact = ({ item }: { item: any }) => {
+    const isSelected = selectedContacts.has(item.id);
+    const prioriteColor = (item.priorite || 0) > 8 ? '#FF9800' : (item.priorite || 0) > 5 ? '#2196F3' : '#9E9E9E';
+    
+    return (
+      <TouchableOpacity
+        style={[styles.contactItem, isSelected && styles.contactItemSelected]}
+        onPress={() => showManageMode && toggleContactSelection(item.id)}
+      >
+        {/* Checkbox en mode gestion */}
+        {showManageMode && (
+          <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
+            {isSelected && <Text style={styles.checkmark}>✓</Text>}
+          </View>
+        )}
+
+        {/* Avatar avec priorité */}
+        <View style={[styles.avatar, { backgroundColor: prioriteColor }]}>
+          <Text style={styles.avatarText}>
+            {item.nom.charAt(0).toUpperCase()}
+          </Text>
+        </View>
+
+        {/* Infos contact */}
+        <View style={styles.contactInfo}>
+          <Text style={styles.contactNom} numberOfLines={1}>
+            {item.nom}
+          </Text>
+          <Text style={styles.contactPhone} numberOfLines={1}>
+            {item.telephone}
+          </Text>
+          {item.email && (
+            <Text style={styles.contactEmail} numberOfLines={1}>
+              {item.email}
+            </Text>
+          )}
+        </View>
+
+        {/* Indicateurs */}
+        <View style={styles.indicateurs}>
+          {(item.priorite || 0) > 8 && (
+            <View style={styles.badgePriorite}>
+              <Text style={styles.badgeText}>🔥</Text>
+            </View>
+          )}
+          {item.hasEmail && (
+            <View style={styles.badgeEmail}>
+              <Text style={styles.badgeText}>📧</Text>
+            </View>
+          )}
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   return (
-    <View style={[styles.container, WebStyles.container]}>
-      {/* Header avec badge notification */}
-      <View style={styles.dashboardHeader}>
-         <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>Dashboard Réseau Bob</Text>
-          {/* {repertoire.length > 0 && (
-            <Text style={styles.headerSubtitle}>
-              {enrichedStats.mesContacts} contacts • {enrichedStats.pourcentageBob}% ont Bob
-            </Text>
-          )} */}
-        </View>
-        {/* {repertoire.length > 0 && enrichedStats.contactsSansBob > 0 && (
+    <View style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Mes Contacts Bob</Text>
+        {repertoire.length > 0 && (
           <TouchableOpacity 
             onPress={() => setShowInvitationInterface(true)}
             style={styles.inviteButton}
           >
             <Text style={styles.inviteButtonText}>Inviter</Text>
-            {enrichedStats.contactsSansBob > 0 && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{enrichedStats.contactsSansBob}</Text>
-              </View>
-            )}
           </TouchableOpacity>
-        )} */}
+        )}
       </View>
 
-      <ScrollView 
-        style={styles.content} 
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={[Colors.primary]}
-            tintColor={Colors.primary}
-          />
-        }
-      >
-        
-        {repertoire.length === 0 ? (
-          /* Page d'introduction - dès qu'on n'a pas de réseau */
-          <NetworkIntroductionScreen
-            onGetStarted={handleGetStarted}
-            pulseAnim={pulseAnim}
-          />
-        ) : (
-          /* État avec contacts - Dashboard */
-          <ContactsDashboard
-            key={`dashboard-${enrichedStats.mesContacts}-${enrichedStats.contactsAvecBob}-${enrichedStats.contactsSansBob}`}
-            stats={enrichedStats}
-            invitations={invitations}
-            showTips={showTips}
-            onCloseTips={() => setShowTips(false)}
-            onInvite={async () => {
-              // 🔧 Forcer mise à jour avant d'ouvrir l'interface
-              console.log('🔄 Mise à jour des noms avant invitation...');
-              await forcerMiseAJourNoms();
-              setShowInvitationInterface(true);
-            }}
-            onAddContacts={() => setShowSelectionInterface(true)}
-            onManageContacts={() => setShowManageContactsScreen(true)}
-            getAsyncStats={getStats} // 🔧 Ajout de getAsyncStats pour le bouton Actualiser
-            onSimulerAcceptation={async (telephone: string) => {
-              const success = await simulerAcceptationInvitation(telephone);
-              if (success) {
-                Alert.alert(
-                  '🎉 Simulation réussie !', 
-                  'L\'invitation a été acceptée et le contact a rejoint Bob !',
-                  [{ text: 'Super !', style: 'default' }]
-                );
-              }
-            }}
-            onRefresh={demanderPermissionRepertoire}
-            onClearAll={() => {
-              Alert.alert(
-                '🗑️ Suppression complète',
-                `Cette action va supprimer :\n\n• ${repertoire.length} contacts de votre réseau\n• ${invitations.length} invitations\n• Données locales ET serveur\n\n⚠️ Action irréversible !`,
-                [
-                  { text: 'Annuler', style: 'cancel' },
-                  { 
-                    text: 'Tout supprimer', 
-                    style: 'destructive',
-                    onPress: async () => {
-                      try {
-                        // Afficher une modal de progression
-                        Alert.alert('🔄 Suppression en cours...', 'Suppression des données locales et serveur...');
-                        
-                        await clearCache();
-                        
-                        // Force reset after clearing - les useEffects vont s'exécuter automatiquement
-                        // grâce aux changements dans lastScanDate, repertoire, invitations
-                        
-                        Alert.alert('✅ Suppression terminée', 'Tous vos contacts ont été supprimés. Vous pouvez recommencer à zéro.');
-                      } catch (error: any) {
-                        Alert.alert('❌ Erreur', error.message || 'Erreur lors de la suppression');
-                      }
-                    }
-                  }
-                ]
-              );
-            }}
-            isLoading={isLoading}
-          />
-        )}
+      {/* Interface d'invitation */}
+      {showInvitationInterface && (
+        <ContactsSelectionInterface
+          contactsBruts={contactsBruts}
+          contactsDejaSelectionnes={repertoire.map(c => c.id)}
+          onClose={() => setShowInvitationInterface(false)}
+          onImportSelected={handleImportSelected}
+          isLoading={isLoading}
+        />
+      )}
+
+      <ScrollView style={styles.content}>
+        {(() => {
+          console.log('🖥️ ContactsRepertoireScreen - Rendu:', {
+            isInitialLoading,
+            repertoireLength: repertoire.length,
+            contactsBrutsLength: contactsBruts.length,
+            decision: isInitialLoading ? 'LOADING' : repertoire.length === 0 ? 'EMPTY' : 'DASHBOARD'
+          });
+
+          if (isInitialLoading) {
+            return (
+              /* Chargement initial */
+              <View style={styles.loadingState}>
+                <ActivityIndicator size="large" color={Colors.primary} />
+                <Text style={styles.loadingText}>Chargement de vos contacts...</Text>
+              </View>
+            );
+          }
+          
+          if (repertoire.length === 0) {
+            return (
+          /* État initial - Pas de contacts */
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyIcon}>📱</Text>
+            <Text style={styles.emptyTitle}>Créez votre réseau Bob</Text>
+            <Text style={styles.emptyDescription}>
+              Sélectionnez les contacts de votre répertoire que vous souhaitez avoir dans Bob pour faciliter l'entraide.
+            </Text>
+
+            {contactsBruts.length === 0 ? (
+              /* Pas encore scanné */
+              <TouchableOpacity
+                style={styles.scanButton}
+                onPress={demanderPermissionRepertoire}
+                disabled={isLoading}
+              >
+                <Text style={styles.scanButtonText}>
+                  📱 Accéder à mon répertoire
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              /* Contacts scannés mais aucun sélectionné */
+              <View style={styles.scannedActions}>
+                <View style={styles.scanInfo}>
+                  <Text style={styles.scanInfoText}>
+                    📊 {contactsBruts.length} contacts trouvés
+                  </Text>
+                  {lastScanDate && (
+                    <Text style={styles.scanDate}>
+                      Scanné le {new Date(lastScanDate).toLocaleDateString()}
+                    </Text>
+                  )}
+                </View>
+
+                <TouchableOpacity
+                  style={styles.selectButton}
+                  onPress={() => setShowSelectionInterface(true)}
+                >
+                  <Text style={styles.selectButtonText}>
+                    🎯 Choisir mes contacts
+                  </Text>
+                </TouchableOpacity>
+
+                <View style={styles.secondaryActions}>
+                  <TouchableOpacity
+                    style={styles.rescanButton}
+                    onPress={demanderPermissionRepertoire}
+                    disabled={isLoading}
+                  >
+                    <Text style={styles.rescanButtonText}>🔄 Rescanner</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    style={styles.clearButton}
+                    onPress={handleViderCache}
+                  >
+                    <Text style={styles.clearButtonText}>🗑️ Vider cache</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+          </View>
+            );
+          }
+          
+          // État avec contacts - Dashboard
+          return (
+          <View style={styles.dashboard}>
+            {/* Stats */}
+            <View style={styles.statsSection}>
+              <Text style={styles.sectionTitle}>📊 Mon réseau Bob</Text>
+              
+              <View style={styles.statsGrid}>
+                <View style={styles.statCard}>
+                  <Text style={styles.statNumber}>{stats?.mesContacts || 0}</Text>
+                  <Text style={styles.statLabel}>Mes contacts</Text>
+                </View>
+                
+                <View style={styles.statCard}>
+                  <Text style={styles.statNumber}>{stats?.contactsAvecBob || 0}</Text>
+                  <Text style={styles.statLabel}>Ont Bob</Text>
+                </View>
+                
+                <View style={styles.statCard}>
+                  <Text style={styles.statNumber}>{stats?.contactsSansBob || 0}</Text>
+                  <Text style={styles.statLabel}>À inviter</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Actions principales */}
+            <View style={styles.actionsSection}>
+              <Text style={styles.sectionTitle}>🎯 Actions</Text>
+              
+              <View style={styles.actionsList}>
+                {(stats?.contactsSansBob || 0) > 0 && (
+                  <TouchableOpacity 
+                    style={styles.actionCard}
+                    onPress={() => setShowInvitationInterface(true)}
+                  >
+                    <Text style={styles.actionIcon}>🚀</Text>
+                    <View style={styles.actionInfo}>
+                      <Text style={styles.actionTitle}>Inviter des contacts</Text>
+                      <Text style={styles.actionDescription}>
+                        {stats?.contactsSansBob || 0} contact{(stats?.contactsSansBob || 0) > 1 ? 's' : ''} à inviter
+                      </Text>
+                    </View>
+                    <Text style={styles.actionArrow}>›</Text>
+                  </TouchableOpacity>
+                )}
+
+                <TouchableOpacity 
+                  style={styles.actionCard}
+                  onPress={() => setShowSelectionInterface(true)}
+                >
+                  <Text style={styles.actionIcon}>➕</Text>
+                  <View style={styles.actionInfo}>
+                    <Text style={styles.actionTitle}>Ajouter des contacts</Text>
+                    <Text style={styles.actionDescription}>
+                      {stats?.contactsDisponibles || 0} contact{(stats?.contactsDisponibles || 0) > 1 ? 's' : ''} disponible{(stats?.contactsDisponibles || 0) > 1 ? 's' : ''}
+                    </Text>
+                  </View>
+                  <Text style={styles.actionArrow}>›</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.actionCard}
+                  onPress={() => setShowManageMode(!showManageMode)}
+                >
+                  <Text style={styles.actionIcon}>⚙️</Text>
+                  <View style={styles.actionInfo}>
+                    <Text style={styles.actionTitle}>Gérer mes contacts</Text>
+                    <Text style={styles.actionDescription}>
+                      Retirer ou organiser mon réseau
+                    </Text>
+                  </View>
+                  <Text style={styles.actionArrow}>›</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Liste des contacts du répertoire */}
+            {showManageMode && (
+              <View style={styles.manageSection}>
+                <View style={styles.manageHeader}>
+                  <Text style={styles.sectionTitle}>📋 Mes {repertoire.length} contacts</Text>
+                  <TouchableOpacity onPress={() => setShowManageMode(false)}>
+                    <Text style={styles.doneButton}>Terminé</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Recherche */}
+                <TextInput
+                  placeholder="🔍 Rechercher un contact..."
+                  value={searchText}
+                  onChangeText={setSearchText}
+                  style={styles.searchInput}
+                />
+
+                {/* Tri */}
+                <View style={styles.sortContainer}>
+                  {['smart', 'name', 'recent'].map(sort => (
+                    <TouchableOpacity
+                      key={sort}
+                      style={[styles.sortButton, sortBy === sort && styles.sortButtonActive]}
+                      onPress={() => setSortBy(sort as any)}
+                    >
+                      <Text style={[styles.sortText, sortBy === sort && styles.sortTextActive]}>
+                        {sort === 'smart' ? '🎯 Intelligent' : 
+                         sort === 'name' ? '🔤 A-Z' : '📅 Récent'}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                {/* Actions de sélection */}
+                {selectedContacts.size > 0 && (
+                  <View style={styles.selectionActions}>
+                    <Text style={styles.selectionCount}>
+                      {selectedContacts.size} sélectionné{selectedContacts.size > 1 ? 's' : ''}
+                    </Text>
+                    <View style={styles.selectionButtons}>
+                      <TouchableOpacity 
+                        style={styles.clearSelectionButton}
+                        onPress={() => setSelectedContacts(new Set())}
+                      >
+                        <Text style={styles.clearSelectionText}>Vider</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity 
+                        style={styles.removeButton}
+                        onPress={handleRetirerContacts}
+                      >
+                        <Text style={styles.removeButtonText}>🗑️ Retirer</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
+
+                {/* Liste */}
+                <FlatList
+                  data={contactsFiltered.filter(c => c.isInRepertoire)}
+                  renderItem={renderContact}
+                  keyExtractor={(item, index) => `repertoire_${item.id}_${index}_${item.nom || 'unknown'}_${item.telephone || 'no-phone'}`}
+                  style={styles.contactsList}
+                  showsVerticalScrollIndicator={false}
+                />
+              </View>
+            )}
+
+            {/* Actions avancées */}
+            <View style={styles.advancedSection}>
+              <Text style={styles.sectionTitle}>⚙️ Gestion avancée</Text>
+              
+              <View style={styles.advancedActions}>
+                <TouchableOpacity
+                  style={styles.rescanButton}
+                  onPress={demanderPermissionRepertoire}
+                  disabled={isLoading}
+                >
+                  <Text style={styles.rescanButtonText}>🔄 Rescanner répertoire</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={styles.verifyButton}
+                  onPress={handleVerifierStrapi}
+                  disabled={isLoading}
+                >
+                  <Text style={styles.verifyButtonText}>📊 Vérifier Strapi</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={styles.resetButton}
+                  onPress={handleRepartirAZero}
+                >
+                  <Text style={styles.resetButtonText}>🗑️ Repartir à zéro</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+          );
+        })()}
       </ScrollView>
 
       {/* Modal de permission */}
-      <PermissionModal
+      <Modal
         visible={showPermissionModal}
-        slideAnim={slideAnim}
-        isLoading={isLoading}
-        onClose={() => setShowPermissionModal(false)}
-        onAccept={handleScanRepertoire}
-      />
+        transparent
+        animationType="none"
+        onRequestClose={() => setShowPermissionModal(false)}
+      >
+        <View style={styles.permissionOverlay}>
+          <Animated.View 
+            style={[
+              styles.permissionModal,
+              {
+                transform: [{
+                  translateY: slideAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [300, 0],
+                  })
+                }]
+              }
+            ]}
+          >
+            <Text style={styles.permissionIcon}>🤝</Text>
+            <Text style={styles.permissionTitle}>Partager votre répertoire avec Bob ?</Text>
+            <Text style={styles.permissionDescription}>
+              Bob peut accéder à vos contacts pour vous proposer vos proches et faciliter les invitations.
+            </Text>
+            
+            <View style={styles.permissionFeatures}>
+              <Text style={styles.permissionFeature}>• Vos contacts restent privés</Text>
+              <Text style={styles.permissionFeature}>• Vous choisissez qui ajouter</Text>
+              <Text style={styles.permissionFeature}>• Aucune donnée partagée sans votre accord</Text>
+            </View>
 
-      {/* Interface de sélection depuis répertoire téléphone */}
+            <View style={styles.permissionActions}>
+              <TouchableOpacity
+                style={styles.permissionDecline}
+                onPress={() => setShowPermissionModal(false)}
+              >
+                <Text style={styles.permissionDeclineText}>Non merci</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={styles.permissionAccept}
+                onPress={handleScanRepertoire}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <ActivityIndicator color="white" />
+                ) : (
+                  <Text style={styles.permissionAcceptText}>Accéder aux contacts</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+        </View>
+      </Modal>
+
+      {/* Interface de sélection */}
       {showSelectionInterface && (
         <Modal visible={showSelectionInterface} animationType="slide">
           <ContactsSelectionInterface
             contactsBruts={contactsBruts}
-            repertoireBob={repertoire}
-            invitations={invitations}
+            contactsDejaSelectionnes={contactsBruts
+              .filter(brut => repertoire.some(rep => rep.telephone === brut.telephone))
+              .map(c => c.id)}
             onClose={() => setShowSelectionInterface(false)}
             onImportSelected={handleImportSelected}
             isLoading={isLoading}
           />
         </Modal>
       )}
-
-      {/* Interface d'invitation */}
-      {showInvitationInterface && (
-        <Modal visible={showInvitationInterface} animationType="slide">
-          <InvitationInterface
-            contactsSansBob={(() => {
-              const filtered = repertoire.filter(c => !c.aSurBob);
-              console.log('🔍 DEBUG Contacts envoyés à InvitationInterface:', 
-                filtered.map(c => ({ id: c.id, nom: c.nom, telephone: c.telephone }))
-              );
-              return filtered;
-            })()}
-            contactsBruts={contactsBruts} // 🔧 Ajout pour vérification de doublons
-            onClose={() => setShowInvitationInterface(false)}
-          />
-        </Modal>
-      )}
-
-      {/* Page de gestion des contacts Bob */}
-      {showManageContactsScreen && (
-        <Modal visible={showManageContactsScreen} animationType="slide">
-          <ManageContactsScreen 
-            onClose={() => setShowManageContactsScreen(false)}
-            repertoire={repertoire}
-            stats={enrichedStats}
-          />
-        </Modal>
-      )}
-
-      {/* 🚀 NOUVEAU: Indicateur de synchronisation temps réel */}
-      <SyncIndicator 
-        position="top" 
-        showDetails={false}
-        onTap={() => {
-          logContacts('Indicateur sync tapé', { 
-            pending: syncStats.pendingOps,
-            failed: syncStats.failedOps
-          });
-          // Optionnel: Ouvrir une modal de détails
-        }}
-      />
     </View>
   );
 };
+
+// Interface de sélection des contacts (version simplifiée)
+interface ContactSelectionProps {
+  contactsBruts: any[];
+  contactsDejaSelectionnes: string[];
+  onClose: () => void;
+  onImportSelected: (contactIds: string[]) => Promise<void>;
+  isLoading: boolean;
+}
+
+const ContactsSelectionInterface: React.FC<ContactSelectionProps> = ({
+  contactsBruts,
+  contactsDejaSelectionnes,
+  onClose,
+  onImportSelected,
+  isLoading,
+}) => {
+  const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set());
+  const [searchText, setSearchText] = useState('');
+  const [sortBy, setSortBy] = useState<'smart' | 'name'>('smart');
+
+  // Contacts avec priorité calculée
+  const contactsWithPriority = useMemo(() => {
+    return contactsBruts
+      .filter(c => !contactsDejaSelectionnes.includes(c.id))
+      .map(contact => ({
+        ...contact,
+        priorite: calculerPrioriteSmart(contact),
+      }));
+  }, [contactsBruts, contactsDejaSelectionnes]);
+
+  // Filtrage et tri
+  const contactsFiltered = useMemo(() => {
+    let filtered = [...contactsWithPriority];
+
+    if (searchText.trim()) {
+      const search = searchText.toLowerCase();
+      filtered = filtered.filter(c => 
+        c.nom.toLowerCase().includes(search) ||
+        c.telephone.includes(search)
+      );
+    }
+
+    if (sortBy === 'smart') {
+      filtered.sort((a, b) => (b.priorite || 0) - (a.priorite || 0));
+    } else {
+      filtered.sort((a, b) => a.nom.localeCompare(b.nom));
+    }
+
+    return filtered;
+  }, [contactsWithPriority, searchText, sortBy]);
+
+  function calculerPrioriteSmart(contact: any): number {
+    let score = 0;
+    const nom = contact.nom.toLowerCase();
+
+    if (['papa', 'maman', 'marie', 'pierre', 'jean', 'sophie'].some(m => nom.includes(m))) score += 15;
+    if (!nom.includes(' ') && nom.length < 15) score += 10;
+    if (contact.hasEmail) score += 5;
+    if (['sarl', 'auto', 'docteur'].some(m => nom.includes(m))) score -= 8;
+    if (nom.length < 10) score += 3;
+
+    return Math.max(0, score);
+  }
+
+  const toggleContact = (contactId: string) => {
+    const newSelected = new Set(selectedContacts);
+    if (newSelected.has(contactId)) {
+      newSelected.delete(contactId);
+    } else {
+      newSelected.add(contactId);
+    }
+    setSelectedContacts(newSelected);
+  };
+
+  const handleImport = async () => {
+    if (selectedContacts.size === 0) {
+      Alert.alert('Aucune sélection', 'Sélectionnez au moins un contact.');
+      return;
+    }
+    await onImportSelected(Array.from(selectedContacts));
+  };
+
+  const renderContact = ({ item }: { item: any }) => {
+    const isSelected = selectedContacts.has(item.id);
+    const prioriteColor = (item.priorite || 0) > 10 ? '#FF9800' : '#2196F3';
+    
+    return (
+      <TouchableOpacity
+        style={[styles.contactItem, isSelected && styles.contactItemSelected]}
+        onPress={() => toggleContact(item.id)}
+      >
+        <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
+          {isSelected && <Text style={styles.checkmark}>✓</Text>}
+        </View>
+
+        <View style={[styles.avatar, { backgroundColor: prioriteColor }]}>
+          <Text style={styles.avatarText}>
+            {item.nom.charAt(0).toUpperCase()}
+          </Text>
+        </View>
+
+        <View style={styles.contactInfo}>
+          <Text style={styles.contactNom}>{item.nom}</Text>
+          <Text style={styles.contactPhone}>{item.telephone}</Text>
+          {(item.priorite || 0) > 10 && (
+            <Text style={styles.prioriteIndicator}>🔥 Suggéré</Text>
+          )}
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Choisir mes contacts</Text>
+        <TouchableOpacity onPress={onClose}>
+          <Text style={styles.closeButton}>✕</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.selectionHeader}>
+        <Text style={styles.selectionStats}>
+          {contactsFiltered.length} disponibles • {selectedContacts.size} sélectionnés
+        </Text>
+      </View>
+
+      <TextInput
+        placeholder="🔍 Rechercher..."
+        value={searchText}
+        onChangeText={setSearchText}
+        style={styles.searchInput}
+      />
+
+      <View style={styles.sortContainer}>
+        <TouchableOpacity
+          style={[styles.sortButton, sortBy === 'smart' && styles.sortButtonActive]}
+          onPress={() => setSortBy('smart')}
+        >
+          <Text style={[styles.sortText, sortBy === 'smart' && styles.sortTextActive]}>
+            🎯 Suggestions
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.sortButton, sortBy === 'name' && styles.sortButtonActive]}
+          onPress={() => setSortBy('name')}
+        >
+          <Text style={[styles.sortText, sortBy === 'name' && styles.sortTextActive]}>
+            🔤 A-Z
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      <FlatList
+        data={contactsFiltered}
+        renderItem={renderContact}
+        keyExtractor={(item, index) => `${item.id}_${index}_${item.nom || 'unknown'}_${item.telephone || 'no-phone'}`}
+        style={styles.contactsList}
+        contentContainerStyle={[
+          styles.contactsListContent,
+          { paddingBottom: selectedContacts.size > 0 ? 100 : 20 }
+        ]}
+        showsVerticalScrollIndicator={false}
+      />
+
+      {selectedContacts.size > 0 && (
+        <View style={styles.importContainer}>
+          <TouchableOpacity
+            style={styles.importButton}
+            onPress={handleImport}
+            disabled={isLoading}
+          >
+            <Text style={styles.importButtonText}>
+              ✅ Ajouter {selectedContacts.size} contact{selectedContacts.size > 1 ? 's' : ''}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F5F5F5',
+  },
+  
+  // Header
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    paddingTop: 60,
+    backgroundColor: Colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+  },
+  headerTitle: {
+    fontSize: Typography.sizes.lg,
+    fontWeight: Typography.weights.bold,
+    color: Colors.text,
+  },
+  inviteButton: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: 8,
+  },
+  inviteButtonText: {
+    color: Colors.white,
+    fontWeight: Typography.weights.medium,
+  },
+
+  content: {
+    flex: 1,
+  },
+
+  // État vide
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.xl,
+    minHeight: 500,
+  },
+  emptyIcon: {
+    fontSize: 80,
+    marginBottom: Spacing.lg,
+  },
+  emptyTitle: {
+    fontSize: Typography.sizes.xl,
+    fontWeight: Typography.weights.bold,
+    color: Colors.text,
+    textAlign: 'center',
+    marginBottom: Spacing.sm,
+  },
+  emptyDescription: {
+    fontSize: Typography.sizes.base,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: Spacing.xl,
+  },
+  
+  // État de chargement
+  loadingState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.xl,
+    minHeight: 300,
+  },
+  loadingText: {
+    marginTop: Spacing.md,
+    fontSize: Typography.sizes.base,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+  },
+
+  // Boutons scan
+  scanButton: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
+    borderRadius: 25,
+    elevation: 4,
+    minWidth: 250,
+    alignItems: 'center',
+  },
+  scanButtonText: {
+    color: Colors.white,
+    fontSize: Typography.sizes.lg,
+    fontWeight: Typography.weights.bold,
+  },
+
+  // Actions après scan
+  scannedActions: {
+    width: '100%',
+    gap: Spacing.md,
+  },
+  scanInfo: {
+    backgroundColor: Colors.background,
+    padding: Spacing.md,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  scanInfoText: {
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.medium,
+    marginBottom: 4,
+  },
+  scanDate: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.textSecondary,
+  },
+  selectButton: {
+    backgroundColor: Colors.primary,
+    paddingVertical: Spacing.md,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  selectButtonText: {
+    color: Colors.white,
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.bold,
+  },
+  secondaryActions: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  rescanButton: {
+    flex: 1,
+    backgroundColor: Colors.white,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    paddingVertical: Spacing.sm,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  rescanButtonText: {
+    color: Colors.primary,
+    fontWeight: Typography.weights.medium,
+  },
+  verifyButton: {
+    flex: 1,
+    backgroundColor: '#E3F2FD',
+    borderWidth: 1,
+    borderColor: '#2196F3',
+    paddingVertical: Spacing.sm,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  verifyButtonText: {
+    fontSize: Typography.sizes.sm,
+    color: '#2196F3',
+    fontWeight: Typography.weights.medium,
+  },
+  clearButton: {
+    flex: 1,
+    backgroundColor: '#FFEBEE',
+    borderWidth: 1,
+    borderColor: '#F44336',
+    paddingVertical: Spacing.sm,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  clearButtonText: {
+    color: '#F44336',
+    fontWeight: Typography.weights.medium,
+  },
+
+  // Dashboard
+  dashboard: {
+    padding: Spacing.md,
+    gap: Spacing.lg,
+  },
+
+  // Sections
+  sectionTitle: {
+    fontSize: Typography.sizes.lg,
+    fontWeight: Typography.weights.bold,
+    color: Colors.text,
+    marginBottom: Spacing.md,
+  },
+
+  // Stats
+  statsSection: {
+    backgroundColor: Colors.white,
+    padding: Spacing.md,
+    borderRadius: 12,
+    elevation: 2,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: Colors.background,
+    padding: Spacing.md,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  statNumber: {
+    fontSize: Typography.sizes.xl,
+    fontWeight: Typography.weights.bold,
+    color: Colors.primary,
+    marginBottom: 2,
+  },
+  statLabel: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text,
+    textAlign: 'center',
+  },
+
+  // Actions
+  actionsSection: {
+    backgroundColor: Colors.white,
+    padding: Spacing.md,
+    borderRadius: 12,
+    elevation: 2,
+  },
+  actionsList: {
+    gap: Spacing.sm,
+  },
+  actionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.background,
+    padding: Spacing.md,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  actionIcon: {
+    fontSize: 24,
+    marginRight: Spacing.md,
+  },
+  actionInfo: {
+    flex: 1,
+  },
+  actionTitle: {
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.medium,
+    color: Colors.text,
+    marginBottom: 2,
+  },
+  actionDescription: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.textSecondary,
+  },
+  actionArrow: {
+    fontSize: 24,
+    color: Colors.textSecondary,
+  },
+
+  // Gestion
+  manageSection: {
+    backgroundColor: Colors.white,
+    padding: Spacing.md,
+    borderRadius: 12,
+    elevation: 2,
+    maxHeight: 600,
+  },
+  manageHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+  doneButton: {
+    color: Colors.primary,
+    fontWeight: Typography.weights.medium,
+    fontSize: Typography.sizes.base,
+  },
+
+  // Recherche et tri
+  searchInput: {
+    backgroundColor: Colors.background,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 8,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    fontSize: Typography.sizes.base,
+    marginBottom: Spacing.sm,
+  },
+  sortContainer: {
+    flexDirection: 'row',
+    gap: Spacing.xs,
+    marginBottom: Spacing.md,
+  },
+  sortButton: {
+    flex: 1,
+    backgroundColor: Colors.background,
+    paddingVertical: Spacing.xs,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  sortButtonActive: {
+    backgroundColor: Colors.primary,
+  },
+  sortText: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.textSecondary,
+    fontWeight: Typography.weights.medium,
+  },
+  sortTextActive: {
+    color: Colors.white,
+  },
+
+  // Sélection
+  selectionActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#E3F2FD',
+    padding: Spacing.sm,
+    borderRadius: 8,
+    marginBottom: Spacing.sm,
+  },
+  selectionCount: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.primary,
+    fontWeight: Typography.weights.medium,
+  },
+  selectionButtons: {
+    flexDirection: 'row',
+    gap: Spacing.xs,
+  },
+  clearSelectionButton: {
+    backgroundColor: Colors.white,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  clearSelectionText: {
+    fontSize: Typography.sizes.xs,
+    color: Colors.textSecondary,
+    fontWeight: Typography.weights.medium,
+  },
+  removeButton: {
+    backgroundColor: '#F44336',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  removeButtonText: {
+    fontSize: Typography.sizes.xs,
+    color: Colors.white,
+    fontWeight: Typography.weights.medium,
+  },
+
+  // Liste contacts
+  contactsList: {
+    maxHeight: 300,
+  },
+  contactItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.sm,
+    backgroundColor: Colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  contactItemSelected: {
+    backgroundColor: '#E3F2FD',
+  },
+
+  // Checkbox
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#DDD',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.sm,
+  },
+  checkboxSelected: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  checkmark: {
+    color: Colors.white,
+    fontSize: 12,
+    fontWeight: Typography.weights.bold,
+  },
+
+  // Avatar
+  avatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.sm,
+  },
+  avatarText: {
+    fontSize: 14,
+    fontWeight: Typography.weights.bold,
+    color: Colors.white,
+  },
+
+  // Info contact
+  contactInfo: {
+    flex: 1,
+  },
+  contactNom: {
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.medium,
+    color: Colors.text,
+  },
+  contactPhone: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.textSecondary,
+  },
+  contactEmail: {
+    fontSize: Typography.sizes.xs,
+    color: Colors.textSecondary,
+  },
+  prioriteIndicator: {
+    fontSize: Typography.sizes.xs,
+    color: '#FF9800',
+    fontWeight: Typography.weights.medium,
+  },
+
+  // Indicateurs
+  indicateurs: {
+    alignItems: 'center',
+    gap: 2,
+  },
+  badgePriorite: {
+    backgroundColor: '#FF9800',
+    borderRadius: 8,
+    width: 16,
+    height: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeEmail: {
+    backgroundColor: '#4CAF50',
+    borderRadius: 8,
+    width: 16,
+    height: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeText: {
+    fontSize: 8,
+    color: Colors.white,
+  },
+
+  // Actions avancées
+  advancedSection: {
+    backgroundColor: Colors.white,
+    padding: Spacing.md,
+    borderRadius: 12,
+    elevation: 2,
+  },
+  advancedActions: {
+    flexDirection: 'row',
+    gap: Spacing.xs,
+    flexWrap: 'wrap',
+  },
+  resetButton: {
+    flex: 1,
+    backgroundColor: '#FFEBEE',
+    borderWidth: 1,
+    borderColor: '#F44336',
+    paddingVertical: Spacing.sm,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  resetButtonText: {
+    color: '#F44336',
+    fontWeight: Typography.weights.medium,
+  },
+
+  // Modal permission
+  permissionOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  permissionModal: {
+    backgroundColor: Colors.white,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: Spacing.xl,
+    paddingBottom: 40,
+  },
+  permissionIcon: {
+    fontSize: 64,
+    textAlign: 'center',
+    marginBottom: Spacing.md,
+  },
+  permissionTitle: {
+    fontSize: Typography.sizes.xl,
+    fontWeight: Typography.weights.bold,
+    textAlign: 'center',
+    marginBottom: Spacing.md,
+    color: Colors.text,
+  },
+  permissionDescription: {
+    fontSize: Typography.sizes.base,
+    textAlign: 'center',
+    color: Colors.textSecondary,
+    lineHeight: 24,
+    marginBottom: Spacing.lg,
+  },
+  permissionFeatures: {
+    marginBottom: Spacing.xl,
+  },
+  permissionFeature: {
+    fontSize: Typography.sizes.base,
+    color: Colors.text,
+    marginBottom: Spacing.xs,
+    textAlign: 'center',
+  },
+  permissionActions: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+  },
+  permissionDecline: {
+    flex: 1,
+    backgroundColor: Colors.background,
+    paddingVertical: Spacing.md,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  permissionDeclineText: {
+    color: Colors.textSecondary,
+    fontWeight: Typography.weights.medium,
+  },
+  permissionAccept: {
+    flex: 2,
+    backgroundColor: Colors.primary,
+    paddingVertical: Spacing.md,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  permissionAcceptText: {
+    color: Colors.white,
+    fontWeight: Typography.weights.bold,
+  },
+
+  // Import
+  selectionHeader: {
+    padding: Spacing.md,
+    backgroundColor: Colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+  },
+  selectionStats: {
+    fontSize: Typography.sizes.base,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+  },
+  importContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: Spacing.md,
+    backgroundColor: Colors.white,
+    borderTopWidth: 1,
+    borderTopColor: '#E0E0E0',
+    // Ombre pour le bouton flottant
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: -2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  importButton: {
+    backgroundColor: '#4CAF50',
+    paddingVertical: Spacing.md,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  importButtonText: {
+    color: Colors.white,
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.bold,
+  },
+  closeButton: {
+    fontSize: 24,
+    color: Colors.textSecondary,
+    padding: Spacing.xs,
+  },
+  contactsListContent: {
+    flexGrow: 1,
+  },
+});

@@ -90,7 +90,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
     avatarText: {
       fontSize: 12,
       fontWeight: 'bold' as const,
-      color: '#666',
+      color: '#666666',
     },
 
     messageContainer: {
@@ -102,7 +102,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
       paddingHorizontal: 12,
       paddingVertical: 8,
       borderRadius: 18,
-      backgroundColor: isOwn ? '#007AFF' : '#F0F0F0',
+      backgroundColor: isOwn ? '#007AFF' : '#f0f0f0',
       marginBottom: 2,
     },
 
@@ -157,13 +157,13 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
 
     timestamp: {
       fontSize: 11,
-      color: '#999',
+      color: '#666666',
       marginHorizontal: 4,
     },
 
     readIndicator: {
       fontSize: 12,
-      color: message.isRead ? '#007AFF' : '#999',
+      color: message.isRead ? '#007AFF' : '#999999',
     },
 
     reactionsContainer: {
@@ -176,7 +176,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
     reactionBubble: {
       flexDirection: 'row' as const,
       alignItems: 'center',
-      backgroundColor: '#F0F0F0',
+      backgroundColor: '#f0f0f0',
       borderRadius: 12,
       paddingHorizontal: 6,
       paddingVertical: 2,
@@ -191,7 +191,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
     reactionCount: {
       fontSize: 10,
       fontWeight: 'bold' as const,
-      color: '#666',
+      color: '#666666',
       marginLeft: 2,
     },
 

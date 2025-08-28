@@ -11,14 +11,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState<boolean>(true); // ⚠️ IMPORTANT: Commencer en loading
   const [isInitialized, setIsInitialized] = useState<boolean>(false); // Nouveau: État d'initialisation
 
-  // Debug: Log des changements d'état
+  // Debug: Log des changements d'état (uniquement en dev)
   useEffect(() => {
-    console.log('🔄 AuthProvider - État changé:', { 
-      isAuthenticated, 
-      user: user?.username, 
-      isLoading,
-      isInitialized,
-    });
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔄 AuthProvider - État changé:', { 
+        isAuthenticated, 
+        user: user?.username, 
+        isLoading,
+        isInitialized,
+      });
+    }
   }, [isAuthenticated, user, isLoading, isInitialized]);
 
   // 🆕 NOUVEAU: Auto-restoration de session au démarrage
@@ -27,7 +29,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const restoreSessionOnStartup = async () => {
-    console.log('🔄 AuthProvider - Restauration session au démarrage');
     setIsLoading(true);
     
     try {
@@ -36,16 +37,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (session) {
         setUser(session.user);
         setIsAuthenticated(true);
-        console.log('✅ Session restaurée automatiquement:', session.user.username);
-      } else {
-        console.log('❌ Aucune session à restaurer');
+        } else {
       }
     } catch (error) {
       console.error('💥 Erreur restauration session:', error);
     } finally {
       setIsLoading(false);
       setIsInitialized(true);
-      console.log('🏁 Initialisation AuthProvider terminée');
     }
   };
 

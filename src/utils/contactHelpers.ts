@@ -5,7 +5,7 @@
  * @param contact - Le contact à scorer
  * @returns Score entre 0 et 100
  */
-export function calculateSmartScore(contact: any): number {
+export function calculateSmartScore(contact: any, existingContacts?: any[]): number {
   let score = 0;
   const nom = contact.nom.toLowerCase();
   

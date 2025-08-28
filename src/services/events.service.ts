@@ -1,5 +1,12 @@
 // src/services/events.service.ts
 import { apiClient as api } from './api';
+import { 
+  BobEvent, 
+  BesoinEvenement, 
+  PostCreationInvitation, 
+  SmartInvitationTarget,
+  InvitationTrackingData 
+} from '../types/events.extended.types';
 
 export interface EventNeed {
   id: string;
@@ -63,11 +70,199 @@ export interface BobIndividuel {
   bobizGagnes: number;
   statut: 'actif' | 'en_cours' | 'termine' | 'annule';
   createur: number;
-  demandeur: number;
+  demandeur?: number;
   dateCreation: string;
+  
+  // 🔗 Champs Architecture Unifiée
+  origine: 'direct' | 'evenement';
+  evenement?: number; // ID de l'événement source si origine = 'evenement'
+  metadata?: {
+    besoinOriginal?: {
+      id: string;
+      titre: string;
+      type: string;
+      eventId: number;
+    };
+    quantiteProposee?: number;
+    commentaire?: string;
+  };
 }
 
 class EventsService {
+  /**
+   * Mettre à jour un événement complet
+   */
+  async updateEvent(eventId: string, eventData: Partial<CreateEventRequest>, token: string): Promise<Event> {
+    try {
+      console.log('🔄 Mise à jour événement:', eventId);
+      
+      const response = await api.put(`/evenements/${eventId}`, {
+        data: {
+          titre: eventData.titre,
+          description: eventData.description,
+          dateDebut: eventData.dateDebut,
+          dateFin: eventData.dateFin,
+          adresse: eventData.adresse,
+          maxParticipants: eventData.maxParticipants,
+          bobizRecompense: eventData.bobizRecompense,
+          metadata: {
+            besoins: eventData.besoins,
+            ciblage: eventData.ciblage
+          }
+        }
+      }, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const event = response.data.data;
+      console.log('✅ Événement mis à jour:', event.id);
+      
+      return {
+        ...event,
+        besoins: eventData.besoins
+      };
+    } catch (error: any) {
+      console.error('❌ Erreur mise à jour événement:', error.response?.data || error.message);
+      throw new Error('Impossible de mettre à jour l\'événement');
+    }
+  }
+
+  /**
+   * Supprimer un événement
+   */
+  async deleteEvent(eventId: string, token: string): Promise<void> {
+    try {
+      console.log('🗑️ Suppression événement:', eventId);
+      
+      await api.delete(`/evenements/${eventId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      console.log('✅ Événement supprimé avec succès');
+    } catch (error: any) {
+      console.error('❌ Erreur suppression événement:', error.response?.data || error.message);
+      throw new Error('Impossible de supprimer l\'événement');
+    }
+  }
+
+  /**
+   * Accepter une invitation à un événement
+   */
+  async acceptInvitation(eventId: string, token: string): Promise<void> {
+    try {
+      console.log('✅ Acceptation invitation événement:', eventId);
+      
+      await api.post(`/evenements/${eventId}/accept`, {
+        data: {
+          dateAcceptation: new Date().toISOString(),
+          statut: 'accepte'
+        }
+      }, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      console.log('✅ Invitation acceptée avec succès');
+    } catch (error: any) {
+      console.error('❌ Erreur acceptation invitation:', error.response?.data || error.message);
+      throw new Error('Impossible d\'accepter l\'invitation');
+    }
+  }
+
+  /**
+   * Récupérer les événements auxquels l'utilisateur participe
+   */
+  async getParticipatingEvents(token: string): Promise<Event[]> {
+    try {
+      console.log('📋 Récupération événements participation...');
+      
+      const response = await api.get('/evenements/participating?populate=*', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const events = response.data?.data || response.data || [];
+      return events.map((event: any) => ({
+        ...event,
+        besoins: (event as any).metadata?.besoins || []
+      }));
+    } catch (error: any) {
+      console.error('❌ Erreur récupération événements participation:', error.response?.data || error.message);
+      return [];
+    }
+  }
+
+  /**
+   * Refuser une invitation à un événement
+   */
+  async declineInvitation(eventId: string, token: string, raison?: string): Promise<void> {
+    try {
+      console.log('❌ Refus invitation événement:', eventId);
+      
+      await api.post(`/evenements/${eventId}/decline`, {
+        data: {
+          dateRefus: new Date().toISOString(),
+          statut: 'refuse',
+          raison: raison || ''
+        }
+      }, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      console.log('✅ Invitation refusée avec succès');
+    } catch (error: any) {
+      console.error('❌ Erreur refus invitation:', error.response?.data || error.message);
+      throw new Error('Impossible de refuser l\'invitation');
+    }
+  }
+
+  /**
+   * Vérifier si l'utilisateur actuel est l'organisateur
+   */
+  async isOrganisateur(event: Event, token: string): Promise<boolean> {
+    try {
+      // Récupérer les données utilisateur depuis l'API
+      const userResponse = await api.get('/users/me', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      return event.createur === userResponse.data.id;
+    } catch (error) {
+      console.error('❌ Erreur vérification organisateur:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Vérifier si l'utilisateur a déjà accepté l'événement
+   */
+  async hasAcceptedEvent(eventId: string, token: string): Promise<boolean> {
+    try {
+      const response = await api.get(`/evenements/${eventId}/participation`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      return response.data?.statut === 'accepte';
+    } catch (error) {
+      console.error('❌ Erreur vérification acceptation:', error);
+      return false;
+    }
+  }
   /**
    * Créer un événement BOB Collectif
    */
@@ -127,7 +322,7 @@ class EventsService {
       const events = response.data?.data || response.data || [];
       return events.map((event: any) => ({
         ...event,
-        besoins: event.metadata?.besoins || []
+        besoins: (event as any).metadata?.besoins || []
       }));
     } catch (error: any) {
       console.error('❌ Erreur récupération événements:', error.response?.data || error.message);
@@ -149,7 +344,7 @@ class EventsService {
       const event = response.data.data;
       return {
         ...event,
-        besoins: event.metadata?.besoins || []
+        besoins: (event as any).metadata?.besoins || []
       };
     } catch (error: any) {
       console.error('❌ Erreur récupération événement:', error.response?.data || error.message);
@@ -163,122 +358,94 @@ class EventsService {
   async positionnerSurBesoin(
     eventId: string, 
     besoinId: string, 
-    token: string
-  ): Promise<{ bobIndividuel: BobIndividuel; message: string }> {
+    token: string,
+    quantiteProposee: number = 1,
+    commentaire: string = ""
+  ): Promise<{ bobIndividuel: any; message: string; activityData?: any }> {
     try {
-      console.log('🎯 Positionnement sur besoin:', besoinId);
+      console.log('🎯 Positionnement sur besoin via API unifiée:', besoinId);
       
-      // 1. Récupérer l'événement
+      // Utiliser l'endpoint unifié Strapi qui gère tout automatiquement
+      const response = await api.post(`/evenements/${eventId}/besoins/${besoinId}/position`, {
+        quantiteProposee,
+        commentaire
+      }, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const result = response.data;
+      const { bobIndividuel, besoin } = result;
+
+      console.log('✅ Positionnement confirmé via API unifiée:', bobIndividuel.id);
+
+      // Récupérer l'événement pour générer les données d'activité
       const event = await this.getEvent(eventId, token);
-      if (!event) {
-        throw new Error('Événement non trouvé');
-      }
 
-      // 2. Trouver le besoin
-      const besoin = event.besoins?.find(b => b.id === besoinId);
-      if (!besoin) {
-        throw new Error('Besoin non trouvé');
+      // 🎯 Envoyer message automatique dans le chat de groupe
+      try {
+        const { chatService } = await import('./chat.service');
+        const userResponse = await api.get('/users/me', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        await chatService.sendEventAutoMessage(`event_${eventId}`, 'positioning', {
+          participantName: userResponse.data.username || 'Un participant',
+          besoinTitre: besoin?.titre || 'Un besoin',
+          bobizGagnes: bobIndividuel.bobizGagnes || 0
+        });
+      } catch (chatError) {
+        console.log('⚠️ Message chat non envoyé:', chatError);
       }
-
-      // 3. Créer le BOB individuel automatiquement
-      const bobType = besoin.type === 'objet' ? 'pret' : 'service_offert';
       
-      const bobResponse = await api.post('/echanges', {
-        data: {
-          titre: `${this.getBesoinIcon(besoin.type)} ${besoin.titre} - ${event.titre}`,
-          description: `${besoin.description}\n\n🎯 Issu du BOB Collectif "${event.titre}"\n\n📅 Événement: ${new Date(event.dateDebut).toLocaleDateString()}`,
-          type: bobType,
-          bobizGagnes: this.calculateBobizForBesoin(besoin),
-          statut: 'actif'
-        }
-      }, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      const bobIndividuel = bobResponse.data.data;
-
-      // 4. Mettre à jour l'événement avec l'assignation
-      const updatedBesoins = event.besoins?.map(b => {
-        if (b.id === besoinId) {
-          return {
-            ...b,
-            assignations: [
-              ...(b.assignations || []),
-              {
-                participant: 'current_user', // TODO: récupérer vraie info user
-                participant_id: 0, // TODO: récupérer vrai user ID
-                bob_individuel_id: bobIndividuel.id,
-                assigné_le: new Date().toISOString()
-              }
-            ]
-          };
-        }
-        return b;
-      }) || [];
-
-      await api.put(`/evenements/${event.documentId}`, {
-        data: {
-          metadata: {
-            ...event.metadata,
-            besoins: updatedBesoins
-          }
-        }
-      }, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      // 5. Ajouter message dans la conversation événement
-      await api.post('/messages', {
-        data: {
-          contenu: `🎯 POSITIONNEMENT CONFIRMÉ !\n\nJe me positionne sur "${besoin.titre}"\n\n✅ BOB individuel créé automatiquement (ID: ${bobIndividuel.id})\n💎 ${bobIndividuel.bobizGagnes} BOBIZ\n\n👀 Visible par tous les participants !`,
-          typeConversation: 'evenement',
-          dateEnvoi: new Date().toISOString(),
-          evenement: event.id
-        }
-      }, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      console.log('✅ Positionnement réussi, BOB créé:', bobIndividuel.id);
-
       return {
         bobIndividuel,
-        message: `Positionnement confirmé ! BOB individuel créé pour "${besoin.titre}"`
+        message: result.message || `Positionnement confirmé sur "${besoin?.titre}"`,
+        activityData: event ? {
+          id: bobIndividuel.id,
+          emoji: this.getBesoinIcon(besoin?.type || 'objet'),
+          title: `${besoin?.titre || 'Besoin'} - ${event.titre}`,
+          person: event.organisateur?.nom || 'Organisateur',
+          personColor: '#EC4899',
+          date: new Date().toLocaleDateString(),
+          type: besoin?.type === 'objet' ? 'pret' : 'service',
+          typeColor: besoin?.type === 'objet' ? '#F59E0B' : '#059669',
+          badge: 'actif',
+          badgeColor: '#10B981',
+          isFromEvent: true,
+          eventId: event.id,
+          eventTitle: event.titre
+        } : undefined
       };
     } catch (error: any) {
-      console.error('❌ Erreur positionnement:', error.response?.data || error.message);
+      console.error('❌ Erreur positionnement API unifiée:', error.response?.data || error.message);
       throw new Error('Impossible de se positionner sur ce besoin');
     }
   }
 
   /**
    * Récupérer les BOB individuels créés depuis un événement
+   * Utilise l'endpoint unifié Strapi
    */
-  async getBobsFromEvent(eventId: string, token: string): Promise<BobIndividuel[]> {
+  async getBobsFromEvent(eventId: string, token: string): Promise<any[]> {
     try {
-      // Récupérer tous les échanges et filtrer ceux liés à cet événement
-      const response = await api.get('/echanges?populate=*', {
+      console.log('🔍 Récupération BOBs événement via API unifiée:', eventId);
+      
+      // Utiliser l'endpoint unifié Strapi 
+      const response = await api.get(`/evenements/${eventId}/bobs`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
 
-      // Filtrer les BOB qui mentionnent cet événement dans leur description
-      return response.data.data.filter((bob: any) => 
-        bob.description && bob.description.includes(`BOB Collectif`) && 
-        bob.description.includes(eventId)
-      );
+      const result = response.data;
+      console.log(`✅ ${result.count} BOB(s) récupérés depuis l'événement ${eventId}`);
+      
+      return result.bobs || [];
     } catch (error: any) {
-      console.error('❌ Erreur récupération BOB événement:', error.response?.data || error.message);
+      console.error('❌ Erreur récupération BOBs événement:', error.response?.data || error.message);
       return [];
     }
   }
@@ -303,6 +470,196 @@ class EventsService {
     if (besoin.maxPersonnes && besoin.maxPersonnes > 2) baseBobiz += (besoin.maxPersonnes - 2) * 5;
     
     return baseBobiz;
+  }
+
+  /**
+   * Uploader une photo pour l'événement
+   */
+  async uploadEventPhoto(photoUri: string, token: string): Promise<string> {
+    try {
+      console.log('📸 Upload photo événement:', photoUri);
+      
+      const formData = new FormData();
+      formData.append('files', {
+        uri: photoUri,
+        type: 'image/jpeg',
+        name: `event_${Date.now()}.jpg`
+      } as any);
+
+      const response = await api.post('/upload', formData, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+
+      const uploadedFiles = response.data;
+      const photoUrl = uploadedFiles[0]?.url;
+      
+      console.log('✅ Photo uploadée:', photoUrl);
+      return photoUrl;
+    } catch (error: any) {
+      console.error('❌ Erreur upload photo:', error);
+      throw new Error('Impossible d\'uploader la photo');
+    }
+  }
+
+  /**
+   * Créer un événement BOB complet avec photo et lieu
+   */
+  async createBobEvent(eventData: Partial<BobEvent>, token: string): Promise<BobEvent> {
+    try {
+      console.log('🎯 Création événement BOB complet:', eventData.titre);
+      
+      const response = await api.post('/evenements', {
+        data: {
+          titre: eventData.titre,
+          description: eventData.description,
+          photo: eventData.photo,
+          dateDebut: eventData.dateDebut,
+          dateFin: eventData.dateFin,
+          lieu: eventData.lieu,
+          maxParticipants: eventData.maxParticipants,
+          bobizRecompense: eventData.bobizRecompense,
+          statut: 'planifie',
+          dateCreation: new Date().toISOString(),
+          metadata: {
+            besoins: eventData.besoins || [],
+            ciblage: eventData.metadata?.ciblage,
+            bobsIndividuelsCreés: [],
+            type: 'bob_collectif'
+          }
+        }
+      }, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const event = response.data.data;
+      console.log('✅ Événement BOB complet créé:', event.id);
+      
+      return {
+        ...event,
+        besoins: eventData.besoins || []
+      };
+    } catch (error: any) {
+      console.error('❌ Erreur création événement BOB:', error.response?.data || error.message);
+      throw new Error('Impossible de créer l\'événement BOB');
+    }
+  }
+
+  /**
+   * Mettre à jour un besoin d'événement
+   */
+  async updateBesoinEvenement(
+    eventId: string, 
+    besoinId: string, 
+    updates: Partial<BesoinEvenement>,
+    token: string
+  ): Promise<BesoinEvenement> {
+    try {
+      console.log('🔄 Mise à jour besoin:', besoinId);
+      
+      // Récupérer l'événement actuel
+      const event = await this.getEvent(eventId, token);
+      if (!event) {
+        throw new Error('Événement non trouvé');
+      }
+
+      // Mettre à jour le besoin dans la liste
+      const updatedBesoins = event.besoins?.map(besoin => {
+        if (besoin.id === besoinId) {
+          return { ...besoin, ...updates };
+        }
+        return besoin;
+      }) || [];
+
+      // Sauvegarder l'événement
+      await api.put(`/evenements/${event.documentId}`, {
+        data: {
+          metadata: {
+            ...(event as any).metadata,
+            besoins: updatedBesoins
+          }
+        }
+      }, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const updatedBesoin = updatedBesoins.find(b => b.id === besoinId);
+      if (!updatedBesoin) {
+        throw new Error('Besoin non trouvé après mise à jour');
+      }
+
+      console.log('✅ Besoin mis à jour');
+      return updatedBesoin;
+    } catch (error: any) {
+      console.error('❌ Erreur mise à jour besoin:', error);
+      throw new Error('Impossible de mettre à jour le besoin');
+    }
+  }
+
+  /**
+   * Gérer les quantités flexibles d'un besoin
+   */
+  async gererQuantiteFlexible(
+    eventId: string,
+    besoinId: string,
+    quantiteProposee: number,
+    participantId: number,
+    token: string
+  ): Promise<{ accepte: boolean; quantiteAcceptee: number; message: string }> {
+    try {
+      const event = await this.getEvent(eventId, token);
+      if (!event) {
+        throw new Error('Événement non trouvé');
+      }
+
+      const besoin = event.besoins?.find(b => b.id === besoinId);
+      if (!besoin) {
+        throw new Error('Besoin non trouvé');
+      }
+
+      let quantiteAcceptee = quantiteProposee;
+      let accepte = true;
+      let message = '';
+
+      if (besoin.quantite) {
+        const { demandee, flexible, min, max } = besoin.quantite;
+        
+        if (flexible) {
+          // Vérifier les limites si définies
+          if (min && quantiteProposee < min) {
+            quantiteAcceptee = min;
+            message = `Quantité ajustée au minimum requis: ${min}`;
+          } else if (max && quantiteProposee > max) {
+            quantiteAcceptee = max;
+            message = `Quantité ajustée au maximum accepté: ${max}`;
+          } else {
+            message = `Quantité flexible acceptée: ${quantiteProposee}`;
+          }
+        } else {
+          // Quantité fixe
+          if (quantiteProposee !== demandee) {
+            accepte = false;
+            message = `Quantité exacte requise: ${demandee}`;
+            quantiteAcceptee = demandee;
+          } else {
+            message = `Quantité exacte acceptée: ${demandee}`;
+          }
+        }
+      }
+
+      return { accepte, quantiteAcceptee, message };
+    } catch (error: any) {
+      console.error('❌ Erreur gestion quantité flexible:', error);
+      throw error;
+    }
   }
 }
 

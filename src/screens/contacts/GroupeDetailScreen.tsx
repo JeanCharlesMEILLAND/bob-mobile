@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { Header, Button, Input } from '../../components/common';
 import { Colors, Typography, Spacing, GlobalStyles } from '../../styles';
-import { useContacts } from '../../hooks/useContacts';
+import { useContacts } from '../../hooks/contacts/useContacts';
 import { GroupeWithContactCount, Contact } from '../../types'; // Utilise vos types existants
 
 interface GroupeDetailScreenProps {
@@ -23,7 +23,7 @@ export const GroupeDetailScreen: React.FC<GroupeDetailScreenProps> = ({
   groupe, 
   onBack 
 }) => {
-  const { contacts, createContact, addContactToGroupe, removeContactFromGroupe } = useContacts();
+  const { repertoire: contacts, addContact, updateContactGroupe } = useContacts();
   const [showAddContact, setShowAddContact] = useState(false);
   const [newContactName, setNewContactName] = useState('');
   const [newContactPhone, setNewContactPhone] = useState('');

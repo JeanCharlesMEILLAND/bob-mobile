@@ -1,11 +1,15 @@
-﻿// src/screens/auth/LoginScreen.tsx
+// src/screens/auth/LoginScreen.tsx - Version modernisée
 import React, { useState } from 'react';
-import { View, Text, Alert, StyleSheet, ScrollView, Platform } from 'react-native';
+import { View, Text, Alert, Platform } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../hooks';
 import { Button, Input, PasswordInput } from '../../components/common';
-import { Colors, Typography, Spacing, GlobalStyles } from '../../styles';
-import { WebStyles, getResponsiveStyle } from '../../styles/web';
+import { 
+  ModernCard,
+  ModernActionButton,
+  modernColors 
+} from '../../components/common/ModernUI';
+import { ModernScreen } from '../../components/common/ModernScreen';
 
 export const LoginScreen: React.FC = () => {
   const { t } = useTranslation();
@@ -111,15 +115,29 @@ export const LoginScreen: React.FC = () => {
   };
 
   return (
-    <ScrollView style={[styles.container, WebStyles.scrollView]} contentContainerStyle={styles.content}>
-      <View style={[styles.header, WebStyles.header]}>
-        <Text style={styles.title}>Bob</Text>
-        <Text style={styles.subtitle}>
+    <ModernScreen
+      style={{ backgroundColor: '#f5f5f5' }}
+      contentContainerStyle={{ justifyContent: 'center', padding: 20 }}
+    >
+      <ModernCard style={{ marginBottom: 24 }}>
+        <Text style={{
+          fontSize: 36,
+          fontWeight: 'bold',
+          color: modernColors.primary,
+          textAlign: 'center',
+          marginBottom: 8
+        }}>Bob</Text>
+        <Text style={{
+          fontSize: 16,
+          color: modernColors.gray,
+          textAlign: 'center',
+          lineHeight: 22
+        }}>
           {isRegisterMode ? t('auth.registerSubtitle') : t('auth.loginSubtitle')}
         </Text>
-      </View>
+      </ModernCard>
       
-      <View style={[styles.form, WebStyles.form]}>
+      <ModernCard>
         {isRegisterMode ? (
           <>
             <Input
@@ -131,15 +149,17 @@ export const LoginScreen: React.FC = () => {
               autoCapitalize="none"
             />
             
-            <Input
-              label={t('auth.email') + ' *'}
-              placeholder="votre@email.com"
-              value={email}
-              onChangeText={setEmail}
-              error={errors.email}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
+            <View style={{ marginTop: 16 }}>
+              <Input
+                label={t('auth.email') + ' *'}
+                placeholder="votre@email.com"
+                value={email}
+                onChangeText={setEmail}
+                error={errors.email}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </View>
           </>
         ) : (
           <Input
@@ -153,149 +173,110 @@ export const LoginScreen: React.FC = () => {
           />
         )}
         
-        <PasswordInput
-          label={t('auth.password') + ' *'}
-          placeholder={t('auth.password')}
-          value={password}
-          onChangeText={setPassword}
-          error={errors.password}
-        />
+        <View style={{ marginTop: 16 }}>
+          <PasswordInput
+            label={t('auth.password') + ' *'}
+            placeholder={t('auth.password')}
+            value={password}
+            onChangeText={setPassword}
+            error={errors.password}
+          />
+        </View>
         
         {isRegisterMode && (
-          <PasswordInput
-            label={t('auth.confirmPassword') + ' *'}
-            placeholder={t('auth.confirmPassword')}
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            error={errors.confirmPassword}
-          />
+          <View style={{ marginTop: 16 }}>
+            <PasswordInput
+              label={t('auth.confirmPassword') + ' *'}
+              placeholder={t('auth.confirmPassword')}
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              error={errors.confirmPassword}
+            />
+          </View>
         )}
         
-        {/* Action Button */}
-        <Button
-          title={isRegisterMode ? t('auth.registerButton') : t('auth.loginButton')}
-          onPress={isRegisterMode ? handleRegister : handleLogin}
-          loading={isLoading}
-          style={[styles.actionButton, WebStyles.button]}
-        />
+        <View style={{ marginTop: 24 }}>
+          <Button
+            title={isRegisterMode ? t('auth.registerButton') : t('auth.loginButton')}
+            onPress={isRegisterMode ? handleRegister : handleLogin}
+            loading={isLoading}
+          />
+        </View>
         
-        {/* Toggle Mode Button */}
-        <Button
-          title={isRegisterMode ? t('auth.switchToLogin') : t('auth.switchToRegister')}
-          variant="secondary"
-          onPress={toggleMode}
-          style={[styles.toggleButton, WebStyles.button]}
-        />
-        
-        {/* Test Buttons */}
-        {!isRegisterMode && (
-          <View style={styles.testButtons}>
-            <View style={styles.helpSection}>
-              <Text style={styles.helpTitle}>🧪 Identifiants de test disponibles :</Text>
-              <Text style={styles.helpText}>• test@bob.com / password123</Text>
-              <Text style={styles.helpText}>• admin@bob.com / admin123</Text>
-              <Text style={styles.helpText}>• marie@bob.com / marie123</Text>
-              <Text style={styles.helpText}>• test / test</Text>
-            </View>
-            
-            <Button
-              title={t('auth.useTestCredentials')}
-              variant="success"
-              size="small"
-              onPress={fillTestCredentials}
-            />
-            
+        <View style={{ marginTop: 12 }}>
+          <Button
+            title={isRegisterMode ? t('auth.switchToLogin') : t('auth.switchToRegister')}
+            variant="secondary"
+            onPress={toggleMode}
+          />
+        </View>
+      </ModernCard>
+      
+      {/* Test Buttons */}
+      {!isRegisterMode && (
+        <ModernCard style={{ marginTop: 16 }}>
+          <View style={{
+            backgroundColor: '#F0F8FF',
+            padding: 12,
+            borderRadius: 8,
+            marginBottom: 16,
+            borderLeftWidth: 4,
+            borderLeftColor: modernColors.primary
+          }}>
+            <Text style={{
+              fontSize: 14,
+              fontWeight: '600',
+              color: modernColors.primary,
+              marginBottom: 8,
+              textAlign: 'center'
+            }}>🧪 Identifiants de test disponibles :</Text>
+            <Text style={{
+              fontSize: 14,
+              color: modernColors.gray,
+              marginVertical: 2,
+              fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace'
+            }}>• test@bob.com / password123</Text>
+            <Text style={{
+              fontSize: 14,
+              color: modernColors.gray,
+              marginVertical: 2,
+              fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace'
+            }}>• admin@bob.com / admin123</Text>
+            <Text style={{
+              fontSize: 14,
+              color: modernColors.gray,
+              marginVertical: 2,
+              fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace'
+            }}>• marie@bob.com / marie123</Text>
+            <Text style={{
+              fontSize: 14,
+              color: modernColors.gray,
+              marginVertical: 2,
+              fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace'
+            }}>• test / test</Text>
+          </View>
+          
+          <Button
+            title={t('auth.useTestCredentials')}
+            variant="success"
+            size="small"
+            onPress={fillTestCredentials}
+          />
+          
+          <View style={{ marginTop: 8 }}>
             <Button
               title={'🔍 ' + t('auth.testConnection')}
               variant="secondary"
               size="small"
               onPress={handleTestConnection}
-              style={styles.testConnectionButton}
             />
           </View>
-        )}
-      </View>
-    </ScrollView>
+        </ModernCard>
+      )}
+    </ModernScreen>
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  
-  content: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    padding: Spacing.lg,
-  },
-  
-  header: {
-    alignItems: 'center',
-    marginBottom: Spacing.xxl,
-  },
-  
-  title: {
-    fontSize: Typography.sizes.title,
-    fontWeight: Typography.weights.bold,
-    color: Colors.text,
-    marginBottom: Spacing.xs,
-  },
-  
-  subtitle: {
-    fontSize: Typography.sizes.base,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  
-  form: {
-    gap: Spacing.md,
-  },
-  
-  actionButton: {
-    marginTop: Spacing.lg,
-  },
-  
-  toggleButton: {
-    marginTop: Spacing.md,
-  },
-  
-  testButtons: {
-    marginTop: Spacing.lg,
-    gap: Spacing.sm,
-    alignItems: 'center',
-  },
-  
-  helpSection: {
-    backgroundColor: '#F0F8FF',
-    padding: Spacing.md,
-    borderRadius: 8,
-    marginBottom: Spacing.md,
-    borderLeftWidth: 4,
-    borderLeftColor: Colors.primary,
-    width: '100%',
-  },
-  
-  helpTitle: {
-    fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.semibold,
-    color: Colors.primary,
-    marginBottom: Spacing.xs,
-    textAlign: 'center',
-  },
-  
-  helpText: {
-    fontSize: Typography.sizes.sm,
-    color: Colors.textSecondary,
-    marginVertical: 2,
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-  },
-  
-  testConnectionButton: {
-    marginTop: Spacing.sm,
-  },
-});
+// Styles supprimés - utilisation des composants modernes
 
 export default LoginScreen;

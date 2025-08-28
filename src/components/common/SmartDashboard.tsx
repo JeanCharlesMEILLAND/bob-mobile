@@ -144,9 +144,11 @@ export const SmartDashboard: React.FC<SmartDashboardProps> = ({
 
   // Rendu d'une carte métrique
   const renderMetricCard = (metric: MetricCard, index: number, fullWidth: boolean = false) => {
-    const cardWidth = fullWidth 
-      ? '100%' 
-      : `${(100 / optimalLayout.columns) - (optimalLayout.spacing / optimalLayout.columns)}%`;
+    const cardWidthPercent = fullWidth 
+      ? 100
+      : (100 / optimalLayout.columns) - (optimalLayout.spacing / optimalLayout.columns);
+    const containerWidth = screenData.width - (Spacing.lg * 2); // Calculate container width
+    const cardWidth = (containerWidth * cardWidthPercent / 100);
 
     const trendColor = metric.trend === 'up' ? '#10B981' : 
                       metric.trend === 'down' ? '#EF4444' : '#6B7280';
@@ -164,28 +166,26 @@ export const SmartDashboard: React.FC<SmartDashboardProps> = ({
             backgroundColor: metric.color + '10',
             borderLeftColor: metric.color,
             marginBottom: optimalLayout.spacing,
-            transform: [
-              { translateY: slideAnim },
-            ],
+            transform: [{ translateY: slideAnim }],
             opacity: fadeAnim,
           }
         ]}
       >
         <TouchableOpacity
-          style={styles.cardContent}
+          style={styles.cardContent as any}
           onPress={metric.action?.onPress}
           disabled={!metric.action}
           activeOpacity={metric.action ? 0.7 : 1}
         >
           {/* Header avec icône et titre */}
-          <View style={styles.cardHeader}>
+          <View style={styles.cardHeader as any}>
             <Text style={styles.cardIcon}>{metric.icon}</Text>
             <View style={styles.cardTitleContainer}>
               <Text style={[styles.cardTitle, { color: metric.color }]} numberOfLines={1}>
                 {metric.title}
               </Text>
               {metric.trend && metric.trendValue && (
-                <View style={styles.trendContainer}>
+                <View style={styles.trendContainer as any}>
                   <Text style={[styles.trendIcon, { color: trendColor }]}>
                     {trendIcon}
                   </Text>
@@ -211,7 +211,7 @@ export const SmartDashboard: React.FC<SmartDashboardProps> = ({
 
           {/* Action button */}
           {metric.action && (
-            <View style={styles.cardAction}>
+            <View style={styles.cardAction as any}>
               <Text style={[styles.actionLabel, { color: metric.color }]}>
                 {metric.action.label}
               </Text>
@@ -249,13 +249,13 @@ export const SmartDashboard: React.FC<SmartDashboardProps> = ({
         showsVerticalScrollIndicator={false}
       >
         {/* Layout mixte : priorité haute en premier */}
-        {customLayout === 'mixed' && organizedMetrics.highPriority.length > 0 && (
+        {customLayout === 'mixed' && (organizedMetrics as any).highPriority.length > 0 && (
           <>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Priorités</Text>
             </View>
-            <View style={styles.metricsContainer}>
-              {organizedMetrics.highPriority.map((metric, index) =>
+            <View style={styles.metricsContainer as any}>
+              {(organizedMetrics as any).highPriority.map((metric: MetricCard, index: number) =>
                 renderMetricCard(metric, index, true)
               )}
             </View>
@@ -264,11 +264,11 @@ export const SmartDashboard: React.FC<SmartDashboardProps> = ({
 
         {/* Métriques principales */}
         <View style={[
-          styles.metricsContainer,
-          { justifyContent: optimalLayout.columns === 1 ? 'flex-start' : 'space-between' }
+          styles.metricsContainer as any,
+          { justifyContent: optimalLayout.columns === 1 ? 'flex-start' as const : 'space-between' as const }
         ]}>
-          {(customLayout === 'mixed' ? organizedMetrics.others : organizedMetrics.all)
-            .map((metric, index) => renderMetricCard(metric, index))}
+          {(customLayout === 'mixed' ? (organizedMetrics as any).others : (organizedMetrics as any).all)
+            .map((metric: MetricCard, index: number) => renderMetricCard(metric, index))}
         </View>
 
         {/* Métriques de performance si développement */}
@@ -327,9 +327,9 @@ const styles = {
     color: Colors.text,
   },
   metricsContainer: {
-    flexDirection: 'row',
+    flexDirection: 'row' as const,
     flexWrap: 'wrap' as any,
-    justifyContent: 'space-between',
+    justifyContent: 'space-between' as const,
   },
   metricCard: {
     backgroundColor: Colors.white,
@@ -347,8 +347,8 @@ const styles = {
     justifyContent: 'space-between',
   },
   cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+    flexDirection: 'row' as const,
+    alignItems: 'flex-start' as const,
     marginBottom: Spacing.xs,
   },
   cardIcon: {
@@ -363,8 +363,8 @@ const styles = {
     fontWeight: Typography.weights.medium as any,
   },
   trendContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
     marginTop: 2,
   },
   trendIcon: {
@@ -386,12 +386,12 @@ const styles = {
     marginBottom: Spacing.xs,
   },
   cardAction: {
-    alignSelf: 'flex-start',
+    alignSelf: 'flex-start' as const,
   },
   actionLabel: {
     fontSize: Typography.sizes.xs,
     fontWeight: Typography.weights.medium as any,
-    textTransform: 'uppercase' as any,
+    textTransform: 'uppercase' as const,
   },
   debugInfo: {
     marginTop: Spacing.lg,
@@ -402,6 +402,6 @@ const styles = {
   debugText: {
     fontSize: Typography.sizes.xs,
     color: '#6B7280',
-    textAlign: 'center' as any,
+    textAlign: 'center' as const,
   },
 };

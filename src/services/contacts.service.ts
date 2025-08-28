@@ -12,6 +12,59 @@ import {
   ContactsByGroupe,
 } from '../types';
 
+// Fonction utilitaire pour éviter les références circulaires
+const findContactByPhoneHelper = async (telephone: string, token: string): Promise<Contact | null> => {
+  try {
+    // Essayer l'endpoint avec filtre
+    const url = `/contacts?filters[telephone][$eq]=${encodeURIComponent(telephone)}`;
+    const response = await apiClient.get(url, token);
+    
+    if (response.ok && response.data?.data?.[0]) {
+      const contactRaw = response.data.data[0];
+      
+      // Debug: voir la structure réelle reçue de Strapi
+      console.log('🔍 Structure brute reçue de Strapi via helper:', {
+        id: contactRaw.id,
+        documentId: contactRaw.documentId,
+        hasAttributes: !!contactRaw.attributes,
+        topLevelKeys: Object.keys(contactRaw),
+        attributeKeys: contactRaw.attributes ? Object.keys(contactRaw.attributes) : null
+      });
+      
+      // Normaliser la structure pour être compatible avec notre type Contact
+      const normalizedContact = {
+        // Si documentId existe, l'utiliser comme id principal, sinon convertir l'id numérique
+        id: contactRaw.documentId || contactRaw.id?.toString() || `contact_${contactRaw.id}`,
+        // Toujours garder l'id numérique comme internalId
+        internalId: contactRaw.id,
+        nom: contactRaw.nom || contactRaw.attributes?.nom,
+        prenom: contactRaw.prenom || contactRaw.attributes?.prenom,
+        telephone: contactRaw.telephone || contactRaw.attributes?.telephone,
+        email: contactRaw.email || contactRaw.attributes?.email,
+        actif: contactRaw.actif ?? contactRaw.attributes?.actif ?? true,
+        source: contactRaw.source || contactRaw.attributes?.source || 'import_repertoire',
+        dateAjout: contactRaw.dateAjout || contactRaw.attributes?.dateAjout || new Date().toISOString(),
+        groupes: contactRaw.groupes || contactRaw.attributes?.groupes || []
+      };
+      
+      console.log('🔧 Contact normalisé:', {
+        id: normalizedContact.id,
+        internalId: normalizedContact.internalId,
+        nom: normalizedContact.nom,
+        type_id: typeof normalizedContact.id,
+        type_internalId: typeof normalizedContact.internalId
+      });
+      
+      return normalizedContact;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('❌ findContactByPhoneHelper:', error);
+    return null;
+  }
+};
+
 export const contactsService = {
   // =================== GROUPES ===================
   
@@ -237,7 +290,7 @@ export const contactsService = {
   },
 
   /**
-   * Créer un nouveau contact
+   * 🚀 OPTIMISÉ: Créer un nouveau contact avec vérification préalable
    */
   createContact: async (data: CreateContactData, token: string): Promise<Contact> => {
     logContacts('Création contact', { nom: data.nom });
@@ -256,15 +309,6 @@ export const contactsService = {
         dateAjout: new Date().toISOString(),
       };
       
-      // 🔧 DEBUG: Loguer les données exactes envoyées
-      console.log('📤 Données contact envoyées à Strapi:', {
-        nom: contactData.nom,
-        prenom: contactData.prenom,
-        email: contactData.email,
-        telephone: contactData.telephone,
-        source: contactData.source
-      });
-      
       // 🔧 VALIDATION: Vérifier les champs obligatoires
       if (!contactData.nom || contactData.nom === 'Nom manquant') {
         console.warn('⚠️ Nom manquant ou invalide, utilisation nom généré');
@@ -274,8 +318,52 @@ export const contactsService = {
       if (!contactData.telephone) {
         throw new Error('Le téléphone est obligatoire pour créer un contact');
       }
+
+      // 🚀 OPTIMISATION: Vérifier AVANT de créer pour éviter les 409
+      const normalized = contactsService.normalizePhoneNumber(contactData.telephone);
+      console.log('🔍 Vérification existence AVANT création:', normalized);
       
-      const response = await apiClient.post('/contacts', { data: contactData }, token);
+      // ✅ RÉACTIVÉ: Vérification préalable pour éviter les 409
+      const existing = await findContactByPhoneHelper(normalized, token);
+      if (existing) {
+        console.log('📋 Contact existe déjà, retour direct:', existing.nom);
+        return existing; // Pas besoin de créer
+      }
+      
+      // 🔧 DEBUG: Loguer les données exactes envoyées (seulement si création nécessaire)
+      console.log('📤 Données contact envoyées à Strapi:', {
+        nom: contactData.nom,
+        prenom: contactData.prenom,
+        email: contactData.email,
+        telephone: contactData.telephone,
+        source: contactData.source
+      });
+      
+      console.log('🚀 contactsService.createContact - Appel apiClient.post...');
+      console.log('🌐 contactsService.createContact - URL:', '/contacts');
+      console.log('📤 contactsService.createContact - Body:', { data: contactData });
+      console.log('🔑 contactsService.createContact - Token présent:', token ? 'Oui' : 'Non');
+      
+      let response;
+      try {
+        response = await apiClient.post('/contacts', { data: contactData }, token);
+        console.log('📡 contactsService.createContact - Réponse reçue:', {
+          ok: response.ok,
+          status: response.status,
+          statusText: response.statusText
+        });
+      } catch (networkError) {
+        console.error('❌ contactsService.createContact - Erreur réseau avant réponse:', {
+          errorMessage: networkError instanceof Error ? networkError.message : 'Erreur inconnue',
+          errorName: networkError instanceof Error ? networkError.name : 'Type inconnu',
+          errorStack: networkError instanceof Error ? networkError.stack : 'Stack indisponible',
+          contactData: {
+            nom: contactData.nom,
+            telephone: contactData.telephone
+          }
+        });
+        throw networkError; // Re-throw l'erreur pour qu'elle remonte
+      }
       
       if (!response.ok) {
         const errorText = await response.text();
@@ -377,49 +465,39 @@ export const contactsService = {
       console.error('❌ Détail erreur création contact:', error);
       // Status déjà loggé plus haut dans le if (!response.ok)
       
-      // Gestion spécifique des doublons (409 Conflict) 
-      if (error.response?.status === 409 || error.message?.includes('409') || error.message?.includes('existe déjà') || error.message?.includes('ConflictError')) {
-        console.log('⚠️ Contact existe déjà (409), tentative de récupération...');
-        console.log('📋 Données du contact à créer:', {
+      // 🚀 OPTIMISATION: Gestion simplifiée des 409 (très rare maintenant car vérification préalable)
+      if ((error as any)?.response?.status === 409 || error.message?.includes('409') || error.message?.includes('existe déjà') || error.message?.includes('ConflictError')) {
+        console.log('⚠️ Contact existe déjà (409) - Cas rare car vérification préalable');
+        console.log('📋 Contact en doublon:', {
           nom: data.nom,
-          prenom: data.prenom,
           telephone: data.telephone
         });
         
+        // Double sécurité : essayer de récupérer le contact existant
         try {
-          console.log('🔍 Recherche contact existant pour téléphone:', data.telephone);
-          
-          // Utiliser la méthode améliorée pour rechercher par téléphone
-          const existingContact = await contactsService.findContactByPhone(data.telephone, token);
-          if (existingContact) {
-            console.log('✅ Contact existant récupéré:', {
-              id: existingContact.id,
-              nom: existingContact.nom,
-              prenom: existingContact.prenom,
-              telephone: existingContact.telephone
-            });
-            return existingContact;
+          const existing = await findContactByPhoneHelper(normalized, token);
+          if (existing) {
+            console.log('✅ Contact existant récupéré après 409');
+            return existing;
           }
-          
-          console.log('❌ Aucune méthode n\'a pu récupérer le contact existant');
-          
-        } catch (getError: any) {
-          console.log('⚠️ Erreur lors de la récupération du contact existant:', getError.message);
+        } catch (findError) {
+          console.warn('⚠️ Impossible de récupérer le contact existant après 409');
         }
         
-        // Si on arrive ici, on ne peut pas récupérer le contact existant
-        // mais on sait qu'il existe (409), donc on crée un contact temporaire
-        // avec les données fournies mais un ID factice
-        console.log('🔄 Création d\'un contact temporaire car récupération impossible');
+        // Fallback : retourner un contact avec les données connues
         return {
-          id: Date.now(), // ID temporaire unique
-          nom: data.nom,
-          prenom: data.prenom,
-          email: data.email,
-          telephone: data.telephone,
+          id: `existing_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          nom: data.nom || 'Contact existant',
+          prenom: data.prenom || '',
+          telephone: data.telephone || '',
+          email: data.email || null,
           actif: true,
-          source: 'import_repertoire',
+          estUtilisateurBob: false,
+          utilisateurBobProfile: null,
+          aSurBob: false,
+          estInvite: false,
           dateAjout: new Date().toISOString(),
+          source: 'doublon_ignore',
           groupes: []
         };
       }
@@ -432,18 +510,65 @@ export const contactsService = {
   /**
    * Modifier un contact
    */
-  updateContact: async (id: number | string, data: UpdateContactData, token: string): Promise<Contact> => {
-    console.log('✏️ ContactsService - Modification contact:', id);
+  updateContact: async (contactOrId: number | string | Contact, data: UpdateContactData, token: string): Promise<Contact> => {
+    // Extraire l'ID correct selon le type d'entrée
+    let contactId: string | number;
+    let contact: Contact | null = null;
+    
+    if (typeof contactOrId === 'object') {
+      contact = contactOrId;
+      // STRAPI 5: Priorité au documentId (id string), fallback sur internalId
+      if (contact.id && typeof contact.id === 'string') {
+        contactId = contact.id; // Utiliser le documentId string (priorité pour Strapi 5)
+      } else if (contact.internalId) {
+        contactId = contact.internalId; // Fallback sur l'ID numérique Strapi
+      } else if (contact.id) {
+        contactId = contact.id; // Dernier fallback sur id peu importe le type
+      } else {
+        throw new Error('Aucun ID valide trouvé dans l\'objet contact');
+      }
+      console.log('✏️ ContactsService - Modification contact depuis objet:', {
+        contactId_field: contact.id,
+        internalId_field: contact.internalId,
+        idUtilise: contactId,
+        type_idUtilise: typeof contactId
+      });
+    } else {
+      contactId = contactOrId;
+      console.log('✏️ ContactsService - Modification contact avec ID direct:', contactId);
+    }
     
     try {
-      // 🔧 STRAPI 5: Utiliser directement le documentId dans l'URL standard
-      console.log('🔧 Strapi 5 - Tentative PUT /contacts/' + id);
-      let response = await apiClient.put(`/contacts/${id}`, { data }, token);
+      // 🔧 STRAPI 5: Essayer d'abord avec documentId, puis avec id numérique
+      console.log('🔧 Strapi 5 - Tentative PUT /contacts/' + contactId);
+      let response = await apiClient.put(`/contacts/${contactId}`, { data }, token);
+      
+      // Si PUT échoue avec 404 et qu'on a un objet contact avec les deux IDs, essayer l'autre
+      if (!response.ok && response.status === 404 && contact) {
+        let alternativeId = null;
+        
+        // Si on a utilisé internalId, essayer avec id
+        if (contactId === contact.internalId && contact.id) {
+          alternativeId = contact.id;
+        }
+        // Si on a utilisé id, essayer avec internalId  
+        else if (contactId === contact.id && contact.internalId) {
+          alternativeId = contact.internalId;
+        }
+        
+        if (alternativeId) {
+          console.log(`⚠️ 404 avec ${contactId} (${typeof contactId}), tentative avec ${alternativeId} (${typeof alternativeId})...`);
+          response = await apiClient.put(`/contacts/${alternativeId}`, { data }, token);
+          contactId = alternativeId; // Mettre à jour pour les logs
+        } else {
+          console.log(`⚠️ 404 avec ${contactId}, pas d'ID alternatif disponible`);
+        }
+      }
       
       // Si PUT échoue, essayer avec PATCH (parfois requis dans Strapi 5)
       if (!response.ok && response.status === 405) {
         console.log('⚠️ PUT Method Not Allowed, tentative avec PATCH...');
-        response = await apiClient.patch(`/contacts/${id}`, { data }, token);
+        response = await apiClient.patch(`/contacts/${contactId}`, { data }, token);
       }
       
       if (!response.ok) {
@@ -452,7 +577,7 @@ export const contactsService = {
           status: response.status,
           statusText: response.statusText,
           url: response.url,
-          contactId: id,
+          contactId: contactId,
           method: response.status === 405 ? 'PUT puis PATCH échoués' : 'PUT échoué',
           dataEnvoyee: JSON.stringify(data).substring(0, 150),
           error: errorText.substring(0, 200)
@@ -501,51 +626,83 @@ export const contactsService = {
   },
 
   /**
-   * Supprimer un contact
+   * 🚀 OPTIMISÉ: Supprimer un contact avec approche directe
    */
-  deleteContact: async (id: number, token: string): Promise<void> => {
-    console.log('🗑️ ContactsService - Suppression contact:', id);
+  deleteContact: async (id: number | string, token: string): Promise<void> => {
+    console.log('🗑️ ContactsService - Suppression contact optimisée:', id);
     
     try {
-      // Tester différents endpoints Strapi 5
-      const endpoints = [
-        `/api/contacts/${id}`,
-        `/contacts/${id}`,
-      ];
-
-      let response = null;
-      let lastError = null;
-
-      for (const endpoint of endpoints) {
-        try {
-          console.log(`🔄 Tentative suppression ${endpoint}...`);
-          response = await apiClient.delete(endpoint, token);
-          
-          if (response.ok) {
-            console.log(`✅ Suppression réussie avec ${endpoint}`);
-            break;
-          } else {
-            const errorText = await response.text();
-            console.log(`⚠️ ${endpoint} - Status: ${response.status} - ${errorText.substring(0, 100)}`);
-            lastError = `${endpoint}: ${response.status}`;
-          }
-        } catch (error: any) {
-          console.log(`❌ ${endpoint} - Erreur:`, error.message);
-          lastError = `${endpoint}: ${error.message}`;
-          continue;
-        }
-      }
-
-      if (!response || !response.ok) {
-        console.error('❌ Tous les endpoints de suppression ont échoué');
-        console.error('❌ Dernière erreur:', lastError);
-        throw new Error(`Impossible de supprimer le contact: ${lastError}`);
+      // 🚀 OPTIMISATION: Essayer suppression directe SANS vérification préalable
+      console.log('🔄 Tentative suppression directe...');
+      const response = await apiClient.delete(`/contacts/${id}`, token);
+      
+      if (response.ok) {
+        console.log('✅ Suppression directe réussie');
+        return;
       }
       
-      console.log('✅ Contact supprimé');
+      // Si échec avec ID donné, essayer les alternatives
+      const status = response.status;
+      console.log(`⚠️ Échec suppression directe (${status}), tentative alternatives...`);
+      
+      // 404 = déjà supprimé, c'est un succès
+      if (status === 404) {
+        console.log('✅ Contact déjà supprimé (404) - succès');
+        return;
+      }
+      
+      // Pour autres erreurs, essayer de récupérer le documentId et réessayer
+      if (status >= 400 && status < 500) {
+        try {
+          // 🔧 FALLBACK: Récupérer le documentId si nécessaire
+          const searchResponse = await apiClient.get(`/contacts?filters[id][$eq]=${id}`, token);
+          
+          if (searchResponse.ok) {
+            const searchData = await searchResponse.json();
+            const contact = searchData.data?.[0];
+            
+            if (contact?.documentId && contact.documentId !== id) {
+              console.log(`🔄 Tentative avec documentId: ${contact.documentId}`);
+              const docResponse = await apiClient.delete(`/contacts/${contact.documentId}`, token);
+              
+              if (docResponse.ok) {
+                console.log('✅ Suppression réussie avec documentId');
+                return;
+              }
+            }
+          }
+        } catch (fallbackError) {
+          console.warn('⚠️ Fallback documentId échoué');
+        }
+        
+        // En dernier recours : soft delete
+        try {
+          console.log('🔄 Tentative soft delete...');
+          const softResponse = await apiClient.put(`/contacts/${id}`, { 
+            data: { actif: false } 
+          }, token);
+          
+          if (softResponse.ok) {
+            console.log('✅ Soft delete réussi');
+            return;
+          }
+        } catch (softError) {
+          console.warn('⚠️ Soft delete échoué');
+        }
+      }
+      
+      // Si tout échoue
+      throw new Error(`Suppression impossible: HTTP ${status}`);
+      
     } catch (error: any) {
-      console.error('❌ Erreur deleteContact:', error.message);
-      throw error;
+      // Gestion simplifiée des erreurs
+      if (error.message?.includes('404') || error.message?.includes('NotFoundError')) {
+        console.log('✅ Contact introuvable (404) - considéré comme supprimé');
+        return;
+      }
+      
+      console.error('❌ Erreur suppression finale:', error.message);
+      throw new Error(`Échec suppression contact ${id}: ${error.message}`);
     }
   },
 
@@ -607,92 +764,66 @@ export const contactsService = {
   findContactByPhone: async (telephone: string, token: string): Promise<Contact | null> => {
     console.log('🔍 ContactsService - Recherche par téléphone:', telephone);
     
-    try {
-      // D'abord essayer l'endpoint dédié
-      const url = `/contacts/phone/${encodeURIComponent(telephone)}`;
-      console.log('🌐 URL recherche:', url);
-      
-      const response = await apiClient.get(url, token);
-      
-      console.log('📡 Réponse recherche:', {
-        status: response.status,
-        ok: response.ok,
-        url: response.url
+    // Utiliser directement notre helper simplifié
+    const contact = await findContactByPhoneHelper(telephone, token);
+    if (contact) {
+      console.log('✅ Contact trouvé via helper:', {
+        id: contact.id,
+        internalId: contact.internalId,
+        nom: contact.nom,
+        type_id: typeof contact.id,
+        type_internalId: typeof contact.internalId
       });
+      return contact;
+    }
+    
+    try {
+      // Fallback : essayer l'endpoint dédié si disponible
+      const url = `/contacts/phone/${encodeURIComponent(telephone)}`;
+      const response = await apiClient.get(url, token);
       
       if (response.ok) {
         const result = await response.json();
         const contacts = result.data || [];
         
         if (contacts.length > 0) {
-          const contact = contacts[0];
-          return {
-            id: contact.id,
-            ...contact.attributes || contact,
+          console.log('✅ Contact trouvé via endpoint dédié');
+          const contactRaw = contacts[0];
+          
+          // Normaliser comme dans findContactByPhoneHelper
+          const normalizedContact = {
+            // Si documentId existe, l'utiliser comme id principal, sinon convertir l'id numérique
+            id: contactRaw.documentId || contactRaw.id?.toString() || `contact_${contactRaw.id}`,
+            // Toujours garder l'id numérique comme internalId
+            internalId: contactRaw.id,
+            nom: contactRaw.nom || contactRaw.attributes?.nom,
+            prenom: contactRaw.prenom || contactRaw.attributes?.prenom,
+            telephone: contactRaw.telephone || contactRaw.attributes?.telephone,
+            email: contactRaw.email || contactRaw.attributes?.email,
+            actif: contactRaw.actif ?? contactRaw.attributes?.actif ?? true,
+            source: contactRaw.source || contactRaw.attributes?.source || 'import_repertoire',
+            dateAjout: contactRaw.dateAjout || contactRaw.attributes?.dateAjout || new Date().toISOString(),
+            groupes: contactRaw.groupes || contactRaw.attributes?.groupes || []
           };
+          
+          console.log('🔧 Contact normalisé depuis endpoint dédié:', {
+            id: normalizedContact.id,
+            internalId: normalizedContact.internalId,
+            nom: normalizedContact.nom,
+            type_id: typeof normalizedContact.id,
+            type_internalId: typeof normalizedContact.internalId
+          });
+          
+          return normalizedContact;
         }
       }
       
-      // Si l'endpoint dédié ne fonctionne pas (404 ou autre erreur), 
-      // utiliser la méthode de fallback avec filtres Strapi
-      console.log('⚠️ Endpoint dédié non disponible, utilisation du fallback avec filtres');
-      
-      // Essayer avec filtres Strapi
-      const fallbackUrl = `/contacts?filters[telephone][$eq]=${encodeURIComponent(telephone)}`;
-      console.log('🔄 URL fallback:', fallbackUrl);
-      
-      const fallbackResponse = await apiClient.get(fallbackUrl, token);
-      
-      if (!fallbackResponse.ok) {
-        console.log('❌ Fallback aussi échoué, retour null');
-        return null;
-      }
-      
-      const fallbackResult = await fallbackResponse.json();
-      const fallbackContacts = fallbackResult.data || [];
-      
-      if (fallbackContacts.length > 0) {
-        console.log('✅ Contact trouvé via fallback');
-        const contact = fallbackContacts[0];
-        return {
-          id: contact.id,
-          ...contact.attributes || contact,
-        };
-      }
-      
-      console.log('📱 Contact non trouvé par aucune méthode');
+      console.log('📱 Contact non trouvé');
       return null;
       
     } catch (error: any) {
       console.error('❌ Erreur findContactByPhone:', error.message);
-      
-      // En dernier recours, essayer de récupérer tous les contacts et filtrer localement
-      console.log('🚨 Dernier recours: recherche manuelle dans tous les contacts');
-      try {
-        const allContacts = await contactsService.getMyContacts(token);
-        console.log(`📊 Recherche manuelle dans ${allContacts.length} contacts`);
-        
-        // Normaliser les numéros pour la comparaison
-        const normalizePhone = (phone: string) => phone.replace(/[^\+\d]/g, '');
-        const normalizedSearch = normalizePhone(telephone);
-        
-        const foundContact = allContacts.find(c => {
-          if (!c.telephone) return false;
-          const normalizedContact = normalizePhone(c.telephone);
-          return normalizedContact === normalizedSearch;
-        });
-        
-        if (foundContact) {
-          console.log('✅ Contact trouvé via recherche manuelle:', foundContact.nom);
-          return foundContact;
-        }
-        
-        console.log('❌ Contact vraiment introuvable');
-        return null;
-      } catch (manualError) {
-        console.error('❌ Échec recherche manuelle:', manualError);
-        return null;
-      }
+      return null;
     }
   },
 
@@ -791,9 +922,9 @@ export const contactsService = {
       const bobUsersByPhone: Record<string, any> = {};
       bobUsers.forEach((user: any) => {
         if (user.telephone) {
-          const normalizedPhone = user.telephone.replace(/[^\+\d]/g, '');
+          const normalizedPhone = contactsService.normalizePhoneNumber(user.telephone);
           bobUsersByPhone[normalizedPhone] = user;
-          console.log(`📞 User Bob Strapi 5: ${user.username} (${user.telephone}) - documentId: ${user.documentId}`);
+          console.log(`📞 User Bob Strapi 5: ${user.username} (${user.telephone} -> ${normalizedPhone}) - documentId: ${user.documentId}`);
         }
       });
       
@@ -804,8 +935,11 @@ export const contactsService = {
       for (const contact of allContacts) {
         if (!contact.telephone) continue;
         
-        const normalizedPhone = contact.telephone.replace(/[^\+\d]/g, '');
+        const normalizedPhone = contactsService.normalizePhoneNumber(contact.telephone);
         const bobUser = bobUsersByPhone[normalizedPhone];
+        
+        console.log(`🔍 Vérification ${contact.nom}: ${contact.telephone} -> ${normalizedPhone} -> ${bobUser ? 'BOB USER!' : 'pas Bob'}`);
+        
         
         if (bobUser) {
           console.log(`✅ ${contact.nom} EST un utilisateur Bob (${bobUser.username})`);
@@ -883,5 +1017,388 @@ export const contactsService = {
       console.error('❌ Erreur syncWithBobUsers:', error.message);
       throw error;
     }
+  },
+
+  /**
+   * 🚀 ULTRA-RAPIDE: Créer TOUS les contacts en 1 seul appel API
+   */
+  createContactsBulkSingle: async (contactsData: CreateContactData[], token: string): Promise<Contact[]> => {
+    console.log(`🚀 ContactsService - Import ULTRA-RAPIDE de ${contactsData.length} contacts en 1 seul appel`);
+    
+    try {
+      const startTime = Date.now();
+      
+      // 🔧 Nettoyer et valider toutes les données
+      const cleanedData = contactsData.map(data => ({
+        nom: data.nom || 'Contact',
+        prenom: data.prenom || '',
+        telephone: data.telephone || '',
+        email: data.email || null,
+        source: data.source || 'import_repertoire',
+        actif: true,
+        dateAjout: new Date().toISOString()
+      }));
+      
+      console.log('📤 Envoi de tous les contacts en 1 seul appel...');
+      
+      // 🚀 ENVOYER TOUT EN 1 SEUL APPEL
+      const response = await apiClient.post('/contacts/bulk', { 
+        data: cleanedData 
+      }, token);
+      
+      const duration = Date.now() - startTime;
+      
+      if (response.ok && response.data?.data) {
+        const createdContacts = response.data.data;
+        console.log(`✅ Import ULTRA-RAPIDE réussi: ${createdContacts.length} contacts créés en ${duration}ms`);
+        console.log(`📊 Performance: ${Math.round(createdContacts.length / (duration / 1000))} contacts/seconde`);
+        return createdContacts;
+      } else {
+        throw new Error(`Erreur API bulk: ${response.status} - ${response.statusText}`);
+      }
+      
+    } catch (error: any) {
+      console.error('❌ Erreur createContactsBulkSingle:', error.message);
+      
+      // 🔄 FALLBACK: Si l'API bulk n'existe pas, utiliser l'ancienne méthode
+      if (error.message?.includes('404') || error.message?.includes('Not Found')) {
+        console.log('⚠️ API bulk non disponible, utilisation méthode par batches...');
+        return await contactsService.createContactsBulk(contactsData, token);
+      }
+      
+      throw error;
+    }
+  },
+
+  /**
+   * Créer plusieurs contacts en lot (bulk creation) - ANCIENNE MÉTHODE
+   */
+  createContactsBulk: async (contactsData: CreateContactData[], token: string): Promise<Contact[]> => {
+    console.log(`🚀 ContactsService - Import TURBO de ${contactsData.length} contacts`);
+    
+    if (contactsData.length > 100) {
+      console.log(`📋 Information: Les ${contactsData.length} contacts vont être traités par groupes de 50 pour assurer la stabilité. Cela prendra quelques instants mais garantit un import fiable.`);
+    }
+    
+    try {
+      // Préparer les données pour l'API bulk
+      const bulkData = contactsData.map(contact => ({
+        nom: contact.nom,
+        prenom: contact.prenom,
+        email: contact.email,
+        telephone: contact.telephone,
+        actif: true,
+        source: contact.source || 'import_repertoire',
+        dateAjout: new Date().toISOString(),
+      }));
+
+      console.log('📤 Utilisation directe du batch parallèle (plus fiable)...');
+      
+      // 🔧 FIX: Utiliser directement la méthode batch parallèle qui fonctionne
+      // Au lieu d'essayer des endpoints qui n'existent pas sur Strapi
+      
+      // 🚀 WORKAROUND: Chunks de 50 pour contourner la limite Strapi 200
+      const chunkSize = 50; // Strapi limite probablement à 200, donc 50 par chunk pour être sûr
+      const chunks = [];
+      for (let i = 0; i < contactsData.length; i += chunkSize) {
+        chunks.push(contactsData.slice(i, i + chunkSize));
+      }
+
+      const allResults: Contact[] = [];
+      
+      // Traiter les chunks en série pour assurer la fiabilité
+      for (let i = 0; i < chunks.length; i++) {
+        const chunk = chunks[i];
+        const progression = Math.round(((i + 1) / chunks.length) * 100);
+        console.log(`📦 Traitement groupe ${i + 1}/${chunks.length} (${chunk.length} contacts) - ${progression}% terminé`);
+        
+        // Créer toutes les promesses pour ce chunk
+        const chunkPromises = chunk.map(async (contactData) => {
+          try {
+            return await contactsService.createContact(contactData, token);
+          } catch (error: any) {
+            console.warn(`⚠️ Erreur création contact ${contactData.nom}:`, error.message);
+            // En cas d'erreur 409 (conflit), essayer de récupérer le contact existant
+            if (error.message?.includes('409') && contactData.telephone) {
+              try {
+                const existing = await findContactByPhoneHelper(contactData.telephone, token);
+                if (existing) {
+                  console.log(`✅ Contact existant récupéré: ${contactData.nom}`);
+                  return existing;
+                }
+              } catch (findError) {
+                console.warn(`⚠️ Impossible de récupérer le contact existant ${contactData.nom}`);
+              }
+            }
+            // Retourner null pour les échecs
+            return null;
+          }
+        });
+
+        // Attendre que tous les contacts du chunk soient traités
+        const chunkResults = await Promise.all(chunkPromises);
+        
+        // Ajouter les résultats valides
+        chunkResults.forEach(result => {
+          if (result) {
+            allResults.push(result);
+          }
+        });
+
+        // ⏱️ Pause courte entre les groupes pour stabilité
+        if (i < chunks.length - 1) {
+          const delai = chunks.length > 10 ? 50 : 20; // Plus de délai pour gros imports
+          await new Promise(resolve => setTimeout(resolve, delai));
+        }
+      }
+
+      console.log(`🚀 Import TURBO terminé: ${allResults.length}/${contactsData.length} contacts créés en ${chunks.length} chunks de ~${Math.ceil(contactsData.length / chunks.length)} contacts`);
+      return allResults;
+
+    } catch (error: any) {
+      console.error('❌ Erreur createContactsBulk:', error.message);
+      throw error;
+    }
+  },
+
+  /**
+   * 🚀 OPTIMISÉ: Supprimer plusieurs contacts en lot avec cache et stratégies multiples
+   */
+  deleteContactsBulk: async (contactIds: string[], token: string): Promise<number> => {
+    console.log(`🗑️ ContactsService - Suppression OPTIMISÉE de ${contactIds.length} contacts`);
+    
+    if (contactIds.length === 0) {
+      console.log('⚠️ Aucun contact à supprimer');
+      return 0;
+    }
+    
+    try {
+      // 🚀 OPTIMISATION: Pré-filtrer les IDs invalides/déjà supprimés
+      const validIds = contactIds.filter(id => id && id.toString().trim());
+      console.log(`🔍 ${validIds.length}/${contactIds.length} IDs valides à traiter`);
+      
+      if (validIds.length === 0) {
+        console.log('⚠️ Aucun ID valide à supprimer');
+        return 0;
+      }
+
+      // 🚀 NOUVELLE STRATÉGIE: Chunks plus gros pour l'efficacité
+      const chunkSize = Math.min(100, Math.max(10, Math.ceil(validIds.length / 10))); // Adaptatif
+      const chunks = [];
+      for (let i = 0; i < validIds.length; i += chunkSize) {
+        chunks.push(validIds.slice(i, i + chunkSize));
+      }
+
+      console.log(`📦 ${chunks.length} chunks de ~${chunkSize} contacts (optimisé pour ${validIds.length} contacts)`);
+      
+      let totalDeleted = 0;
+      let totalSkipped = 0; // Contacts déjà supprimés
+      
+      // Traiter les chunks avec parallélisation contrôlée
+      for (let i = 0; i < chunks.length; i++) {
+        const chunk = chunks[i];
+        const progression = Math.round(((i + 1) / chunks.length) * 100);
+        console.log(`🗑️ Chunk ${i + 1}/${chunks.length} (${chunk.length} contacts) - ${progression}%`);
+        
+        // 🚀 OPTIMISATION: Suppression parallèle avec gestion d'erreur améliorée
+        const deletePromises = chunk.map(async (contactId, index) => {
+          try {
+            // Stratégie 1: Tentative directe (plus rapide)
+            const response = await apiClient.delete(`/contacts/${contactId}`, token);
+            
+            if (response.ok) {
+              // Réduire les logs pour les gros volumes
+              if (chunk.length <= 20 || index % 10 === 0) {
+                console.log(`✅ Contact ${contactId} supprimé`);
+              }
+              return { success: true, skipped: false, id: contactId };
+            }
+            
+            // 404 = déjà supprimé, compter comme succès
+            if (response.status === 404) {
+              if (index % 20 === 0) { // Log occasionnel pour 404
+                console.log(`📋 Contact ${contactId} déjà supprimé (404)`);
+              }
+              return { success: true, skipped: true, id: contactId };
+            }
+            
+            // 🚀 OPTIMISATION: Fallback intelligent seulement si nécessaire
+            if (response.status === 400 || response.status === 422) {
+              // Probablement mauvais ID format, essayer documentId fallback
+              try {
+                const searchResponse = await apiClient.get(`/contacts?filters[id][$eq]=${contactId}`, token);
+                if (searchResponse.ok) {
+                  const searchData = await searchResponse.json();
+                  const contact = searchData.data?.[0];
+                  
+                  if (contact?.documentId && contact.documentId !== contactId) {
+                    const docResponse = await apiClient.delete(`/contacts/${contact.documentId}`, token);
+                    if (docResponse.ok) {
+                      console.log(`✅ Contact ${contactId} supprimé via documentId`);
+                      return { success: true, skipped: false, id: contactId };
+                    }
+                  }
+                }
+              } catch (fallbackError) {
+                // Fallback échoué, continuer
+              }
+            }
+            
+            // Échec définitif
+            console.warn(`❌ Échec suppression ${contactId}: HTTP ${response.status}`);
+            return { success: false, skipped: false, id: contactId };
+            
+          } catch (error: any) {
+            // Gérer les erreurs réseau de manière optimisée
+            if (error.message?.includes('404') || error.message?.includes('NotFound')) {
+              return { success: true, skipped: true, id: contactId }; // Déjà supprimé
+            }
+            
+            console.warn(`❌ Erreur réseau ${contactId}:`, error.message?.substring(0, 50));
+            return { success: false, skipped: false, id: contactId };
+          }
+        });
+
+        // Attendre le chunk avec timeout de sécurité
+        const timeoutMs = Math.max(30000, chunk.length * 500); // 500ms par contact minimum
+        const chunkResults = await Promise.race([
+          Promise.all(deletePromises),
+          new Promise<any[]>((_, reject) => 
+            setTimeout(() => reject(new Error('Timeout chunk')), timeoutMs)
+          )
+        ]);
+        
+        // Comptabiliser les résultats
+        const successes = chunkResults.filter(r => r.success).length;
+        const skipped = chunkResults.filter(r => r.skipped).length;
+        const failed = chunkResults.filter(r => !r.success).length;
+        
+        totalDeleted += successes;
+        totalSkipped += skipped;
+        
+        console.log(`📊 Chunk ${i + 1}: ${successes} supprimés, ${skipped} déjà absents, ${failed} échecs`);
+
+        // ⏱️ Délai adaptatif entre chunks
+        if (i < chunks.length - 1) {
+          const delai = chunks.length > 5 ? 100 : 50; // Plus de délai pour gros volumes
+          await new Promise(resolve => setTimeout(resolve, delai));
+        }
+      }
+
+      console.log(`🎉 Suppression OPTIMISÉE terminée: ${totalDeleted} supprimés, ${totalSkipped} déjà absents sur ${validIds.length} traités`);
+      return totalDeleted;
+
+    } catch (error: any) {
+      console.error('❌ Erreur suppression en masse:', error.message);
+      throw error;
+    }
+  },
+
+  /**
+   * 🚀 NOUVEAU: Supprimer TOUS les contacts d'un utilisateur de manière optimisée
+   */
+  deleteAllUserContacts: async (token: string): Promise<{ deleted: number; skipped: number }> => {
+    console.log('🧹 ContactsService - Suppression COMPLÈTE des contacts utilisateur');
+    
+    try {
+      // 🚀 OPTIMISATION: Récupération en une seule fois avec pagination efficace
+      console.log('📥 Récupération de tous les contacts...');
+      let allContacts: any[] = [];
+      let page = 1;
+      let hasMore = true;
+      
+      while (hasMore && page <= 50) { // Limite sécurité
+        const response = await apiClient.get(`/contacts?pagination[page]=${page}&pagination[pageSize]=100&sort=createdAt:asc`, token);
+        
+        if (!response.ok) {
+          if (response.status === 404 || page === 1) {
+            console.log(`📋 Aucun contact trouvé (page ${page})`);
+            break;
+          }
+          throw new Error(`Erreur récupération contacts page ${page}: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        const contacts = data.data || [];
+        
+        if (contacts.length === 0) {
+          hasMore = false;
+        } else {
+          allContacts.push(...contacts);
+          console.log(`📄 Page ${page}: +${contacts.length} contacts (total: ${allContacts.length})`);
+          page++;
+          
+          // Si moins de 100, c'est la dernière page
+          if (contacts.length < 100) {
+            hasMore = false;
+          }
+        }
+        
+        // Petit délai pour éviter le rate limiting
+        if (hasMore) {
+          await new Promise(resolve => setTimeout(resolve, 50));
+        }
+      }
+      
+      console.log(`📊 Total contacts à supprimer: ${allContacts.length}`);
+      
+      if (allContacts.length === 0) {
+        console.log('✅ Aucun contact à supprimer');
+        return { deleted: 0, skipped: 0 };
+      }
+      
+      // 🚀 OPTIMISATION: Extraire les IDs avec priorité documentId
+      const contactIds = allContacts
+        .map(contact => contact.documentId || contact.id?.toString())
+        .filter(id => id && id.trim());
+      
+      console.log(`🎯 ${contactIds.length} IDs extraits pour suppression massive`);
+      
+      // Utiliser la méthode optimisée de suppression en masse
+      const deletedCount = await contactsService.deleteContactsBulk(contactIds, token);
+      const skippedCount = Math.max(0, allContacts.length - deletedCount);
+      
+      console.log(`🎉 Suppression complète terminée: ${deletedCount} supprimés, ${skippedCount} déjà absents`);
+      
+      return { deleted: deletedCount, skipped: skippedCount };
+      
+    } catch (error: any) {
+      console.error('❌ Erreur suppression complète:', error.message);
+      throw error;
+    }
+  },
+
+  /**
+   * Normaliser un numéro de téléphone - PRÉSERVER LE NUMÉRO ORIGINAL
+   */
+  normalizePhoneNumber: (phone: string): string => {
+    if (!phone) return '';
+    
+    // Nettoyer le numéro - garder seulement les chiffres et le +
+    let cleaned = phone.replace(/[^\d+]/g, '');
+    
+    // Si vide après nettoyage, retourner vide
+    if (!cleaned) return '';
+    
+    // Supprimer les + multiples et garder seulement le premier
+    cleaned = cleaned.replace(/\++/g, '+');
+    
+    // Si déjà un numéro international (commence par +), le garder tel quel
+    if (cleaned.startsWith('+')) {
+      return cleaned;
+    }
+    
+    // SEUL CAS SÛRE : Numéro français 0XXXXXXXXX (10 chiffres commençant par 0)
+    if (cleaned.startsWith('0') && cleaned.length === 10) {
+      // Vérifier que c'est bien un numéro français valide (01-09)
+      const secondDigit = cleaned.charAt(1);
+      if (['1', '2', '3', '4', '5', '6', '7', '8', '9'].includes(secondDigit)) {
+        return '+33' + cleaned.substring(1);
+      }
+    }
+    
+    // Pour TOUS les autres cas : GARDER LE NUMÉRO ORIGINAL
+    // Ne pas ajouter d'indicatif car on ne peut pas deviner le pays
+    return cleaned;
   },
 };

@@ -2,6 +2,7 @@
 export * from './auth.types';
 export * from './navigation.types';
 export * from './contacts.types';
+export * from './events.extended.types';
 
 // Temporary types for compatibility
 export interface Echange {

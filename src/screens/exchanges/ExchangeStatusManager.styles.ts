@@ -36,6 +36,14 @@ export const styles = StyleSheet.create({
     color: '#1A1A1A',
   },
 
+  // Chat Section
+  chatSection: {
+    marginBottom: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+
   // Progress Steps
   stepsContainer: {
     paddingLeft: 8,

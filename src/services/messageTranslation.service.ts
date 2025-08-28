@@ -65,7 +65,7 @@ export const generateTranslatedMessageStatic = (
   };
 
   const langMessages = messages[language as keyof typeof messages] || messages.fr;
-  const template = langMessages[groupeType || 'default'] || langMessages.default;
+  const template = langMessages[groupeType as keyof typeof langMessages || 'default'] || langMessages.default;
 
   return template
     .replace(/\{\{firstName\}\}/g, params.firstName)

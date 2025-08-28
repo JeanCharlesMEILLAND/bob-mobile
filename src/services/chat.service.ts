@@ -234,6 +234,120 @@ class ChatService {
     }
   }
 
+  // Créer un chat de groupe pour un événement
+  async createEventGroupChat(eventId: string, eventTitle: string, participants: ChatParticipant[]): Promise<ChatRoom> {
+    const chatId = `event_${eventId}`;
+    
+    const eventRoom: ChatRoom = {
+      id: chatId,
+      type: 'evenement' as any,
+      name: `💬 ${eventTitle}`,
+      participants: participants,
+      unreadCount: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      eventId: eventId,
+      eventTitle: eventTitle,
+      eventStatus: 'actif'
+    };
+
+    this.rooms.set(chatId, eventRoom);
+    this.messages.set(chatId, []);
+
+    // Message de bienvenue automatique
+    const welcomeMessage: ChatMessage = {
+      id: `welcome_${Date.now()}`,
+      chatId: chatId,
+      senderId: 'system',
+      senderName: 'BOB',
+      content: `🎉 Chat de groupe créé pour "${eventTitle}" !\n\nVous pouvez maintenant échanger entre participants. Organisez-vous, partagez vos idées et coordinzz-vous pour l'événement !`,
+      timestamp: new Date().toISOString(),
+      messageType: 'system',
+      isRead: false,
+      isDelivered: true
+    };
+
+    const messages = this.messages.get(chatId) || [];
+    messages.push(welcomeMessage);
+    this.messages.set(chatId, messages);
+
+    this.notifyListeners('rooms_update', eventRoom);
+    this.notifyListeners(`messages_${chatId}`, welcomeMessage);
+
+    return eventRoom;
+  }
+
+  // Ajouter un participant à un chat d'événement
+  async addParticipantToEventChat(chatId: string, participant: ChatParticipant): Promise<void> {
+    const room = this.rooms.get(chatId);
+    if (!room) return;
+
+    // Vérifier si le participant n'est pas déjà présent
+    const existingParticipant = room.participants.find(p => p.id === participant.id);
+    if (existingParticipant) return;
+
+    room.participants.push(participant);
+    room.updatedAt = new Date().toISOString();
+
+    // Message automatique d'arrivée
+    const joinMessage: ChatMessage = {
+      id: `join_${Date.now()}`,
+      chatId: chatId,
+      senderId: 'system',
+      senderName: 'BOB',
+      content: `👋 **${participant.name}** a rejoint l'événement !`,
+      timestamp: new Date().toISOString(),
+      messageType: 'system',
+      isRead: false,
+      isDelivered: true
+    };
+
+    const messages = this.messages.get(chatId) || [];
+    messages.push(joinMessage);
+    this.messages.set(chatId, messages);
+
+    this.notifyListeners('rooms_update', room);
+    this.notifyListeners(`messages_${chatId}`, joinMessage);
+  }
+
+  // Envoyer un message automatique d'événement
+  async sendEventAutoMessage(chatId: string, type: 'positioning' | 'need_completed' | 'reminder', data: any): Promise<void> {
+    const room = this.rooms.get(chatId);
+    if (!room) return;
+
+    let messageContent = '';
+    
+    switch (type) {
+      case 'positioning':
+        messageContent = `🎯 **${data.participantName}** s'est positionné sur "${data.besoinTitre}" !\n\n✅ BOB individuel créé automatiquement\n💎 ${data.bobizGagnes || 10} BOBIZ`;
+        break;
+      case 'need_completed':
+        messageContent = `✅ Le besoin "${data.besoinTitre}" est maintenant **complet** !\n\nMerci à tous les participants qui se sont positionnés 🙌`;
+        break;
+      case 'reminder':
+        messageContent = `⏰ Plus que ${data.timeRemaining} avant "${room.eventTitle}" !\n\n📍 RDV ${data.eventDetails}`;
+        break;
+    }
+
+    const autoMessage: ChatMessage = {
+      id: `auto_${type}_${Date.now()}`,
+      chatId: chatId,
+      senderId: 'system',
+      senderName: 'BOB',
+      content: messageContent,
+      timestamp: new Date().toISOString(),
+      messageType: 'system',
+      isRead: false,
+      isDelivered: true
+    };
+
+    const messages = this.messages.get(chatId) || [];
+    messages.push(autoMessage);
+    this.messages.set(chatId, messages);
+
+    this.notifyListeners(`messages_${chatId}`, autoMessage);
+  }
+
   // Marquer les messages comme lus
   async markAsRead(chatId: string, userId: string, messageIds: string[]): Promise<void> {
     const messages = this.messages.get(chatId) || [];

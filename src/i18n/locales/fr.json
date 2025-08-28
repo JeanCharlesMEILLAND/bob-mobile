@@ -28,7 +28,7 @@
     "withoutBob": "À inviter",
     "invited": "Invités",
     "percentage": "{{count}}% ont Bob",
-    "addFromPhonebook": "Ajouter du répertoire",
+    "addFromPhonebook": "Importer du téléphone",
     "manageContacts": "Gérer mes contacts",
     "inviteOnBob": "Inviter sur Bob",
     "noContacts": "Aucun contact",
@@ -36,6 +36,9 @@
     "contactsAvailable": "{{count}} contact disponible",
     "contactsAvailable_plural": "{{count}} contacts disponibles",
     "allContactsAdded": "Tous vos contacts sont déjà ajoutés !",
+    "phoneContactsToImport": "{{count}} contact de votre téléphone à importer",
+    "phoneContactsToImport_plural": "{{count}} contacts de votre téléphone à importer",
+    "allPhoneContactsImported": "Tous vos contacts téléphone sont déjà importés !",
     "selectForChat": "Choisir un contact",
     "available": "contact(s) disponible(s)",
     "searchContacts": "Rechercher un contact...",
@@ -191,9 +194,22 @@
   "navigation": {
     "home": "Accueil",
     "contacts": "Contacts",
+    "chat": "Chat",
     "exchanges": "Échanges",
     "events": "Événements",
     "profile": "Profil"
+  },
+
+  "chat": {
+    "title": "Chat",
+    "searchPlaceholder": "Rechercher un contact...",
+    "emptyTitle": "Aucun contact disponible",
+    "emptyDescription": "Ajoutez des contacts depuis l'onglet Contacts pour commencer à chatter avec votre réseau Bob !",
+    "online": "En ligne",
+    "justNow": "À l'instant",
+    "minutesAgo": "Il y a {{minutes}} min",
+    "hoursAgo": "Il y a {{hours}}h",
+    "daysAgo": "Il y a {{days}} jour(s)"
   },
   
   "webLayout": {
@@ -219,6 +235,12 @@
     "defaultLevel": "Débutant",
     "createExchange": "Créer un échange",
     "createBob": "Créer un Bob",
+    "createEvent": "Créer un événement",
+    "activities": "Activités",
+    "activitiesCount": "Activités ({{count}})",
+    "filter": "Filtre",
+    "loadingMore": "Chargement...",
+    "allActivitiesLoaded": "Toutes les activités ont été chargées",
     "myExchanges": "Mes échanges",
     "availableExchanges": "Échanges disponibles",
     "recentExchanges": "Échanges récents",
@@ -274,6 +296,54 @@
     "comingSoon": "Fonctionnalité en cours de développement..."
   },
   
+  "welcome": {
+    "title": "Bienvenue {{username}} !",
+    "subtitle": "BOB vous permet de vous entraider avec vos proches.",
+    "description": "Prêts, emprunts et services entre personnes de confiance.",
+    "invitedBy": "{{inviter}} vous a invité à rejoindre BOB !",
+    "invitedDescription": "Vous allez pouvoir vous entraider et partager en toute confiance",
+    "privacy": "100% privé - Seuls vos contacts peuvent voir vos demandes. Aucune transaction financière.",
+    "examplesTitle": "Quelques idées pour commencer",
+    "stepsTitle": "Vos premières étapes",
+    "encouragement": "L'entraide, c'est magique !",
+    "encouragementDesc": "Chaque BOB créé renforce les liens avec vos proches.\\nCommencez petit, et voyez votre réseau d'entraide grandir !",
+    "examples": {
+      "borrowDrill": {
+        "title": "Emprunter une perceuse",
+        "description": "Besoin d'un outil pour quelques heures ? Demandez à vos amis bricoleurs !"
+      },
+      "lendBooks": {
+        "title": "Prêter des livres", 
+        "description": "Partagez vos lectures préférées avec votre entourage"
+      },
+      "movingHelp": {
+        "title": "Aide déménagement",
+        "description": "Organisez une équipe d'amis pour votre prochain déménagement"
+      },
+      "gardening": {
+        "title": "Jardinage collectif",
+        "description": "Créez un événement jardinage dans le quartier"
+      }
+    },
+    "steps": {
+      "addContacts": {
+        "title": "Ajoutez vos contacts",
+        "description": "Importez vos amis et famille depuis votre téléphone",
+        "button": "Ajouter contacts"
+      },
+      "createBob": {
+        "title": "Créez votre premier BOB", 
+        "description": "Prêtez, empruntez ou demandez un service",
+        "button": "Créer un BOB"
+      },
+      "createEvent": {
+        "title": "Organisez un événement",
+        "description": "Planifiez une sortie ou activité entre amis",
+        "button": "Créer événement"
+      }
+    }
+  },
+  
   "profile": {
     "title": "Profil",
     "myBobiz": "Mes Bobiz",
@@ -295,5 +365,44 @@
     "language": "Langue",
     "chooseLanguage": "Choisir la langue",
     "languageChanged": "Langue changée vers {{language}}"
+  },
+
+  "ui": {
+    "maintenance": "🔧 Maintenance",
+    "debugInfo": "Debug Info",
+    "noRequestsReceived": "Aucune demande reçue",
+    "noRequestsReceivedDesc": "Quand tes contacts auront besoin d'aide,\ntu les verras ici !",
+    "requestsAndActions": "📋 Demandes et actions ({{count}})",
+    "urgent": "URGENT",
+    "view": "Voir",
+    "hello": "Salut {{username}} !",
+    "whatBobToday": "Qu'est-ce qu'on bob aujourd'hui ?",
+    "user": "Utilisateur",
+    "tabs": {
+      "home": "Accueil",
+      "exchanges": "Échanges",
+      "events": "Événements",
+      "profile": "Profil"
+    }
+  },
+
+  "activityTypes": {
+    "emprunt": "Emprunt",
+    "pret": "Prêt",
+    "service": "Service",
+    "evenement": "Événement"
+  },
+
+  "activityStatus": {
+    "actif": "Actif",
+    "en_cours": "En cours",
+    "en_retard": "En retard",
+    "confirme": "Confirmé",
+    "disponible": "Disponible",
+    "planifie": "Planifié",
+    "termine": "Terminé",
+    "annule": "Annulé",
+    "complete": "Terminé",
+    "inconnu": "Inconnu"
   }
 }

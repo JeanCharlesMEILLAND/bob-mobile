@@ -373,6 +373,12 @@ export const styles = StyleSheet.create({
     borderColor: '#F87171',
   },
   
+  dangerButtonDisabled: {
+    opacity: 0.6,
+    backgroundColor: '#F3F4F6',
+    borderColor: '#D1D5DB',
+  },
+  
   dangerButtonText: {
     fontSize: 13,
     color: '#DC2626',

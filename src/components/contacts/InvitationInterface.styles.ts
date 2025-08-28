@@ -48,6 +48,9 @@ export const styles = StyleSheet.create({
   },
 
   contactHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     marginBottom: Spacing.md,
   },
 
@@ -61,6 +64,17 @@ export const styles = StyleSheet.create({
   contactCardPhone: {
     fontSize: Typography.sizes.sm,
     color: Colors.textSecondary,
+  },
+
+  deleteButton: {
+    padding: 8,
+    borderRadius: 6,
+    backgroundColor: '#FFEBEE',
+  },
+
+  deleteButtonText: {
+    fontSize: 16,
+    color: '#F44336',
   },
 
   statusContainer: {

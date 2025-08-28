@@ -1,8 +1,10 @@
 // src/screens/exchanges/ExchangeStatusManager.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import { useAuth } from '../../hooks';
 import { notificationsService } from '../../services/notifications.service';
+import { realtimeChatService } from '../../services/realtime-chat.service';
+import { RealtimeChatButton } from '../../components/chat/RealtimeChatButton';
 import { styles } from './ExchangeStatusManager.styles';
 
 interface Exchange {
@@ -37,9 +39,53 @@ export const ExchangeStatusManager: React.FC<ExchangeStatusManagerProps> = ({
 }) => {
   const { user } = useAuth();
   const [updating, setUpdating] = useState(false);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [conversationLoading, setConversationLoading] = useState(false);
 
   const isOwner = exchange.createur.id === user?.id;
   const otherUser = isOwner ? exchange.demandeur : exchange.createur;
+
+  // Charger ou créer la conversation pour cet échange
+  useEffect(() => {
+    loadConversation();
+  }, [exchange.id]);
+
+  const loadConversation = async () => {
+    try {
+      setConversationLoading(true);
+      
+      // Récupérer les conversations existantes pour cet échange
+      const conversations = await realtimeChatService.getUserConversations();
+      const existingConversation = conversations.find(conv => 
+        conv.id.includes(exchange.id) || 
+        (conv.lastMessage && conv.lastMessage.content.includes(exchange.titre))
+      );
+
+      if (existingConversation) {
+        console.log('💬 Conversation trouvée pour échange:', existingConversation.id);
+        setConversationId(existingConversation.id);
+      } else {
+        console.log('💬 Aucune conversation trouvée, elle sera créée automatiquement par le backend');
+        // La conversation sera créée automatiquement par le lifecycle backend
+        setConversationId(`exchange_${exchange.id}_chat`);
+      }
+      
+    } catch (error) {
+      console.error('❌ Erreur chargement conversation échange:', error);
+    } finally {
+      setConversationLoading(false);
+    }
+  };
+
+  const handleChatPress = (convId: string) => {
+    console.log('💬 Ouverture chat échange:', convId);
+    // TODO: Navigation vers ChatScreen avec conversationId
+    Alert.alert(
+      'Chat temps réel',
+      `Conversation: ${convId}\n\n🚧 Navigation à implémenter`,
+      [{ text: 'OK' }]
+    );
+  };
 
   // Calculer les étapes selon le statut actuel
   const getExchangeSteps = () => {
@@ -263,6 +309,19 @@ export const ExchangeStatusManager: React.FC<ExchangeStatusManagerProps> = ({
         <View style={[styles.statusIndicator, { backgroundColor: getStatusColor() }]} />
         <Text style={styles.statusLabel}>{getStatusLabel()}</Text>
       </View>
+
+      {/* Chat temps réel */}
+      {conversationId && !conversationLoading && (
+        <View style={styles.chatSection}>
+          <RealtimeChatButton
+            conversationId={conversationId}
+            title="Discuter de cet échange"
+            subtitle={`Avec ${otherUser?.username}`}
+            onPress={handleChatPress}
+            disabled={conversationLoading}
+          />
+        </View>
+      )}
 
       {/* Progress Steps */}
       <View style={styles.stepsContainer}>

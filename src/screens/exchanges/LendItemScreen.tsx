@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../hooks';
-import { useContactsBob } from '../../hooks/useContactsBob';
+import { useContacts } from '../../hooks/contacts/useContacts';
 import { useSimpleNavigation } from '../../navigation/SimpleNavigation';
 import { Header, Button } from '../../components/common';
 import { exchangesService } from '../../services/exchanges.service';
@@ -77,7 +77,7 @@ export const LendItemScreen: React.FC = () => {
   const { user } = useAuth();
   const navigation = useSimpleNavigation();
   
-  const { repertoire, contacts: contactsBob } = useContactsBob();
+  const { repertoireContacts: repertoire, bobContacts: contactsBob } = useContacts();
   
   // États du formulaire
   const [title, setTitle] = useState('');

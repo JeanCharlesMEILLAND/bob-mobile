@@ -22,6 +22,7 @@ import { invitationsService } from '../../services/invitations.service';
 import { authService } from '../../services/auth.service';
 import { generateTranslatedMessageStatic } from '../../services/messageTranslation.service';
 import { formatPhoneForWhatsApp } from '../../utils/contactHelpers';
+import { useNotifications } from '../common/SmartNotifications';
 
 const STORAGE_KEY = '@bob_invitations_history';
 const ALPHABET = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
@@ -55,6 +56,9 @@ interface InvitationInterfaceProps {
   contactsBruts?: any[]; // 🔧 Ajout pour vérification de doublons
   onClose: () => void;
   onSaveGroupAssignments?: (assignments: { contactId: string; groupes: GroupeType[] }[]) => void;
+  onInvitationSent?: () => Promise<void>; // 🔧 Callback pour mise à jour des stats
+  sendInvitationFromHook?: (contactId: string, method: 'sms' | 'whatsapp') => Promise<void>; // 🔧 Fonction du hook principal
+  onRemoveContact?: (contactId: string) => Promise<void>; // 🔧 Fonction pour supprimer un contact du répertoire
 }
 
 export const InvitationInterface: React.FC<InvitationInterfaceProps> = ({
@@ -63,8 +67,12 @@ export const InvitationInterface: React.FC<InvitationInterfaceProps> = ({
   contactsBruts = [], // 🔧 Ajout pour vérification de doublons
   onClose,
   onSaveGroupAssignments,
+  onInvitationSent,
+  sendInvitationFromHook,
+  onRemoveContact,
 }) => {
   const { t, i18n } = useTranslation();
+  const notifications = useNotifications();
   const [contactsWithStatus, setContactsWithStatus] = useState<ContactWithStatus[]>([]);
   const [searchText, setSearchText] = useState('');
   const [letterFilter, setLetterFilter] = useState<string>('');
@@ -77,24 +85,7 @@ export const InvitationInterface: React.FC<InvitationInterfaceProps> = ({
     return phone?.replace(/[\s\-\(\)\.]/g, '') || '';
   };
 
-  // 🔧 Fonction de vérification si un numéro est déjà dans le répertoire
-  const checkIfInRepertoire = (telephone: string) => {
-    const normalizedPhone = normalizePhone(telephone);
-    
-    const contactInRepertoire = contactsBruts.find(contact => 
-      normalizePhone(contact.telephone) === normalizedPhone
-    );
-    
-    if (contactInRepertoire) {
-      return {
-        existe: true,
-        nom: contactInRepertoire.nom || contactInRepertoire.name || 'Contact sans nom',
-        telephone: contactInRepertoire.telephone
-      };
-    }
-    
-    return { existe: false };
-  };
+  // 🔧 SUPPRIMÉ: checkIfInRepertoire - logique erronée pour l'invitation sur Bob
 
   useEffect(() => {
     loadInvitationHistory();
@@ -191,23 +182,50 @@ export const InvitationInterface: React.FC<InvitationInterfaceProps> = ({
   const sendInvitation = async (contact: ContactWithStatus, method: 'sms' | 'whatsapp') => {
     console.log('🚀 DÉBUT sendInvitation:', { contact: contact.nom, method });
     
-    // 🔧 VÉRIFICATION 1: Vérifier si le contact est déjà dans le répertoire
-    const checkResult = checkIfInRepertoire(contact.telephone);
-    if (checkResult.existe) {
-      Alert.alert(
-        '📱 Contact déjà dans votre répertoire',
-        `Ce numéro (${contact.telephone}) correspond à "${checkResult.nom}" qui est déjà dans vos contacts téléphoniques.\n\nVoulez-vous l'inviter quand même ?`,
-        [
-          { text: 'Annuler', style: 'cancel' },
-          { text: 'Inviter quand même', onPress: () => {
-            console.log('📤 Invitation confirmée malgré doublon répertoire');
-            proceedWithInvitation();
-          }}
-        ]
-      );
-      return;
+    // 🔧 NOUVEAU: Utiliser la fonction du hook principal si disponible
+    if (sendInvitationFromHook) {
+      try {
+        console.log('🎯 Utilisation de sendInvitation du hook principal');
+        await sendInvitationFromHook(contact.id, method);
+        
+        // Mettre à jour l'état local aussi
+        const updatedContacts = contactsWithStatus.map(c => {
+          if (c.id === contact.id) {
+            return {
+              ...c,
+              statut: 'invite' as ContactStatus,
+              historiqueInvitations: [
+                ...c.historiqueInvitations,
+                {
+                  date: new Date().toISOString(),
+                  methode: method,
+                  message: getMessageForContact(contact, method, ''),
+                }
+              ],
+              dernierContact: new Date().toISOString(),
+            };
+          }
+          return c;
+        });
+        
+        setContactsWithStatus(updatedContacts);
+        await saveInvitationHistory(updatedContacts);
+        
+        // Notifier le parent pour mise à jour des stats
+        if (onInvitationSent) {
+          await onInvitationSent();
+        }
+        
+        console.log('✅ Invitation envoyée via hook principal');
+        return;
+      } catch (error) {
+        console.error('❌ Erreur invitation via hook principal:', error);
+        // Fallback vers l'ancien processus si échec
+      }
     }
-
+    
+    // 🔧 FALLBACK: Ancien processus si pas de fonction du hook
+    console.log('🔄 Utilisation du processus d\'invitation custom');
     proceedWithInvitation();
 
     async function proceedWithInvitation() {
@@ -224,7 +242,11 @@ export const InvitationInterface: React.FC<InvitationInterfaceProps> = ({
       const token = await authService.getValidToken();
       if (!token) {
         setIsLoading(false);
-        Alert.alert(t('common.error'), t('contacts.invitation.mustBeConnected'));
+        notifications.error(
+          t('common.error'), 
+          t('contacts.invitation.mustBeConnected'),
+          { category: 'auth_error', duration: 5000 }
+        );
         return;
       }
 
@@ -253,7 +275,12 @@ export const InvitationInterface: React.FC<InvitationInterfaceProps> = ({
         const phoneNumber = formatPhoneForWhatsApp(contact.telephone);
         
         if (!phoneNumber) {
-          Alert.alert('Erreur', 'Numéro de téléphone invalide pour WhatsApp');
+          setIsLoading(false);
+          notifications.error(
+            'Erreur', 
+            'Numéro de téléphone invalide pour WhatsApp',
+            { category: 'phone_error', duration: 5000 }
+          );
           return;
         }
         
@@ -316,8 +343,8 @@ export const InvitationInterface: React.FC<InvitationInterfaceProps> = ({
           return;
         }
       } else {
-        // Étape 3: Ouverture SMS
-        setLoadingMessage(`📱 Ouverture de l'application SMS...`);
+        // Étape 3: Ouverture de l'application
+        setLoadingMessage(method === 'sms' ? `📱 Ouverture de l'application SMS...` : `💬 Ouverture de WhatsApp...`);
         
         const canOpen = await Linking.canOpenURL(url);
         console.log('📱 URL supportée:', canOpen);
@@ -325,11 +352,18 @@ export const InvitationInterface: React.FC<InvitationInterfaceProps> = ({
         if (canOpen) {
           await Linking.openURL(url);
           console.log('✅ URL ouverte avec succès');
-          setLoadingMessage(`✅ SMS ouvert !`);
+          setLoadingMessage(method === 'sms' ? `✅ SMS ouvert !` : `✅ WhatsApp ouvert !`);
+          
+          // Petit délai pour laisser l'app s'ouvrir, puis continuer avec le traitement
+          await new Promise(resolve => setTimeout(resolve, 1500));
         } else {
           setIsLoading(false);
           console.error('❌ URL non supportée:', url);
-          Alert.alert('Erreur', 'Impossible d\'ouvrir l\'application SMS');
+          notifications.error(
+            'Erreur', 
+            method === 'sms' ? 'Impossible d\'ouvrir l\'application SMS' : 'Impossible d\'ouvrir WhatsApp',
+            { category: 'app_open_error', duration: 5000 }
+          );
           return;
         }
       }
@@ -360,17 +394,35 @@ export const InvitationInterface: React.FC<InvitationInterfaceProps> = ({
       setContactsWithStatus(updatedContacts);
       await saveInvitationHistory(updatedContacts);
       
+      // 🔧 Notifier le parent pour mise à jour des stats
+      if (onInvitationSent) {
+        try {
+          // Petit délai pour s'assurer que le cache AsyncStorage est écrit
+          await new Promise(resolve => setTimeout(resolve, 100));
+          await onInvitationSent();
+          console.log('✅ Stats du dashboard mises à jour après invitation');
+        } catch (error) {
+          console.warn('⚠️ Erreur mise à jour stats dashboard:', error);
+        }
+      }
+      
       // Fermer le modal de chargement après le processus complet
       setIsLoading(false);
       
-      Alert.alert(
+      // Notification au lieu de modal
+      notifications.success(
         'Invitation envoyée !', 
-        `L'invitation ${method.toUpperCase()} a été envoyée à ${contact.nom}`
+        `L'invitation ${method.toUpperCase()} a été envoyée à ${contact.nom}`,
+        { category: 'invitation_sent', duration: 4000 }
       );
     } catch (error) {
       setIsLoading(false);
       console.error('❌ Erreur envoi invitation:', error);
-      Alert.alert('Erreur d\'invitation', `Impossible d'envoyer l'invitation: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
+      notifications.error(
+        'Erreur d\'invitation', 
+        `Impossible d'envoyer l'invitation: ${error instanceof Error ? error.message : 'Erreur inconnue'}`,
+        { category: 'invitation_error', duration: 6000 }
+      );
     }
     } // 🔧 Fin de proceedWithInvitation
   }; // 🔧 Fin de sendInvitation
@@ -391,6 +443,40 @@ export const InvitationInterface: React.FC<InvitationInterfaceProps> = ({
     await saveInvitationHistory(updatedContacts);
     
     Alert.alert(t('contacts.invitation.joined'), t('contacts.invitation.joinedDesc', { name: contact.nom }));
+  };
+
+  const removeContact = async (contact: ContactWithStatus) => {
+    // 🎨 NOUVEAU: Utiliser notifications.confirm au lieu d'Alert.alert
+    notifications.confirm(
+      'Supprimer le contact',
+      `Voulez-vous vraiment supprimer ${contact.nom} de votre répertoire Bob ?`,
+      async () => {
+        // Action de confirmation (Supprimer)
+        if (onRemoveContact) {
+          try {
+            await onRemoveContact(contact.id);
+            // Mettre à jour la liste locale
+            const updatedContacts = contactsWithStatus.filter(c => c.id !== contact.id);
+            setContactsWithStatus(updatedContacts);
+            
+            // Les stats seront mises à jour par handleRemoveContactWithStatsUpdate
+            console.log('✅ Contact supprimé de l\'interface, stats en cours de mise à jour...');
+            
+            // ✅ Notification gérée par useContactsActions.ts - éviter le doublon
+          } catch (error) {
+            console.error('❌ Erreur suppression contact:', error);
+            notifications.error('Erreur', 'Impossible de supprimer le contact.');
+          }
+        }
+      },
+      () => {
+        // Action d'annulation (optionnelle)
+        console.log('Suppression annulée');
+      },
+      {
+        category: 'contact_deletion'
+      }
+    );
   };
 
   const getCurrentTemplateLabel = (contact: ContactWithStatus): string => {
@@ -470,8 +556,16 @@ export const InvitationInterface: React.FC<InvitationInterfaceProps> = ({
     return (
       <View style={styles.contactCard}>
         <View style={styles.contactHeader}>
-          <Text style={styles.contactCardName}>👤 {item.nom}</Text>
-          <Text style={styles.contactCardPhone}>{item.telephone}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.contactCardName}>👤 {item.nom}</Text>
+            <Text style={styles.contactCardPhone}>{item.telephone}</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={() => removeContact(item)}
+          >
+            <Text style={styles.deleteButtonText}>🗑️</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.statusContainer}>

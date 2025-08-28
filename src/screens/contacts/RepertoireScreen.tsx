@@ -10,26 +10,29 @@ import {
   ScrollView,
 } from 'react-native';
 import { Header, Button } from '../../components/common';
-import { ContactCurationInterface } from '../../components/contacts/ContactCurationInterface';
 import { ContactsSelectionInterface } from '../../components/contacts/ContactsSelectionInterface';
 import { Colors, Typography, Spacing, GlobalStyles } from '../../styles';
-import { useContactsBob } from '../../hooks/useContactsBob';
+import { useContacts } from '../../hooks/contacts/useContacts';
 
 export const RepertoireScreen = () => {
   const {
-    isLoading,
-    contactsBruts,           // Tous les contacts du téléphone
-    repertoire,              // Mes contacts Bob sélectionnés
-    contacts,                // Utilisateurs Bob trouvés
-    scannerRepertoireBrut,   // Scanner sans import auto
-    importerContactsEtSync, // Importer contacts choisis avec sync Strapi
-    repartirAZero,           // Vider le répertoire
+    loading: isLoading,
+    phoneContacts: contactsBruts,           // Tous les contacts du téléphone
+    repertoireContacts: repertoire,         // Mes contacts Bob sélectionnés
+    bobContacts: contacts,                  // Utilisateurs Bob trouvés
+    invitedContacts: invitations,           // Invitations en cours
+    scannerRepertoireBrut,                  // Scanner sans import auto
+    importerContactsEtSync,                 // Importer contacts choisis avec sync Strapi
+    supprimerTousLesContacts: repartirAZero, // Vider le répertoire
     inviterContact,
     getStats,
     lastScanDate,
-    needsRefreshScan,
-    clearCache,
-  } = useContactsBob();
+    // needsRefreshScan - à implémenter si nécessaire
+    clearAllDataAndCache: clearCache,
+  } = useContacts();
+  
+  // Variables temporaires pour maintenir la compatibilité
+  const needsRefreshScan = false;
 
   const [showCurationInterface, setShowCurationInterface] = useState(false);
   const [showInvitationInterface, setShowInvitationInterface] = useState(false);
@@ -137,21 +140,26 @@ export const RepertoireScreen = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Interface de curation */}
-      <ContactCurationInterface
-        visible={showCurationInterface}
-        contactsBruts={contactsBruts}
-        contactsDejaSelectionnes={repertoire.map(c => c.id)}
-        onClose={() => setShowCurationInterface(false)}
-        onImportSelected={handleImportContacts}
-        isLoading={isLoading}
-      />
+      {/* Interface de curation - Remplacée par ContactsSelectionInterface */}
+      {showCurationInterface && (
+        <ContactsSelectionInterface
+          contactsBruts={contactsBruts}
+          contactsDejaSelectionnes={repertoire?.map(c => c.id) || []}
+          contactsBob={contacts || []}
+          invitations={invitations || []}
+          onClose={() => setShowCurationInterface(false)}
+          onImportSelected={handleImportContacts}
+          isLoading={isLoading}
+        />
+      )}
 
       {/* Interface d'invitation */}
       {showInvitationInterface && (
         <ContactsSelectionInterface
           contactsBruts={contactsBruts}
-          contactsDejaSelectionnes={repertoire.map(c => c.id)}
+          contactsDejaSelectionnes={repertoire?.map(c => c.id) || []}
+          contactsBob={contacts || []}
+          invitations={invitations || []}
           onImportSelected={handleImportContacts}
           isLoading={isLoading}
           onClose={() => setShowInvitationInterface(false)}

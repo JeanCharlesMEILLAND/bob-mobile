@@ -248,9 +248,10 @@ export const DataInjectionScreen: React.FC = () => {
           <View style={styles.loadingSection}>
             <ActivityIndicator size="large" color="#3B82F6" />
             <Text style={styles.loadingText}>
-              {status.lastAction === 'inject' && 'Injection en cours...'}
-              {status.lastAction === 'clean' && 'Nettoyage en cours...'}
-              {status.lastAction === 'add_user' && 'Ajout du Bober Testeur...'}
+              {status.lastAction === 'inject' ? 'Injection en cours...' :
+               status.lastAction === 'clean' ? 'Nettoyage en cours...' :
+               status.lastAction === 'add_user' ? 'Ajout du Bober Testeur...' :
+               'Traitement en cours...'}
             </Text>
           </View>
         )}

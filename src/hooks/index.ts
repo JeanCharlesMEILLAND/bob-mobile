@@ -1,8 +1,5 @@
 // src/hooks/index.ts
 export * from './useAuth';
-export * from './useContacts';
-export * from './useContactsBob';
-export * from './useContactsWeb';
-export * from './useGradualContacts';
+// export * from './useContactsBob'; // ⚠️ MOVED TO deprecated/hooks/ - Use useContacts instead
 export * from './useMessageComposer';
-export * from './ContactsTestScreen';
+export * from './contacts/useContacts';

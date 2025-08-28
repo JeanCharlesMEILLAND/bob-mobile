@@ -147,7 +147,7 @@ export const styles = StyleSheet.create({
     height: 24,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#DDD',
+    borderColor: '#CCCCCC',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Spacing.md,
@@ -203,7 +203,7 @@ export const styles = StyleSheet.create({
     color: Colors.primary,
   },
   contactInitialDisabled: {
-    color: '#999',
+    color: '#666666',
   },
   contactDetails: {
     flex: 1,
@@ -214,7 +214,7 @@ export const styles = StyleSheet.create({
     color: Colors.text,
   },
   contactNameDisabled: {
-    color: '#999',
+    color: '#666666',
   },
   contactNumber: {
     fontSize: Typography.sizes.sm,
@@ -222,7 +222,7 @@ export const styles = StyleSheet.create({
     marginTop: 2,
   },
   contactNumberDisabled: {
-    color: '#BBB',
+    color: '#666666',
   },
   contactSuggestion: {
     fontSize: Typography.sizes.xs,
@@ -274,7 +274,7 @@ export const styles = StyleSheet.create({
   // Floating button
   floatingButtonContainer: {
     position: 'absolute',
-    bottom: 0,
+    bottom: 60, // Juste milieu - ni trop haut ni trop bas
     left: 0,
     right: 0,
     backgroundColor: Colors.white,
@@ -282,6 +282,10 @@ export const styles = StyleSheet.create({
     borderTopColor: '#E0E0E0',
     padding: Spacing.md,
     elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   floatingButton: {
     backgroundColor: Colors.primary,
@@ -294,5 +298,173 @@ export const styles = StyleSheet.create({
     color: Colors.white,
     fontSize: Typography.sizes.base,
     fontWeight: Typography.weights.bold,
+  },
+
+  // Lista de contacts
+  contactsList: {
+    flex: 1,
+    backgroundColor: Colors.background,
+    paddingBottom: 160, // Plus d'espace pour le bouton flottant
+  },
+
+  // Toggle section
+  toggleSection: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+  },
+  toggleButton: {
+    backgroundColor: '#F5F5F5',
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  toggleButtonActive: {
+    backgroundColor: Colors.primary + '20',
+  },
+  toggleText: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.textSecondary,
+    fontWeight: Typography.weights.medium,
+  },
+  toggleTextActive: {
+    color: Colors.primary,
+    fontWeight: Typography.weights.bold,
+  },
+
+  // Status badges
+  statusBadge: {
+    fontSize: Typography.sizes.xs,
+    color: '#666666',
+    backgroundColor: '#E0E0E0',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginTop: 2,
+    alignSelf: 'flex-start',
+  },
+  statusBadgeBob: {
+    fontSize: Typography.sizes.xs,
+    color: '#4CAF50',
+    backgroundColor: '#E8F5E8',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginTop: 2,
+    alignSelf: 'flex-start',
+  },
+  statusBadgeInvitation: {
+    fontSize: Typography.sizes.xs,
+    color: '#FF9800',
+    backgroundColor: '#FFF3E0',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginTop: 2,
+    alignSelf: 'flex-start',
+  },
+
+  // Disabled states (duplicate removed)
+  contactTextDisabled: {
+    color: '#666666',
+  },
+  contactBadges: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  // Barre alphabétique
+  alphabetContainer: {
+    backgroundColor: Colors.white,
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+  },
+  alphabetRow: {
+    flexDirection: 'row',
+    paddingHorizontal: Spacing.sm,
+  },
+  letterButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginHorizontal: 2,
+    borderRadius: 6,
+    backgroundColor: 'transparent',
+    minWidth: 30,
+    alignItems: 'center',
+  },
+  letterButtonActive: {
+    backgroundColor: Colors.primary,
+  },
+  letterButtonDisabled: {
+    opacity: 0.3,
+  },
+  letterText: {
+    color: Colors.primary,
+    fontWeight: Typography.weights.bold,
+    fontSize: 14,
+  },
+  letterTextActive: {
+    color: Colors.white,
+  },
+  letterTextDisabled: {
+    color: '#666666',
+  },
+  letterCount: {
+    fontSize: 8,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  letterCountActive: {
+    color: Colors.white,
+  },
+  letterFilterInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#E3F2FD',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: '#BBDEFB',
+  },
+  letterFilterText: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.primary,
+    fontWeight: Typography.weights.medium,
+  },
+  clearFilterText: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.primary,
+    textDecorationLine: 'underline',
+  },
+
+  // Styles pour contacts déjà importés
+  contactRowDisabled: {
+    opacity: 0.5,
+    backgroundColor: '#F5F5F5',
+  },
+  contactCheckboxDisabled: {
+    backgroundColor: '#E0E0E0',
+    borderColor: '#BDBDBD',
+  },
+  contactAvatarDisabled: {
+    backgroundColor: '#E0E0E0',
+    opacity: 0.7,
+  },
+  contactTextDisabled: {
+    color: '#9E9E9E',
+  },
+  checkmarkDisabled: {
+    fontSize: 12,
+    color: '#4CAF50',
+  },
+  contactAlreadyAdded: {
+    fontSize: Typography.sizes.xs,
+    color: '#4CAF50',
+    fontWeight: Typography.weights.medium,
+    marginTop: 2,
   },
 });

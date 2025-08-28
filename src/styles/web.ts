@@ -40,8 +40,8 @@ export const WebStyles = {
   
   // Styles pour les boutons sur web (hover effects)
   button: {
-    cursor: Platform.OS === 'web' ? 'pointer' : 'default',
-    transition: Platform.OS === 'web' ? 'all 0.2s ease' : undefined,
+    ...(Platform.OS === 'web' && { cursor: 'pointer' as any }),
+    ...(Platform.OS === 'web' && { transition: 'all 0.2s ease' as any }),
     minHeight: Platform.OS === 'web' ? 48 : 44,
     paddingHorizontal: Platform.OS === 'web' ? 24 : 16,
   },
@@ -113,4 +113,8 @@ export const isWebMobile = () => {
 
 export const getResponsiveStyle = (mobileStyle: any, webStyle: any) => {
   return Platform.OS === 'web' ? { ...mobileStyle, ...webStyle } : mobileStyle;
+};
+
+export const getWebStyle = (webStyle: any, fallback: any = {}) => {
+  return Platform.OS === 'web' ? webStyle : fallback;
 };

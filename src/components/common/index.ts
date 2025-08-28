@@ -13,3 +13,5 @@ export * from './CreateGroupModal';
 export * from './GroupeCard';
 export { SmartDashboard } from './SmartDashboard';
 export { SmartNotifications, useNotifications } from './SmartNotifications';
+export { WelcomeSection } from './WelcomeSection';
+export { TestModeIndicator } from './TestModeIndicator';

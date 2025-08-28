@@ -1,13 +1,18 @@
-// src/screens/events/EventsScreen.tsx
+// src/screens/events/EventsScreen.tsx - Version modernisée
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useSimpleNavigation } from '../../navigation/SimpleNavigation';
-import { Header, Button } from '../../components/common';
-import { Colors, Typography, Spacing, GlobalStyles } from '../../styles';
+import { Header } from '../../components/common';
 import { eventsService, Event, EventNeed } from '../../services/events.service';
 import { authService } from '../../services/auth.service';
-import { WebStyles, getResponsiveStyle, isWebDesktop } from '../../styles/web';
+import { 
+  ModernCard,
+  ModernSection,
+  ModernActionButton,
+  modernColors 
+} from '../../components/common/ModernUI';
+import { ModernScreen } from '../../components/common/ModernScreen';
 
 export const EventsScreen: React.FC = () => {
   const { t } = useTranslation();
@@ -98,67 +103,108 @@ export const EventsScreen: React.FC = () => {
 
   if (loading) {
     return (
-      <View style={styles.container}>
+      <ModernScreen style={{ backgroundColor: '#f5f5f5' }}>
         <Header title={t('events.title')} />
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>⏳ Chargement des événements...</Text>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <Text style={{ fontSize: 16, color: modernColors.gray }}>⏳ Chargement des événements...</Text>
         </View>
-      </View>
+      </ModernScreen>
     );
   }
 
   return (
-    <View style={[styles.container, WebStyles.container]}>
+    <ModernScreen
+      refreshing={refreshing}
+      onRefresh={onRefresh}
+      style={{ backgroundColor: '#f5f5f5' }}
+    >
       <Header title={t('events.title')} />
       
-      <View style={[styles.createButtonContainer, WebStyles.header]}>
-        <Button
-          title={t('events.createEvent')}
-          onPress={handleCreateEvent}
-          style={[styles.createButton, WebStyles.button]}
-        />
-      </View>
+      <ModernActionButton
+        icon="➕"
+        title={t('events.createEvent')}
+        description="Créer un nouvel événement collectif"
+        onPress={handleCreateEvent}
+        color={modernColors.primary}
+        style={{ margin: 8 }}
+      />
 
       {events.length === 0 ? (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyIcon}>🎯</Text>
-          <Text style={styles.emptyTitle}>{t('events.noEvents')}</Text>
-          <Text style={styles.emptyDescription}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 }}>
+          <Text style={{ fontSize: 64, marginBottom: 16 }}>🎯</Text>
+          <Text style={{
+            fontSize: 20,
+            fontWeight: 'bold',
+            color: modernColors.dark,
+            marginBottom: 8,
+            textAlign: 'center'
+          }}>{t('events.noEvents')}</Text>
+          <Text style={{
+            fontSize: 16,
+            color: modernColors.gray,
+            textAlign: 'center',
+            lineHeight: 24
+          }}>
             {t('events.createFirstEvent')}
           </Text>
         </View>
       ) : (
-        <ScrollView 
-          style={[styles.eventsList, WebStyles.scrollView]}
-          contentContainerStyle={WebStyles.container}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-        >
+        <View>
           {events.map((event) => (
-            <View key={event.id} style={[styles.eventCard, WebStyles.card]}>
+            <ModernCard key={event.id} style={{ margin: 8 }}>
               {/* En-tête événement */}
-              <View style={styles.eventHeader}>
-                <View style={styles.eventInfo}>
-                  <Text style={styles.eventTitle}>{event.titre}</Text>
-                  <Text style={styles.eventDate}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                <View style={{ flex: 1, marginRight: 12 }}>
+                  <Text style={{
+                    fontSize: 18,
+                    fontWeight: 'bold',
+                    color: modernColors.dark,
+                    marginBottom: 4
+                  }}>{event.titre}</Text>
+                  <Text style={{
+                    fontSize: 14,
+                    color: modernColors.gray,
+                    marginBottom: 2
+                  }}>
                     📅 {new Date(event.dateDebut).toLocaleDateString()}
                   </Text>
                   {event.adresse && (
-                    <Text style={styles.eventLocation}>📍 {event.adresse}</Text>
+                    <Text style={{
+                      fontSize: 14,
+                      color: modernColors.gray
+                    }}>📍 {event.adresse}</Text>
                   )}
                 </View>
-                <View style={[styles.eventStatus, { backgroundColor: getStatutColor(event.statut) }]}>
-                  <Text style={styles.eventStatusText}>{getStatutText(event.statut)}</Text>
+                <View style={{
+                  backgroundColor: getStatutColor(event.statut),
+                  paddingHorizontal: 8,
+                  paddingVertical: 4,
+                  borderRadius: 8
+                }}>
+                  <Text style={{
+                    color: modernColors.white,
+                    fontSize: 12,
+                    fontWeight: '500'
+                  }}>{getStatutText(event.statut)}</Text>
                 </View>
               </View>
 
-              <Text style={styles.eventDescription}>{event.description}</Text>
+              <Text style={{
+                fontSize: 16,
+                color: modernColors.dark,
+                lineHeight: 20,
+                marginBottom: 16
+              }}>{event.description}</Text>
 
               {/* Liste des besoins */}
               {event.besoins && event.besoins.length > 0 && (
-                <View style={styles.besoinsSection}>
-                  <Text style={styles.besoinsTitle}>📋 Besoins ({event.besoins.length})</Text>
+                <View style={{ marginBottom: 16 }}>
+                  <Text style={{
+                    fontSize: 16,
+                    fontWeight: '600',
+                    color: modernColors.dark,
+                    marginBottom: 12
+                  }}>📋 Besoins ({event.besoins.length})</Text>
                   
                   {event.besoins.map((besoin) => {
                     const isAssigned = besoin.assignations && besoin.assignations.length > 0;
@@ -167,21 +213,47 @@ export const EventsScreen: React.FC = () => {
                       : !isAssigned;
 
                     return (
-                      <View key={besoin.id} style={styles.besoinCard}>
-                        <View style={styles.besoinHeader}>
-                          <Text style={styles.besoinIcon}>{getBesoinIcon(besoin.type)}</Text>
-                          <View style={styles.besoinInfo}>
-                            <Text style={styles.besoinTitle}>{besoin.titre}</Text>
-                            <Text style={styles.besoinDescription}>{besoin.description}</Text>
+                      <View key={besoin.id} style={{
+                        backgroundColor: modernColors.lightGray,
+                        borderRadius: 12,
+                        padding: 12,
+                        marginBottom: 8,
+                        borderLeftWidth: 4,
+                        borderLeftColor: modernColors.primary
+                      }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                          <Text style={{ fontSize: 20, marginRight: 8, marginTop: 2 }}>{getBesoinIcon(besoin.type)}</Text>
+                          <View style={{ flex: 1 }}>
+                            <Text style={{
+                              fontSize: 16,
+                              fontWeight: '500',
+                              color: modernColors.dark,
+                              marginBottom: 4
+                            }}>{besoin.titre}</Text>
+                            <Text style={{
+                              fontSize: 14,
+                              color: modernColors.gray,
+                              lineHeight: 18,
+                              marginBottom: 4
+                            }}>{besoin.description}</Text>
                             
                             {besoin.quantite && besoin.quantite > 1 && (
-                              <Text style={styles.besoinQuantity}>
+                              <Text style={{
+                                fontSize: 12,
+                                color: modernColors.primary,
+                                fontWeight: '500',
+                                marginBottom: 4
+                              }}>
                                 👥 {besoin.assignations?.length || 0}/{besoin.quantite} personnes
                               </Text>
                             )}
                             
                             {isAssigned && (
-                              <Text style={styles.besoinAssigned}>
+                              <Text style={{
+                                fontSize: 12,
+                                color: modernColors.success,
+                                fontWeight: '500'
+                              }}>
                                 ✅ Pris en charge
                                 {besoin.assignations?.map(a => ` • ${a.participant}`).join('')}
                               </Text>
@@ -191,10 +263,21 @@ export const EventsScreen: React.FC = () => {
 
                         {needsMore && event.statut === 'planifie' && (
                           <TouchableOpacity 
-                            style={[styles.positionButton, WebStyles.button]}
+                            style={{
+                              backgroundColor: modernColors.primary,
+                              paddingHorizontal: 12,
+                              paddingVertical: 8,
+                              borderRadius: 8,
+                              marginTop: 8,
+                              alignSelf: 'flex-start'
+                            }}
                             onPress={() => handlePositionnerSurBesoin(event.documentId, besoin.id)}
                           >
-                            <Text style={styles.positionButtonText}>
+                            <Text style={{
+                              color: modernColors.white,
+                              fontSize: 14,
+                              fontWeight: '500'
+                            }}>
                               🎯 Me positionner
                             </Text>
                           </TouchableOpacity>
@@ -206,236 +289,36 @@ export const EventsScreen: React.FC = () => {
               )}
 
               {/* Footer avec BOBIZ */}
-              <View style={styles.eventFooter}>
-                <Text style={styles.eventBobiz}>💎 {event.bobizRecompense} BOBIZ</Text>
+              <View style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                paddingTop: 12,
+                borderTopWidth: 1,
+                borderTopColor: modernColors.border
+              }}>
+                <Text style={{
+                  fontSize: 14,
+                  color: modernColors.warning,
+                  fontWeight: '600'
+                }}>💎 {event.bobizRecompense} BOBIZ</Text>
                 {event.maxParticipants && (
-                  <Text style={styles.eventParticipants}>
+                  <Text style={{
+                    fontSize: 14,
+                    color: modernColors.gray
+                  }}>
                     👥 Max {event.maxParticipants} participants
                   </Text>
                 )}
               </View>
-            </View>
+            </ModernCard>
           ))}
-        </ScrollView>
+        </View>
       )}
-    </View>
+    </ModernScreen>
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: Spacing.xl,
-  },
-  
-  loadingText: {
-    fontSize: Typography.sizes.lg,
-    color: Colors.textSecondary,
-  },
-  
-  createButtonContainer: {
-    padding: Spacing.lg,
-    backgroundColor: Colors.white,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  
-  createButton: {
-    backgroundColor: '#3B82F6',
-  },
-  
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: Spacing.xl,
-  },
-  
-  emptyIcon: {
-    fontSize: 64,
-    marginBottom: Spacing.lg,
-  },
-  
-  emptyTitle: {
-    fontSize: Typography.sizes.xxl,
-    fontWeight: Typography.weights.bold,
-    color: Colors.text,
-    marginBottom: Spacing.md,
-    textAlign: 'center',
-  },
-  
-  emptyDescription: {
-    fontSize: Typography.sizes.base,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 24,
-  },
-  
-  eventsList: {
-    flex: 1,
-    padding: Spacing.lg,
-  },
-  
-  eventCard: {
-    backgroundColor: Colors.white,
-    borderRadius: 16,
-    padding: Spacing.lg,
-    marginBottom: Spacing.lg,
-    ...GlobalStyles.shadow,
-  },
-  
-  eventHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: Spacing.md,
-  },
-  
-  eventInfo: {
-    flex: 1,
-    marginRight: Spacing.md,
-  },
-  
-  eventTitle: {
-    fontSize: Typography.sizes.lg,
-    fontWeight: Typography.weights.bold,
-    color: Colors.text,
-    marginBottom: Spacing.xs,
-  },
-  
-  eventDate: {
-    fontSize: Typography.sizes.sm,
-    color: Colors.textSecondary,
-    marginBottom: Spacing.xs,
-  },
-  
-  eventLocation: {
-    fontSize: Typography.sizes.sm,
-    color: Colors.textSecondary,
-  },
-  
-  eventStatus: {
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs,
-    borderRadius: 8,
-  },
-  
-  eventStatusText: {
-    fontSize: Typography.sizes.xs,
-    color: Colors.white,
-    fontWeight: Typography.weights.medium,
-  },
-  
-  eventDescription: {
-    fontSize: Typography.sizes.base,
-    color: Colors.text,
-    lineHeight: 20,
-    marginBottom: Spacing.lg,
-  },
-  
-  besoinsSection: {
-    marginBottom: Spacing.lg,
-  },
-  
-  besoinsTitle: {
-    fontSize: Typography.sizes.md,
-    fontWeight: Typography.weights.semibold,
-    color: Colors.text,
-    marginBottom: Spacing.md,
-  },
-  
-  besoinCard: {
-    backgroundColor: Colors.backgroundLight,
-    borderRadius: 12,
-    padding: Spacing.md,
-    marginBottom: Spacing.sm,
-    borderLeftWidth: 4,
-    borderLeftColor: '#3B82F6',
-  },
-  
-  besoinHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-  
-  besoinIcon: {
-    fontSize: 20,
-    marginRight: Spacing.sm,
-    marginTop: 2,
-  },
-  
-  besoinInfo: {
-    flex: 1,
-  },
-  
-  besoinTitle: {
-    fontSize: Typography.sizes.md,
-    fontWeight: Typography.weights.medium,
-    color: Colors.text,
-    marginBottom: Spacing.xs,
-  },
-  
-  besoinDescription: {
-    fontSize: Typography.sizes.sm,
-    color: Colors.textSecondary,
-    lineHeight: 18,
-    marginBottom: Spacing.xs,
-  },
-  
-  besoinQuantity: {
-    fontSize: Typography.sizes.xs,
-    color: Colors.primary,
-    fontWeight: Typography.weights.medium,
-    marginBottom: Spacing.xs,
-  },
-  
-  besoinAssigned: {
-    fontSize: Typography.sizes.xs,
-    color: '#10B981',
-    fontWeight: Typography.weights.medium,
-  },
-  
-  positionButton: {
-    backgroundColor: '#3B82F6',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: 8,
-    marginTop: Spacing.sm,
-    alignSelf: 'flex-start',
-  },
-  
-  positionButtonText: {
-    color: Colors.white,
-    fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.medium,
-  },
-  
-  eventFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: Spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-  },
-  
-  eventBobiz: {
-    fontSize: Typography.sizes.sm,
-    color: '#F59E0B',
-    fontWeight: Typography.weights.semibold,
-  },
-  
-  eventParticipants: {
-    fontSize: Typography.sizes.sm,
-    color: Colors.textSecondary,
-  },
-});
+// Styles supprimés - utilisation des composants modernes
 
 export default EventsScreen;

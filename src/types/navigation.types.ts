@@ -4,13 +4,14 @@
 // =============================================================================
 
 export type ScreenType = 
-  | 'home' 
-  | 'events' 
-  | 'contacts' 
-  | 'profile'
-  | 'invite-contacts'
-  | 'contacts-groups'    // Optionnel - pour vos écrans existants
-  | 'repertoire';        // Optionnel - pour vos écrans existants
+  | 'home'               // Nouvelle structure - ExchangesScreen
+  | 'contacts'           // Gestion des contacts
+  | 'chat'               // Chat style WhatsApp
+  | 'profile'            // Profil utilisateur
+  | 'events'             // Gardé pour compatibilité
+  | 'invite-contacts'    // Gardé pour compatibilité
+  | 'contacts-groups'    // Gardé pour compatibilité
+  | 'repertoire';        // Gardé pour compatibilité
 
 export interface BottomNavigationProps {
   currentScreen: ScreenType;

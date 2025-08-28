@@ -93,7 +93,7 @@ export const invitationsService = {
         nombreRelances: item.nombreRelances,
         metadata: item.metadata
       })) || [];
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Erreur getMyInvitations:', error);
       throw error;
     }
@@ -197,7 +197,7 @@ export const invitationsService = {
       }
       
       console.log('✅ Invitation relancée');
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Erreur relance:', error);
       throw error;
     }
@@ -227,7 +227,7 @@ export const invitationsService = {
         
         console.log('✅ Invitation marquée acceptée');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Erreur acceptation:', error);
     }
   },
@@ -266,7 +266,7 @@ export const invitationsService = {
         nombreRelances: item.nombreRelances,
         metadata: item.metadata
       })) || [];
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Erreur getEventInvitations:', error);
       throw error;
     }
@@ -298,7 +298,7 @@ export const invitationsService = {
         invitations: result.invitations || [],
         errors: result.errors || []
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Erreur sendEventInvitations:', error);
       throw error;
     }
@@ -325,7 +325,7 @@ export const invitationsService = {
       }
       
       console.log('✅ Réponse enregistrée');
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Erreur respondToEventInvitation:', error);
       throw error;
     }
@@ -344,7 +344,7 @@ export const invitationsService = {
       if (!response.ok) return;
       
       console.log('✅ Invitation marquée comme vue');
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Erreur markEventInvitationAsSeen:', error);
     }
   },
@@ -369,7 +369,7 @@ export const invitationsService = {
       
       console.log(`✅ ${remindersSent} rappels envoyés`);
       return remindersSent;
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Erreur remindEventInvitations:', error);
       throw error;
     }
@@ -420,7 +420,7 @@ export const invitationsService = {
         nombreRelances: item.nombreRelances,
         metadata: item.metadata
       })) || [];
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Erreur getMyEventInvitations:', error);
       throw error;
     }
@@ -454,7 +454,7 @@ export const invitationsService = {
         refuse: 0,
         expire: 0
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Erreur getEventInvitationStats:', error);
       return {
         total: 0,
@@ -537,7 +537,7 @@ export const invitationsService = {
                   });
                 }
               }
-            } catch (error) {
+            } catch (error: any) {
               console.warn(`⚠️ Impossible de charger le groupe ${groupeId}:`, error);
             }
           }
@@ -588,7 +588,7 @@ export const invitationsService = {
 
       console.log(`✅ ${uniqueDestinataires.length} destinataires résolus`);
       return uniqueDestinataires;
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Erreur resolveTargetContacts:', error);
       throw error;
     }
@@ -625,7 +625,7 @@ export const invitationsService = {
         })),
         groupesSummary
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Erreur previewTargeting:', error);
       throw error;
     }

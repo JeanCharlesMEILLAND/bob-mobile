@@ -172,7 +172,7 @@ export const SyncIndicator: React.FC<SyncIndicatorProps> = ({
                 styles.progressBar,
                 {
                   backgroundColor: syncStatus.color,
-                  width: `${Math.max(10, (stats.pendingOps / (stats.pendingOps + 5)) * 100)}%`
+                  flex: Math.max(0.1, (stats.pendingOps / (stats.pendingOps + 5)))
                 }
               ]}
             />
@@ -250,8 +250,8 @@ const styles = {
     padding: Spacing.sm,
   },
   mainInfo: {
-    flexDirection: 'row' as any,
-    alignItems: 'center',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
   },
   icon: {
     fontSize: 16,
@@ -277,7 +277,7 @@ const styles = {
     overflow: 'hidden' as any,
   },
   progressBar: {
-    height: '100%',
+    height: 2,
     borderRadius: 1,
   },
   actionContainer: {
@@ -289,8 +289,8 @@ const styles = {
     fontStyle: 'italic' as any,
   },
   badge: {
-    flexDirection: 'row' as any,
-    alignItems: 'center',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
     paddingHorizontal: Spacing.sm,
     paddingVertical: 4,
     borderRadius: 12,

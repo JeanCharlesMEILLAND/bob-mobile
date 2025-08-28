@@ -181,6 +181,7 @@
   "navigation": {
     "home": "Home",
     "contacts": "Contacts",
+    "chat": "Chat",
     "exchanges": "Exchanges",
     "events": "Events",
     "profile": "Profile"
@@ -209,6 +210,12 @@
     "defaultLevel": "Beginner",
     "createExchange": "Create exchange",
     "createBob": "Create a Bob",
+    "createEvent": "Create an event",
+    "activities": "Activities",
+    "activitiesCount": "Activities ({{count}})",
+    "filter": "Filter",
+    "loadingMore": "Loading...",
+    "allActivitiesLoaded": "All activities have been loaded",
     "myExchanges": "My exchanges",
     "availableExchanges": "Available exchanges",
     "recentExchanges": "Recent Exchanges",
@@ -283,5 +290,44 @@
     "language": "Language",
     "chooseLanguage": "Choose language",
     "languageChanged": "Language changed to {{language}}"
+  },
+
+  "ui": {
+    "maintenance": "🔧 Maintenance",
+    "debugInfo": "Debug Info",
+    "noRequestsReceived": "No requests received",
+    "noRequestsReceivedDesc": "When your contacts need help,\nyou'll see them here!",
+    "requestsAndActions": "📋 Requests and actions ({{count}})",
+    "urgent": "URGENT",
+    "view": "View",
+    "hello": "Hello {{username}}!",
+    "whatBobToday": "What are we bobbing today?",
+    "user": "User",
+    "tabs": {
+      "home": "Home",
+      "exchanges": "Exchanges",
+      "events": "Events",
+      "profile": "Profile"
+    }
+  },
+
+  "activityTypes": {
+    "emprunt": "Borrow",
+    "pret": "Lend",
+    "service": "Service",
+    "evenement": "Event"
+  },
+
+  "activityStatus": {
+    "actif": "Active",
+    "en_cours": "In progress",
+    "en_retard": "Late",
+    "confirme": "Confirmed",
+    "disponible": "Available",
+    "planifie": "Planned",
+    "termine": "Completed",
+    "annule": "Cancelled",
+    "complete": "Completed",
+    "inconnu": "Unknown"
   }
 }

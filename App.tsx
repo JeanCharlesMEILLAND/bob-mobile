@@ -10,23 +10,20 @@ import {
   EventsScreen, 
   ProfileScreen 
 } from './src/screens';
-import { ExchangesScreen } from './src/screens/exchanges';
-import { CreateExchangeScreen, CreateBoberScreen, BoberCardScreen, BobTestScenario, DataInjectionScreen, VerifyStrapi } from './src/screens/exchanges';
+// Écrans principaux
+import { HomeScreen, ContactsScreen, ChatListScreen } from './src/screens/main';
 
-// Debug: vérifier que VerifyStrapi est bien importé
-console.log('🔍 Debug imports exchanges:', { 
-  CreateExchangeScreen: typeof CreateExchangeScreen,
-  CreateBoberScreen: typeof CreateBoberScreen, 
-  BoberCardScreen: typeof BoberCardScreen,
-  BobTestScenario: typeof BobTestScenario,
-  DataInjectionScreen: typeof DataInjectionScreen,
-  VerifyStrapi: typeof VerifyStrapi 
-});
-import { CreateEventScreen } from './src/screens/events';
-import { ContactsRepertoireScreen } from './src/screens/contacts/ContactsRepertoireScreen';
-import { ChatScreen, ContactsListScreen } from './src/screens/chat';
+// Écrans modaux
+import { CreateExchangeScreen, CreateBoberScreen, CreateEventScreen } from './src/screens/modals';
+
+// Écrans de flux (legacy)
+import { BoberCardScreen, BobTestScenario, DataInjectionScreen, VerifyStrapi } from './src/screens/exchanges';
+// import { ContactsSelectionScreen } from './src/screens/contacts/ContactsSelectionScreen'; // 🔧 DÉSACTIVÉ - Utiliser l'interface locale
+// import { InvitationContactsScreen } from './src/screens/contacts/InvitationContactsScreen'; // ⚠️ MOVED TO deprecated/
+import { ChatScreen } from './src/screens/chat';
 import { BottomNavigation } from './src/components/navigation';
 import { GlobalStyles, Colors } from './src/styles';
+import { WebStyles, isWebDesktop } from './src/styles/web';
 import { ScreenType } from './src/types';
 import './src/utils/webCSS';
 
@@ -51,7 +48,22 @@ const AppContentSimple: React.FC = () => {
 
   const navigate = (screen: string, params?: any) => {
     console.log('🧭 Navigation vers:', screen, params);
-    if (screen === 'CreateExchange' || screen === 'CreateBober' || screen === 'BoberCard' || screen === 'BobTest' || screen === 'DataInjection' || screen === 'VerifyStrapi' || screen === 'CreateEvent' || screen === 'Chat' || screen === 'ContactsList') {
+    
+    // 🔧 FIX: Bloquer la navigation vers les écrans de sélection de contacts (utiliser l'interface locale)
+    if (screen === 'ContactsSelection' || screen === 'SelectionContactsScreen') {
+      console.log('⚠️ Navigation vers écran de sélection bloquée - Activation interface locale');
+      
+      // 🔧 SOLUTION REACT NATIVE: Utiliser une notification globale via DeviceEventEmitter
+      const { DeviceEventEmitter } = require('react-native');
+      setTimeout(() => {
+        DeviceEventEmitter.emit('forceShowSelectionInterface');
+        console.log('📡 Événement global émis via DeviceEventEmitter');
+      }, 100);
+      
+      return;
+    }
+    
+    if (screen === 'CreateExchange' || screen === 'CreateBober' || screen === 'BoberCard' || screen === 'BobTest' || screen === 'DataInjection' || screen === 'VerifyStrapi' || screen === 'CreateEvent' || screen === 'Chat' || screen === 'ContactsList') { // InvitationContactsScreen removed (deprecated)
       setNavigationStack(prev => [...prev, { screen, params }]);
     }
   };
@@ -112,7 +124,7 @@ const AppContentSimple: React.FC = () => {
       }
 
       if (currentStackItem.screen === 'ContactsList') {
-        return <ContactsListScreen />;
+        return <ContactsScreen />; // Using main ContactsScreen instead
       }
 
       if (currentStackItem.screen === 'Chat') {
@@ -125,21 +137,27 @@ const AppContentSimple: React.FC = () => {
           isOnline={currentStackItem.params?.isOnline}
         />;
       }
+
+      // 🔧 ContactsSelection désactivé - Utiliser l'interface locale dans ContactsScreen
+
+      // InvitationContactsScreen moved to deprecated/ - functionality integrated elsewhere
     }
     
     // Sinon, afficher l'écran principal selon l'onglet actif
     console.log('📱 Écran principal:', currentScreen);
     switch (currentScreen) {
-      case 'events':
-        return <EventsScreen />;
+      case 'home':
+        return <HomeScreen />;
       case 'contacts':
-        // 🎯 NOUVELLE INTERFACE: ContactsRepertoireScreen
-        // Gère tout: scan, sélection, répertoire, invitations
-        return <ContactsRepertoireScreen />;
+        return <ContactsScreen />;
+      case 'chat':
+        return <ChatListScreen />;
       case 'profile':
         return <ProfileScreen />;
+      case 'events':  // Gardé pour compatibilité
+        return <EventsScreen />;
       default:
-        return <ExchangesScreen />;
+        return <HomeScreen />; // Fallback sur home
     }
   };
 
@@ -154,19 +172,29 @@ const AppContentSimple: React.FC = () => {
     navigateToTab,
   };
 
+  const isDesktop = isWebDesktop();
+
   return (
     <NavigationContext.Provider value={navigationValue}>
-      <View style={GlobalStyles.container}>
-        {renderScreen()}
-        {/* Masquer la navigation si on est sur un écran modal/secondaire */}
+      <View style={[GlobalStyles.container, isDesktop && { flexDirection: 'row' }]}>
+        {/* Navigation - Toujours visible */}
         {navigationStack.length === 0 && (
           <BottomNavigation
             currentScreen={currentScreen}
             onScreenChange={setCurrentScreen}
           />
         )}
-        {/* Notifications intelligentes toujours visibles */}
-        <SmartNotifications position="top" maxVisible={3} />
+        
+        {/* Contenu principal */}
+        <View style={[
+          { flex: 1 },
+          isDesktop && { marginLeft: 250, minHeight: '100vh' }
+        ]}>
+          {renderScreen()}
+        </View>
+        
+        {/* Notifications intelligentes */}
+        <SmartNotifications position="bottom" maxVisible={3} />
       </View>
     </NavigationContext.Provider>
   );

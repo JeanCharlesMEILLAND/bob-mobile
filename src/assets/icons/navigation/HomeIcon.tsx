@@ -1,0 +1,34 @@
+import React from 'react';
+import Svg, { Path, Defs, LinearGradient, Stop } from 'react-native-svg';
+
+interface HomeIconProps {
+  width?: number;
+  height?: number;
+  active?: boolean;
+}
+
+export const HomeIcon: React.FC<HomeIconProps> = ({ 
+  width = 20, 
+  height = 20, 
+  active = false 
+}) => {
+  if (active) {
+    return (
+      <Svg width={width} height={height} viewBox="0 0 20 20" fill="none">
+        <Path d="M0 10.204C0 7.915 0 6.771 0.52 5.823C1.038 4.874 1.987 4.286 3.884 3.108L5.884 1.867C7.889 0.622 8.892 0 10 0C11.108 0 12.11 0.622 14.116 1.867L16.116 3.108C18.013 4.286 18.962 4.874 19.481 5.823C20 6.772 20 7.915 20 10.203V11.725C20 15.625 20 17.576 18.828 18.788C17.656 20 15.771 20 12 20H8C4.229 20 2.343 20 1.172 18.788C0.000999928 17.576 0 15.626 0 11.725V10.204Z" fill="url(#paint0_linear_4278_2671)"/>
+        <Defs>
+          <LinearGradient id="paint0_linear_4278_2671" x1="10" y1="-2.98023e-07" x2="-4.47035e-07" y2="20" gradientUnits="userSpaceOnUse">
+            <Stop stopColor="#05B1F5"/>
+            <Stop offset="1" stopColor="#166DF6"/>
+          </LinearGradient>
+        </Defs>
+      </Svg>
+    );
+  }
+
+  return (
+    <Svg width={width} height={height} viewBox="0 0 20 20" fill="none">
+      <Path d="M0 10.204C0 7.915 0 6.771 0.52 5.823C1.038 4.874 1.987 4.286 3.884 3.108L5.884 1.867C7.889 0.622 8.892 0 10 0C11.108 0 12.11 0.622 14.116 1.867L16.116 3.108C18.013 4.286 18.962 4.874 19.481 5.823C20 6.772 20 7.915 20 10.203V11.725C20 15.625 20 17.576 18.828 18.788C17.656 20 15.771 20 12 20H8C4.229 20 2.343 20 1.172 18.788C0.000999928 17.576 0 15.626 0 11.725V10.204Z" fill="#7C8CA8"/>
+    </Svg>
+  );
+};

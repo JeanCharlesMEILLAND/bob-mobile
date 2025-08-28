@@ -13,6 +13,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { styles } from './ManageContactsScreen.styles';
 import { GroupeType, GROUPE_TYPES } from '../../types/contacts.types';
+import { useNotifications } from '../common/SmartNotifications';
 
 const STORAGE_KEY = '@bob_contacts_tags';
 const HISTORY_KEY = '@bob_invitations_history';
@@ -52,6 +53,7 @@ export const ManageContactsScreen: React.FC<ManageContactsScreenProps> = ({
   onViewProfile,
   onDeleteContact,
 }) => {
+  const notifications = useNotifications();
   const [searchText, setSearchText] = useState('');
   const [contactsWithTags, setContactsWithTags] = useState<ContactWithTags[]>([]);
   const [letterFilter, setLetterFilter] = useState<string>('');
@@ -74,7 +76,7 @@ export const ManageContactsScreen: React.FC<ManageContactsScreenProps> = ({
       const savedHistory = storedHistory ? JSON.parse(storedHistory) : {};
       
       console.log('📱 ManageContacts - Chargement des données...');
-      console.log('📋 Historique invitations:', savedHistory);
+      // console.log('📋 Historique invitations:', savedHistory); // Commenté temporairement pour debug
       
       // FILTRER uniquement les contacts qui ont Bob
       const contactsAvecBobOnly = repertoire.filter(contact => {
@@ -158,37 +160,38 @@ export const ManageContactsScreen: React.FC<ManageContactsScreenProps> = ({
   };
 
   const handleDeleteContact = (contact: ContactWithTags) => {
-    Alert.alert(
+    notifications.confirm(
       'Retirer de mes amis Bob',
-      `${contact.nom} restera sur Bob mais ne sera plus dans votre liste d'amis.\\n\\nVoulez-vous continuer ?`,
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Retirer',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const storedHistory = await AsyncStorage.getItem(HISTORY_KEY);
-              const history = storedHistory ? JSON.parse(storedHistory) : {};
-              
-              if (history[contact.id]) {
-                history[contact.id].retiréDesMesAmis = true;
-                history[contact.id].dateRetrait = new Date().toISOString();
-                await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(history));
-              }
-            } catch (error) {
-              console.error('Erreur mise à jour historique:', error);
-            }
-            
-            if (onDeleteContact) {
-              onDeleteContact(contact.id);
-            }
-            setContactsWithTags(prev => prev.filter(c => c.id !== contact.id));
-            setShowActionsModal(false);
-            Alert.alert('✅', `${contact.nom} a été retiré de vos amis Bob`);
+      `${contact.nom} restera sur Bob mais ne sera plus dans votre liste d'amis.\n\nVoulez-vous continuer ?`,
+      async () => {
+        try {
+          const storedHistory = await AsyncStorage.getItem(HISTORY_KEY);
+          const history = storedHistory ? JSON.parse(storedHistory) : {};
+          
+          if (history[contact.id]) {
+            history[contact.id].retiréDesMesAmis = true;
+            history[contact.id].dateRetrait = new Date().toISOString();
+            await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(history));
           }
+        } catch (error) {
+          console.error('Erreur mise à jour historique:', error);
         }
-      ]
+        
+        if (onDeleteContact) {
+          onDeleteContact(contact.id);
+        }
+        setContactsWithTags(prev => prev.filter(c => c.id !== contact.id));
+        setShowActionsModal(false);
+        
+        // ✅ Notification cohérente avec le hook principal - éviter doublon
+        console.log('✅ Contact retiré des amis, notification gérée par useContactsActions');
+      },
+      () => {
+        console.log('Retrait annulé par l\'utilisateur');
+      },
+      {
+        category: 'contact_friend_removal'
+      }
     );
   };
 
@@ -243,39 +246,81 @@ export const ManageContactsScreen: React.FC<ManageContactsScreenProps> = ({
   }, [contactsWithTags, searchText, letterFilter]);
 
   const renderContactCard = ({ item }: { item: ContactWithTags }) => {
+    // Protection maximale contre les données corrompues
+    if (!item || typeof item !== 'object') {
+      console.warn('Item invalide dans renderContactCard:', item);
+      return <View style={{ padding: 10 }}><Text>Contact invalide</Text></View>;
+    }
+
+    const safeNom = item.nom ? String(item.nom) : 'Nom inconnu';
+    const safeTelephone = item.telephone ? String(item.telephone) : 'Numéro inconnu';
+    const safeInitial = safeNom.length > 0 ? safeNom.charAt(0).toUpperCase() : '?';
+    
+    // Calcul sécurisé des jours
     const daysSinceJoined = item.dateInscriptionBob 
-      ? Math.floor((Date.now() - new Date(item.dateInscriptionBob).getTime()) / (1000 * 60 * 60 * 24))
+      ? Math.max(0, Math.floor((Date.now() - new Date(item.dateInscriptionBob).getTime()) / (1000 * 60 * 60 * 24)))
       : 0;
+    const dayText = daysSinceJoined > 0 ? `depuis ${daysSinceJoined}j` : "aujourd'hui";
+    
+    // Calcul sécurisé des échanges
+    const safeNombreEchanges = typeof item.nombreEchanges === 'number' ? item.nombreEchanges : 0;
+    const exchangeText = safeNombreEchanges > 1 ? `${safeNombreEchanges} échanges` : `${safeNombreEchanges} échange`;
 
     return (
       <View style={styles.contactCard}>
         <View style={styles.contactHeader}>
           <View style={[styles.contactAvatar, { backgroundColor: '#4CAF50' }]}>
-            <Text style={styles.contactInitial}>
-              {item.nom.charAt(0).toUpperCase()}
-            </Text>
+            <Text style={styles.contactInitial}>{safeInitial}</Text>
           </View>
           <View style={styles.contactInfo}>
-            <Text style={styles.contactName}>{item.nom}</Text>
-            <Text style={styles.contactNumber}>{item.telephone}</Text>
+            <Text style={styles.contactName}>{safeNom}</Text>
+            <Text style={styles.contactNumber}>{safeTelephone}</Text>
             <View style={styles.hasBobBadge}>
-              <Text style={styles.hasBobBadgeText}>
-                ✅ Sur Bob {daysSinceJoined > 0 ? `depuis ${daysSinceJoined}j` : "aujourd'hui"}
-              </Text>
+              <Text style={styles.hasBobBadgeText}>✅ Sur Bob {dayText}</Text>
             </View>
-            {item.nombreEchanges && item.nombreEchanges > 0 && (
-              <Text style={styles.exchangeCount}>
-                {item.nombreEchanges} échange{item.nombreEchanges > 1 ? 's' : ''}
-              </Text>
+            {safeNombreEchanges > 0 && (
+              <Text style={styles.exchangeCount}>{exchangeText}</Text>
             )}
           </View>
+          {onDeleteContact && (
+            <TouchableOpacity
+              style={styles.deleteButton}
+              onPress={() => {
+                notifications.confirm(
+                  'Supprimer le contact',
+                  `Voulez-vous vraiment supprimer ${safeNom} de votre répertoire Bob ?`,
+                  () => {
+                    onDeleteContact(item.id || item.telephone);
+                    // ✅ Notification gérée par useContactsActions
+                  },
+                  () => {
+                    console.log('Suppression annulée par l\'utilisateur');
+                  },
+                  {
+                    category: 'contact_deletion'
+                  }
+                );
+              }}
+            >
+              <Text style={styles.deleteButtonText}>🗑️</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         <View style={styles.tagsContainer}>
           <Text style={styles.tagsLabel}>Groupes :</Text>
           <View style={styles.tagsRow}>
             {GROUPE_TYPES.map(groupe => {
-              const isActive = item.tags.includes(groupe.value);
+              if (!groupe || !groupe.value || !groupe.label) {
+                return null;
+              }
+              
+              const safeTags = Array.isArray(item.tags) ? item.tags : [];
+              const isActive = safeTags.includes(groupe.value);
+              const buttonText = isActive 
+                ? `${groupe.icon || ''}${groupe.icon ? ' ' : ''}${groupe.label}`
+                : `+${groupe.label}`;
+              
               return (
                 <TouchableOpacity
                   key={groupe.value}
@@ -283,7 +328,7 @@ export const ManageContactsScreen: React.FC<ManageContactsScreenProps> = ({
                   onPress={() => toggleTag(item.id, groupe.value)}
                 >
                   <Text style={[styles.tagButtonText, isActive && styles.tagButtonTextActive]}>
-                    {isActive ? `${groupe.icon} ${groupe.label}` : `+${groupe.label}`}
+                    {buttonText}
                   </Text>
                 </TouchableOpacity>
               );
@@ -315,6 +360,192 @@ export const ManageContactsScreen: React.FC<ManageContactsScreenProps> = ({
     );
   };
 
+  return (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={onClose} style={styles.backButton}>
+          <Text style={styles.backButtonText}>←</Text>
+        </TouchableOpacity>
+        <View style={styles.headerContent}>
+          <Text style={styles.title}>Mes amis Bob</Text>
+          <Text style={styles.subtitle}>
+            {contactsWithTags.length} ami{contactsWithTags.length > 1 ? 's' : ''} actif{contactsWithTags.length > 1 ? 's' : ''}
+          </Text>
+        </View>
+        <TouchableOpacity onPress={refreshContacts} style={styles.refreshButton}>
+          <Text style={styles.refreshButtonText}>🔄</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.searchBar}>
+        <TextInput
+          placeholder="🔍 Rechercher un ami Bob..."
+          value={searchText}
+          onChangeText={setSearchText}
+          style={styles.searchInput}
+        />
+        {searchText.length > 0 && (
+          <TouchableOpacity onPress={() => setSearchText('')} style={styles.searchClear}>
+            <Text style={styles.searchClearText}>✕</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      <View style={styles.alphabetContainer}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <View style={styles.alphabetRow}>
+            {ALPHABET.map(letter => (
+              <TouchableOpacity
+                key={letter}
+                onPress={() => setLetterFilter(letterFilter === letter ? '' : letter)}
+                style={[
+                  styles.letterButton,
+                  letterFilter === letter && styles.letterButtonActive,
+                  contactsByLetter[letter] === 0 && styles.letterButtonDisabled,
+                ]}
+                disabled={contactsByLetter[letter] === 0}
+              >
+                <Text style={[
+                  styles.letterText,
+                  letterFilter === letter && styles.letterTextActive,
+                  contactsByLetter[letter] === 0 && styles.letterTextDisabled,
+                ]}>
+                  {letter}
+                </Text>
+                {contactsByLetter[letter] > 0 && (
+                  <Text style={[
+                    styles.letterCount,
+                    letterFilter === letter && styles.letterCountActive,
+                  ]}>
+                    {contactsByLetter[letter]}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
+        </ScrollView>
+      </View>
+
+      <FlatList
+        data={contactsFiltered}
+        keyExtractor={(item, index) => `${item.id}_${index}_${item.nom || 'unknown'}_${item.telephone || 'no-phone'}`}
+        renderItem={renderContactCard}
+        contentContainerStyle={styles.listContent}
+        ListEmptyComponent={
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyIcon}>
+              {letterFilter ? '🔤' : searchText ? '🔍' : '👥'}
+            </Text>
+            <Text style={styles.emptyTitle}>
+              {letterFilter ? `Aucun ami Bob en "${letterFilter}"` :
+               searchText ? 'Aucun ami trouvé' :
+               'Aucun ami sur Bob pour le moment'}
+            </Text>
+            <Text style={styles.emptyDescription}>
+              Allez dans "Inviter" pour marquer vos contacts comme ayant rejoint Bob !
+            </Text>
+          </View>
+        }
+      />
+
+      <Modal
+        visible={showHistoryModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowHistoryModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>📜 Historique</Text>
+              <TouchableOpacity onPress={() => setShowHistoryModal(false)}>
+                <Text style={styles.modalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            
+            {selectedContact && (
+              <ScrollView style={styles.modalScroll}>
+                <Text style={styles.contactModalName}>{selectedContact.nom}</Text>
+                <Text style={styles.contactModalInfo}>
+                  Sur Bob depuis {selectedContact.dateInscriptionBob ? new Date(selectedContact.dateInscriptionBob).toLocaleDateString() : 'récemment'}
+                </Text>
+                
+                {selectedContact.historiqueActions && selectedContact.historiqueActions.length > 0 ? (
+                  selectedContact.historiqueActions.map((action, index) => (
+                    <View key={index} style={styles.historyItem}>
+                      <Text style={styles.historyDate}>
+                        {new Date(action.date).toLocaleDateString()}
+                      </Text>
+                      <Text style={styles.historyType}>
+                        {action.type === 'echange' ? '🔄' : 
+                         action.type === 'evenement' ? '🎉' :
+                         action.type === 'service' ? '🤝' : '📤'} {action.type}
+                      </Text>
+                      <Text style={styles.historyDescription}>
+                        {action.description}
+                      </Text>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={styles.noHistory}>Aucun historique pour le moment</Text>
+                )}
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showActionsModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowActionsModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.actionModalContent}>
+            {selectedContact && (
+              <>
+                <View style={styles.actionModalHeader}>
+                  <Text style={styles.actionModalTitle}>{selectedContact.nom}</Text>
+                  <TouchableOpacity onPress={() => setShowActionsModal(false)}>
+                    <Text style={styles.modalClose}>✕</Text>
+                  </TouchableOpacity>
+                </View>
+                
+                <TouchableOpacity 
+                  style={styles.actionItem}
+                  onPress={() => handleViewProfile(selectedContact)}
+                >
+                  <Text style={styles.actionIcon}>👤</Text>
+                  <Text style={styles.actionText}>Voir le profil</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={styles.actionItem}
+                  onPress={() => handleViewHistory(selectedContact)}
+                >
+                  <Text style={styles.actionIcon}>📜</Text>
+                  <Text style={styles.actionText}>Voir l'historique</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={[styles.actionItem, styles.actionItemDanger]}
+                  onPress={() => handleDeleteContact(selectedContact)}
+                >
+                  <Text style={styles.actionIcon}>🗑️</Text>
+                  <Text style={[styles.actionText, styles.actionTextDanger]}>
+                    Retirer de mes amis
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
+
+  /* VERSION COMPLÈTE TEMPORAIREMENT DÉSACTIVÉE
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -499,4 +730,5 @@ export const ManageContactsScreen: React.FC<ManageContactsScreenProps> = ({
       </Modal>
     </View>
   );
+  */
 };

@@ -1,5 +1,6 @@
 // src/services/exchanges.service.ts
 import { apiClient } from './api';
+import { realtimeChatService } from './realtime-chat.service';
 
 export interface ExchangeStrapi {
   id: number;
@@ -27,6 +28,15 @@ export interface ExchangeStrapi {
     telephone: string;
     email?: string;
   }>;
+
+  // 🔗 ARCHITECTURE UNIFIÉE - Origine et lien événement
+  origine?: 'direct' | 'evenement';
+  evenement?: {
+    id: number;
+    titre: string;
+    dateDebut: string;
+  } | null;
+  evenementId?: number; // ID simple pour les créations
   
   // Métadonnées
   dateCreation: string;
@@ -35,6 +45,12 @@ export interface ExchangeStrapi {
     localisation?: string;
     urgence?: 'basse' | 'normale' | 'haute';
     images?: string[];
+    // Métadonnées événement
+    besoinOriginal?: {
+      id: string;
+      titre: string;
+      type: string;
+    };
   };
 }
 
@@ -48,9 +64,21 @@ export interface CreateExchangeData {
   statut?: 'actif' | 'en_cours' | 'termine' | 'annule';
   contactsCibles?: number[]; // IDs des contacts ciblés (legacy)
   contactsCiblesTelephones?: string[]; // Téléphones des contacts ciblés (nouveau)
-  // Champs retirés car non supportés par Strapi:
-  // - categorie (n'existe pas)
-  // - metadata (pas encore implémenté)
+
+  // 🔗 ARCHITECTURE UNIFIÉE - Support création depuis événement
+  origine?: 'direct' | 'evenement';
+  evenementId?: number; // ID de l'événement parent
+  metadata?: {
+    localisation?: string;
+    urgence?: 'basse' | 'normale' | 'haute';
+    images?: string[];
+    // Métadonnées événement
+    besoinOriginal?: {
+      id: string;
+      titre: string;
+      type: string;
+    };
+  };
 }
 
 export interface UpdateExchangeData {
@@ -136,7 +164,7 @@ export const exchangesService = {
           ...result
         };
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Erreur création échange:', error);
       console.error('❌ Stack trace:', error.stack);
       throw error;
@@ -176,7 +204,7 @@ export const exchangesService = {
             console.log(`⚠️ ${endpoint} - Status: ${response.status} - ${errorText.substring(0, 100)}`);
             lastError = `${endpoint}: ${response.status}`;
           }
-        } catch (error) {
+        } catch (error: any) {
           console.log(`❌ ${endpoint} - Erreur:`, error.message);
           lastError = `${endpoint}: ${error.message}`;
           continue;
@@ -227,10 +255,10 @@ export const exchangesService = {
       }
       
       console.log('✅ Échanges récupérés et formatés:', exchanges.length);
-      console.log('📋 Liste des échanges:', exchanges.map(e => ({ id: e.id, titre: e.titre, type: e.type })));
+      console.log('📋 Liste des échanges:', exchanges.map((e: any) => ({ id: e.id, titre: e.titre, type: e.type })));
       
       return exchanges;
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Erreur getMyExchanges:', error);
       console.error('❌ Stack trace:', error.stack);
       return []; // Retourner array vide plutôt que throw pour éviter crash
@@ -247,7 +275,7 @@ export const exchangesService = {
       if (filters) {
         const params = new URLSearchParams();
         if (filters.type) params.append('type', filters.type);
-        if (filters.categorie) params.append('categorie', filters.categorie);
+        if ((filters as any).categorie) params.append('categorie', (filters as any).categorie);
         if (filters.search) params.append('search', filters.search);
         
         if (params.toString()) {
@@ -280,7 +308,7 @@ export const exchangesService = {
         dateModification: item.dateModification,
         metadata: item.metadata
       })) || [];
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Erreur getAvailableExchanges:', error);
       throw error;
     }
@@ -309,7 +337,7 @@ export const exchangesService = {
         id: result.data.id,
         ...result.data.attributes
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Erreur updateExchange:', error);
       throw error;
     }
@@ -358,7 +386,7 @@ export const exchangesService = {
       }
       
       console.log('✅ Échange supprimé');
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Erreur deleteExchange:', error);
       throw error;
     }
@@ -370,8 +398,8 @@ export const exchangesService = {
   respondToExchange: async (
     exchangeId: number, 
     response: 'accepte' | 'refuse', 
-    message?: string,
-    token: string
+    token: string,
+    message?: string
   ): Promise<void> => {
     console.log('💬 Réponse à échange:', { exchangeId, response });
     
@@ -389,14 +417,14 @@ export const exchangesService = {
       }
       
       console.log('✅ Réponse enregistrée');
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Erreur respondToExchange:', error);
       throw error;
     }
   },
 
   // Marquer un échange comme terminé
-  completeExchange: async (exchangeId: number, rating?: number, comment?: string, token: string): Promise<void> => {
+  completeExchange: async (exchangeId: number, token: string, rating?: number, comment?: string): Promise<void> => {
     console.log('✅ Finalisation échange:', exchangeId);
     
     try {
@@ -416,7 +444,7 @@ export const exchangesService = {
       }
       
       console.log('✅ Échange finalisé');
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Erreur completeExchange:', error);
       throw error;
     }
@@ -451,7 +479,7 @@ export const exchangesService = {
         myRequests: 0,
         successRate: 0
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Erreur getExchangeStats:', error);
       return {
         totalExchanges: 0,
@@ -462,6 +490,146 @@ export const exchangesService = {
         myRequests: 0,
         successRate: 0
       };
+    }
+  },
+
+  // === ARCHITECTURE UNIFIÉE - SUPPORT ÉVÉNEMENTS ===
+
+  /**
+   * Créer un BOB depuis un besoin d'événement
+   */
+  createFromEventNeed: async (
+    besoinData: {
+      id: string;
+      titre: string;
+      description: string;
+      type: 'objet' | 'service_individuel' | 'service_collectif' | 'service_timing';
+    },
+    eventData: {
+      id: string;
+      titre: string;
+      dateDebut: string;
+    },
+    token: string
+  ): Promise<ExchangeStrapi> => {
+    console.log('🎯 Création BOB depuis besoin événement:', besoinData.titre);
+
+    const bobType = besoinData.type === 'objet' ? 'pret' : 'service_offert';
+    
+    const createData: CreateExchangeData = {
+      titre: `${besoinData.titre} - ${eventData.titre}`,
+      description: `${besoinData.description}\n\n🎯 Issu de l'événement "${eventData.titre}"\n📅 ${new Date(eventData.dateDebut).toLocaleDateString('fr-FR')}`,
+      type: bobType,
+      bobizRecompense: exchangesService.calculateBobizForNeed(besoinData),
+      statut: 'actif',
+      origine: 'evenement',
+      evenementId: parseInt(eventData.id),
+      metadata: {
+        besoinOriginal: {
+          id: besoinData.id,
+          titre: besoinData.titre,
+          type: besoinData.type
+        }
+      }
+    };
+
+    return exchangesService.createExchange(createData, token);
+  },
+
+  /**
+   * Récupérer tous les BOB issus d'événements
+   */
+  getEventRelatedExchanges: async (token: string, eventId?: string): Promise<ExchangeStrapi[]> => {
+    console.log('📋 Récupération BOB liés aux événements');
+    
+    try {
+      let url = '/echanges?populate=*&filters[origine][$eq]=evenement';
+      if (eventId) {
+        url += `&filters[evenementId][$eq]=${eventId}`;
+      }
+
+      const response = await apiClient.get(url, token);
+      
+      if (!response.ok) {
+        throw new Error('Erreur récupération BOB événements');
+      }
+
+      const result = await response.json();
+      const exchanges = result.data || [];
+
+      console.log(`✅ ${exchanges.length} BOB liés aux événements récupérés`);
+      return exchanges.map((item: any) => ({
+        ...item,
+        id: item.id || item.documentId,
+        origine: item.origine || 'evenement',
+        evenement: item.evenement,
+        metadata: item.metadata
+      }));
+    } catch (error: any) {
+      console.error('❌ Erreur getEventRelatedExchanges:', error);
+      return [];
+    }
+  },
+
+  /**
+   * Synchroniser le statut d'un BOB avec le besoin d'événement correspondant
+   */
+  syncBobStatusToBesoin: async (
+    bobId: number, 
+    newStatus: 'actif' | 'en_cours' | 'termine' | 'annule',
+    token: string
+  ): Promise<void> => {
+    console.log('🔄 Synchronisation BOB → Besoin événement:', bobId);
+
+    try {
+      // 1. Récupérer le BOB pour vérifier s'il vient d'un événement
+      const bob = await exchangesService.getExchange(bobId, token);
+      
+      if (!bob.evenementId || bob.origine !== 'evenement') {
+        console.log('ℹ️ BOB non lié à un événement, pas de synchronisation');
+        return;
+      }
+
+      // 2. Appeler l'API événements pour synchroniser
+      await apiClient.post(`/evenements/${bob.evenementId}/sync-besoin`, {
+        data: {
+          bobId: bobId,
+          besoinId: bob.metadata?.besoinOriginal?.id,
+          newStatus: newStatus
+        }
+      }, token);
+
+      console.log('✅ Synchronisation BOB → Événement réussie');
+    } catch (error: any) {
+      console.error('❌ Erreur synchronisation BOB → Événement:', error);
+      // Ne pas faire échouer l'opération principale
+    }
+  },
+
+  /**
+   * Calculer les BOBIZ pour un besoin d'événement
+   */
+  calculateBobizForNeed: (besoin: { type: string; quantite?: any; maxPersonnes?: number }): number => {
+    let baseBobiz = 10;
+    
+    if (besoin.type === 'service_collectif') baseBobiz = 15;
+    if (besoin.type === 'service_timing') baseBobiz = 20;
+    if (besoin.quantite && besoin.quantite.demandee > 1) baseBobiz += besoin.quantite.demandee * 2;
+    if (besoin.maxPersonnes && besoin.maxPersonnes > 2) baseBobiz += (besoin.maxPersonnes - 2) * 5;
+    
+    return baseBobiz;
+  },
+
+  /**
+   * Obtenir l'icône pour un type de besoin
+   */
+  getBesoinIcon: (type: string): string => {
+    switch (type) {
+      case 'objet': return '📦';
+      case 'service_individuel': return '👤';
+      case 'service_collectif': return '👥';
+      case 'service_timing': return '⏰';
+      default: return '📦';
     }
   },
 };

@@ -8,14 +8,17 @@ import {
   FlatList,
   Alert,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import { styles } from './ContactsSelectionInterface.styles';
 import { calculateSmartScore } from '../../utils/contactHelpers';
+import { useNotifications } from '../common/SmartNotifications';
+
+const ALPHABET = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
 
 interface ContactsSelectionInterfaceProps {
   contactsBruts: any[];
-  repertoireBob: any[];
-  invitations: any[];
+  repertoire?: any[]; // Contacts déjà dans le répertoire (pour détecter les doublons)
   onClose: () => void;
   onImportSelected: (contactIds: string[]) => Promise<void>;
   isLoading: boolean;
@@ -23,54 +26,76 @@ interface ContactsSelectionInterfaceProps {
 
 export const ContactsSelectionInterface: React.FC<ContactsSelectionInterfaceProps> = ({
   contactsBruts,
-  repertoireBob,
-  invitations,
+  repertoire = [],
   onClose,
   onImportSelected,
   isLoading,
 }) => {
+  const notifications = useNotifications();
   const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set());
   const [searchText, setSearchText] = useState('');
-  const [filterMode, setFilterMode] = useState<'all' | 'suggested' | 'recent' | 'withExisting'>('suggested');
+  const [filterMode, setFilterMode] = useState<'all' | 'suggested' | 'recent'>('suggested');
+  const [letterFilter, setLetterFilter] = useState<string>('');
   
-  // Fonction pour normaliser les numéros de téléphone (supprimer espaces, tirets, etc.)
+  // Fonction de normalisation simple pour comparer les téléphones
   const normalizePhone = (phone: string) => {
-    return phone?.replace(/[\s\-\(\)\.]/g, '') || '';
+    if (!phone) return '';
+    return phone.replace(/[\s\-\(\)\.]/g, '');
   };
+  
+  // Créer un Set avec tous les téléphones du répertoire existant
+  const telephonesExistants = useMemo(() => {
+    const phones = new Set<string>();
+    repertoire?.forEach(contact => {
+      if (contact.telephone) {
+        phones.add(normalizePhone(contact.telephone));
+      }
+    });
+    return phones;
+  }, [repertoire]);
 
-  // Tous les contacts avec indication s'ils sont déjà dans Bob ou ont une invitation
-  const contactsAvecStatut = useMemo(() => {
-    // Créer des sets pour une recherche rapide
-    const phonesBob = new Set(repertoireBob.map(c => normalizePhone(c.telephone)));
-    const phonesInvitations = new Set(
-      invitations
-        .filter(i => i.statut === 'envoye') // Seulement les invitations en cours
-        .map(i => normalizePhone(i.telephone))
-    );
+  // Enrichir tous les contacts avec l'info "déjà importé"
+  const contactsDisponibles = useMemo(() => {
+    // 🔍 DEBUG POUSSÉ pour comprendre les différences
+    const contactsAvecTelephone = contactsBruts.filter(c => c.telephone);
+    const contactsSansTelephone = contactsBruts.filter(c => !c.telephone);
+    const contactsUniques = new Set(contactsBruts.map(c => c.telephone || c.id));
+    
+    console.log('🔥🔥🔥 TRAITEMENT CONTACTS - Debug complet:', {
+      contactsBruts: contactsBruts.length,
+      contactsAvecTelephone: contactsAvecTelephone.length,
+      contactsSansTelephone: contactsSansTelephone.length,
+      contactsUniques: contactsUniques.size,
+      repertoire: repertoire.length,
+      telephonesExistants: telephonesExistants.size,
+      premierContactBrut: contactsBruts[0]?.nom || 'AUCUN',
+      premierRepertoire: repertoire[0]?.nom || 'AUCUN'
+    });
     
     return contactsBruts.map((c: any) => {
-      const phoneNormalized = normalizePhone(c.telephone);
-      const dejaDansBob = phonesBob.has(phoneNormalized);
-      const invitationEnCours = phonesInvitations.has(phoneNormalized);
+      const normalizedPhone = normalizePhone(c.telephone || '');
+      const isDejaImporte = telephonesExistants.has(normalizedPhone);
       
       return {
         ...c,
         score: calculateSmartScore(c),
-        dejaDansBob,
-        invitationEnCours,
-        statut: dejaDansBob ? 'dansBob' : (invitationEnCours ? 'invitation' : 'disponible')
+        isDejaImporte, // Nouvelle propriété
       };
     });
-  }, [contactsBruts, repertoireBob, invitations]);
-
-  // Contacts disponibles (non déjà dans Bob et pas d'invitation en cours) 
-  const contactsDisponibles = useMemo(() => {
-    return contactsAvecStatut.filter(c => c.statut === 'disponible');
-  }, [contactsAvecStatut]);
+  }, [contactsBruts, telephonesExistants]);
 
   // Filtrage et tri
   const contactsFiltered = useMemo(() => {
-    let filtered = filterMode === 'withExisting' ? [...contactsAvecStatut] : [...contactsDisponibles];
+    let filtered = [...contactsDisponibles];
+    
+    console.log('🔍 FILTRAGE DEBUG:', {
+      filterMode,
+      searchText: searchText.trim(),
+      letterFilter,
+      contactsDisponiblesTotal: contactsDisponibles.length,
+      contactsDejaImportes: contactsDisponibles.filter(c => c.isDejaImporte).length,
+      contactsNouveaux: contactsDisponibles.filter(c => !c.isDejaImporte).length
+    });
 
     // Recherche
     if (searchText.trim()) {
@@ -78,6 +103,13 @@ export const ContactsSelectionInterface: React.FC<ContactsSelectionInterfaceProp
       filtered = filtered.filter(c => 
         c.nom.toLowerCase().includes(search) ||
         c.telephone.includes(search)
+      );
+    }
+
+    // Filtrage alphabétique
+    if (letterFilter) {
+      filtered = filtered.filter(c => 
+        c.nom.toUpperCase().startsWith(letterFilter)
       );
     }
 
@@ -91,42 +123,41 @@ export const ContactsSelectionInterface: React.FC<ContactsSelectionInterfaceProp
         // Simuler par ordre alphabétique inversé (dans vraie app: utiliser date d'ajout au téléphone)
         filtered.sort((a, b) => b.nom.localeCompare(a.nom));
         break;
-      case 'withExisting':
-        // Trier avec contacts déjà dans Bob en bas
-        filtered.sort((a, b) => {
-          if (a.dejaDansBob && !b.dejaDansBob) return 1;
-          if (!a.dejaDansBob && b.dejaDansBob) return -1;
-          return a.nom.localeCompare(b.nom);
-        });
-        break;
       default:
         filtered.sort((a, b) => a.nom.localeCompare(b.nom));
     }
 
+    console.log('📊 FILTRAGE RÉSULTAT:', {
+      filterMode,
+      filteredLength: filtered.length,
+      déjàImportés: filtered.filter(c => c.isDejaImporte).length,
+      nouveaux: filtered.filter(c => !c.isDejaImporte).length
+    });
+
     return filtered;
-  }, [contactsDisponibles, contactsAvecStatut, searchText, filterMode]);
+  }, [contactsDisponibles, searchText, filterMode, letterFilter]);
+
+  // Compter les contacts par lettre pour la barre alphabétique
+  const letterCounts = useMemo(() => {
+    const counts: { [key: string]: number } = {};
+    
+    ALPHABET.forEach(letter => {
+      counts[letter] = contactsDisponibles.filter(c => 
+        c.nom.toUpperCase().startsWith(letter)
+      ).length;
+    });
+    
+    return counts;
+  }, [contactsDisponibles]);
 
   const toggleContact = (contactId: string) => {
-    const contact = contactsAvecStatut.find(c => c.id === contactId);
-    
-    if (contact?.dejaDansBob) {
-      Alert.alert(
-        'Contact déjà dans Bob',
-        `${contact.nom} est déjà dans votre réseau Bob !`,
-        [{ text: 'OK' }]
-      );
+    // Trouver le contact pour vérifier s'il est déjà importé
+    const contact = contactsFiltered.find(c => c.id === contactId);
+    if (contact?.isDejaImporte) {
+      // Ne rien faire si le contact est déjà importé
       return;
     }
     
-    if (contact?.invitationEnCours) {
-      Alert.alert(
-        'Invitation déjà envoyée',
-        `Une invitation a déjà été envoyée à ${contact.nom}. Attendez sa réponse.`,
-        [{ text: 'OK' }]
-      );
-      return;
-    }
-
     const newSelected = new Set(selectedContacts);
     if (newSelected.has(contactId)) {
       newSelected.delete(contactId);
@@ -137,8 +168,8 @@ export const ContactsSelectionInterface: React.FC<ContactsSelectionInterfaceProp
   };
 
   const selectAll = () => {
-    // Ne sélectionner que les contacts vraiment disponibles
-    const availableIds = new Set(contactsFiltered.filter(c => c.statut === 'disponible').map(c => c.id));
+    // Sélectionner seulement les contacts NON déjà importés
+    const availableIds = new Set(contactsFiltered.filter(c => !c.isDejaImporte).map(c => c.id));
     setSelectedContacts(availableIds);
   };
 
@@ -146,48 +177,63 @@ export const ContactsSelectionInterface: React.FC<ContactsSelectionInterfaceProp
     setSelectedContacts(new Set());
   };
 
-  const handleImport = async () => {
+  const handleImport = () => {
+    console.log('🔥🔥🔥 ContactsSelectionInterface - handleImport appelé avec', selectedContacts.size, 'contacts');
     if (selectedContacts.size === 0) {
-      Alert.alert('Aucune sélection', 'Sélectionnez au moins un contact.');
+      notifications.warning('Aucune sélection', 'Sélectionnez au moins un contact à importer.', {
+        category: 'contact_selection',
+        duration: 3000
+      });
       return;
     }
-    await onImportSelected(Array.from(selectedContacts));
+    console.log('🚀🚀🚀 ContactsSelectionInterface - Appel onImportSelected avec:', Array.from(selectedContacts));
+    onImportSelected(Array.from(selectedContacts));
   };
 
   const renderContact = ({ item }: { item: any }) => {
     const isSelected = selectedContacts.has(item.id);
-    const isUnavailable = item.statut !== 'disponible';
+    const isDejaImporte = item.isDejaImporte;
+    
+    // Debug pour quelques contacts
+    if (Math.random() < 0.05) { // 5% des contacts
+      console.log('🎨 RENDER CONTACT:', {
+        nom: item.nom,
+        telephone: item.telephone,
+        isDejaImporte: isDejaImporte,
+        hasProperty: 'isDejaImporte' in item
+      });
+    }
     
     return (
       <TouchableOpacity
         style={[
           styles.contactRow, 
           isSelected && styles.contactRowSelected,
-          isUnavailable && styles.contactRowDisabled
+          isDejaImporte && styles.contactRowDisabled // Nouveau style
         ]}
         onPress={() => toggleContact(item.id)}
-        disabled={isUnavailable}
+        disabled={isDejaImporte} // Désactiver le toucher
       >
         <View style={[
           styles.contactCheckbox, 
           isSelected && styles.contactCheckboxSelected,
-          item.dejaDansBob && styles.contactCheckboxDisabled,
-          item.invitationEnCours && styles.contactCheckboxInvitation
+          isDejaImporte && styles.contactCheckboxDisabled
         ]}>
-          {isSelected && <Text style={styles.checkmark}>✓</Text>}
-          {item.dejaDansBob && <Text style={styles.alreadyInBob}>✓</Text>}
-          {item.invitationEnCours && <Text style={styles.invitationPending}>⏳</Text>}
+          {isDejaImporte ? (
+            <Text style={styles.checkmarkDisabled}>✅</Text>
+          ) : (
+            isSelected && <Text style={styles.checkmark}>✓</Text>
+          )}
         </View>
         
         <View style={[
           styles.contactAvatar, 
-          item.score > 15 && item.statut === 'disponible' && styles.contactAvatarSuggested,
-          item.dejaDansBob && styles.contactAvatarDisabled,
-          item.invitationEnCours && styles.contactAvatarInvitation
+          item.score > 15 && !isDejaImporte && styles.contactAvatarSuggested,
+          isDejaImporte && styles.contactAvatarDisabled
         ]}>
           <Text style={[
             styles.contactInitial,
-            isUnavailable && styles.contactInitialDisabled
+            isDejaImporte && styles.contactTextDisabled
           ]}>
             {item.nom.charAt(0).toUpperCase()}
           </Text>
@@ -196,28 +242,26 @@ export const ContactsSelectionInterface: React.FC<ContactsSelectionInterfaceProp
         <View style={styles.contactDetails}>
           <Text style={[
             styles.contactName,
-            isUnavailable && styles.contactNameDisabled
+            isDejaImporte && styles.contactTextDisabled
           ]}>
             {item.nom}
           </Text>
           <Text style={[
             styles.contactNumber,
-            isUnavailable && styles.contactNumberDisabled
+            isDejaImporte && styles.contactTextDisabled
           ]}>
             {item.telephone}
           </Text>
-          {item.score > 15 && item.statut === 'disponible' && (
-            <Text style={styles.contactSuggestion}>✨ Suggéré</Text>
-          )}
-          {item.dejaDansBob && (
-            <Text style={styles.contactAlreadyInBob}>✅ Déjà dans Bob</Text>
-          )}
-          {item.invitationEnCours && (
-            <Text style={styles.contactInvitationPending}>⏳ Invitation envoyée</Text>
+          {isDejaImporte ? (
+            <Text style={styles.contactAlreadyAdded}>✅ Déjà ajouté</Text>
+          ) : (
+            item.score > 15 && (
+              <Text style={styles.contactSuggestion}>✨ Suggéré</Text>
+            )
           )}
         </View>
         
-        {item.email && item.statut === 'disponible' && (
+        {item.email && !isDejaImporte && (
           <Text style={styles.contactEmailBadge}>📧</Text>
         )}
       </TouchableOpacity>
@@ -234,10 +278,8 @@ export const ContactsSelectionInterface: React.FC<ContactsSelectionInterfaceProp
         <View style={styles.headerContent}>
           <Text style={styles.title}>Ajouter des contacts</Text>
           <Text style={styles.subtitle}>
-            {filterMode === 'withExisting' 
-              ? `${contactsFiltered.filter(c => c.statut === 'disponible').length} disponibles • ${contactsFiltered.filter(c => c.dejaDansBob).length} dans Bob • ${contactsFiltered.filter(c => c.invitationEnCours).length} invitations`
-              : `${contactsFiltered.length} disponible${contactsFiltered.length > 1 ? 's' : ''}`
-            } • {selectedContacts.size} sélectionné{selectedContacts.size > 1 ? 's' : ''}
+            {contactsFiltered.length} disponible{contactsFiltered.length > 1 ? 's' : ''} • 
+            {selectedContacts.size} sélectionné{selectedContacts.size > 1 ? 's' : ''}
           </Text>
         </View>
         {selectedContacts.size > 0 && (
@@ -288,22 +330,60 @@ export const ContactsSelectionInterface: React.FC<ContactsSelectionInterfaceProp
             🕐 Récents
           </Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.filterTab, filterMode === 'withExisting' && styles.filterTabActive]}
-          onPress={() => setFilterMode('withExisting')}
-        >
-          <Text style={[styles.filterTabText, filterMode === 'withExisting' && styles.filterTabTextActive]}>
-            📋 Tout voir
-          </Text>
-        </TouchableOpacity>
       </View>
 
+      {/* Barre alphabétique */}
+      <View style={styles.alphabetContainer}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <View style={styles.alphabetRow}>
+            {ALPHABET.map(letter => (
+              <TouchableOpacity
+                key={letter}
+                onPress={() => setLetterFilter(letterFilter === letter ? '' : letter)}
+                style={[
+                  styles.letterButton,
+                  letterFilter === letter && styles.letterButtonActive,
+                  letterCounts[letter] === 0 && styles.letterButtonDisabled,
+                ]}
+                disabled={letterCounts[letter] === 0}
+              >
+                <Text style={[
+                  styles.letterText,
+                  letterFilter === letter && styles.letterTextActive,
+                  letterCounts[letter] === 0 && styles.letterTextDisabled,
+                ]}>
+                  {letter}
+                </Text>
+                <Text style={[
+                  styles.letterCount,
+                  letterFilter === letter && styles.letterCountActive,
+                ]}>
+                  {letterCounts[letter]}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </ScrollView>
+      </View>
+
+      {/* Indicateur de filtre actif */}
+      {letterFilter && (
+        <View style={styles.letterFilterInfo}>
+          <Text style={styles.letterFilterText}>
+            Lettre "{letterFilter}" • {contactsFiltered.length} contact{contactsFiltered.length > 1 ? 's' : ''}
+          </Text>
+          <TouchableOpacity onPress={() => setLetterFilter('')}>
+            <Text style={styles.clearFilterText}>Effacer</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Actions rapides */}
-      {contactsFiltered.filter(c => c.statut === 'disponible').length > 0 && (
+      {contactsFiltered.length > 0 && (
         <View style={styles.quickActions}>
           <TouchableOpacity onPress={selectAll} style={styles.quickActionButton}>
             <Text style={styles.quickActionText}>
-              Sélectionner disponibles ({contactsFiltered.filter(c => c.statut === 'disponible').length})
+              Sélectionner disponibles ({contactsFiltered.filter(c => !c.isDejaImporte).length})
             </Text>
           </TouchableOpacity>
         </View>
@@ -312,18 +392,22 @@ export const ContactsSelectionInterface: React.FC<ContactsSelectionInterfaceProp
       {/* Liste des contacts */}
       <FlatList
         data={contactsFiltered}
-        keyExtractor={(item, index) => `${item.id}_${index}_${item.nom || 'unknown'}_${item.telephone || 'no-phone'}`}
+        keyExtractor={item => item.id}
         renderItem={renderContact}
         ListEmptyComponent={
           <View style={styles.emptyList}>
             <Text style={styles.emptyListIcon}>
-              {searchText ? '🔍' : '📱'}
+              {letterFilter ? '🔤' : searchText ? '🔍' : '📱'}
             </Text>
             <Text style={styles.emptyListTitle}>
-              {searchText ? 'Aucun résultat' : 'Aucun contact disponible'}
+              {letterFilter ? `Aucun contact en "${letterFilter}"` :
+               searchText ? 'Aucun résultat' : 
+               'Aucun contact disponible'}
             </Text>
             <Text style={styles.emptyListText}>
-              {searchText ? 'Essayez avec un autre terme' : 'Tous vos contacts sont déjà dans Bob !'}
+              {letterFilter ? `Essayez une autre lettre` :
+               searchText ? 'Essayez avec un autre terme' : 
+               'Tous vos contacts sont déjà dans Bob !'}
             </Text>
           </View>
         }
@@ -342,7 +426,7 @@ export const ContactsSelectionInterface: React.FC<ContactsSelectionInterfaceProp
               <ActivityIndicator color="white" />
             ) : (
               <Text style={styles.floatingButtonText}>
-                ✅ Ajouter {selectedContacts.size} contact{selectedContacts.size > 1 ? 's' : ''}
+                ✅ Importer {selectedContacts.size} contact{selectedContacts.size > 1 ? 's' : ''}
               </Text>
             )}
           </TouchableOpacity>

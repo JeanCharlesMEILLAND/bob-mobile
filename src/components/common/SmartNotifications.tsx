@@ -5,8 +5,6 @@ import {
   Text,
   TouchableOpacity,
   Animated,
-  PanGestureHandler,
-  State,
   Dimensions,
 } from 'react-native';
 import { logger } from '../../utils/logger';
@@ -59,8 +57,25 @@ class NotificationManager {
   show(notification: SmartNotification): string {
     const id = notification.id || `notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
-    // Déduplication basée sur le type et le message
-    if (notification.category) {
+    // Si un ID spécifique est fourni, mettre à jour la notification existante au lieu de la remplacer
+    if (notification.id) {
+      const existingById = this.notifications.find(n => n.id === notification.id && !n.dismissed);
+      if (existingById) {
+        // Mise à jour in-place sans animation de suppression/création
+        existingById.title = notification.title;
+        existingById.message = notification.message;
+        existingById.type = notification.type;
+        existingById.priority = notification.priority;
+        existingById.timestamp = Date.now(); // Mise à jour du timestamp
+        
+        this.notifySubscribers();
+        logger.debug('notifications', 'Notification mise à jour par ID', { id: notification.id });
+        return existingById.id;
+      }
+    }
+    
+    // Déduplication basée sur le type et le message (pour les notifications sans ID fixe)
+    if (notification.category && !notification.id) {
       const existing = this.notifications.find(n => 
         n.category === notification.category && 
         n.type === notification.type &&
@@ -256,10 +271,11 @@ const NotificationCard: React.FC<{
   notification: NotificationState;
   onDismiss: (id: string) => void;
   position: 'top' | 'bottom';
-}> = ({ notification, onDismiss, position }) => {
+}> = React.memo(({ notification, onDismiss, position }) => {
   const translateY = useRef(new Animated.Value(position === 'top' ? -100 : 100)).current;
   const opacity = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(0.8)).current;
+  const contentOpacity = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     // Animation d'entrée
@@ -353,15 +369,44 @@ const NotificationCard: React.FC<{
 
         {notification.action && (
           <View style={notificationStyles.actionContainer}>
-            <Text style={[notificationStyles.actionText, { color: typeConfig.color }]}>
-              {notification.action.label}
-            </Text>
+            <View style={notificationStyles.actionButtons}>
+              {/* Bouton Annuler pour les confirmations */}
+              {notification.type === 'warning' && notification.persistent && (
+                <TouchableOpacity
+                  style={[notificationStyles.actionButton, notificationStyles.cancelButton]}
+                  onPress={dismiss}
+                >
+                  <Text style={notificationStyles.cancelText}>Annuler</Text>
+                </TouchableOpacity>
+              )}
+              
+              {/* Bouton principal d'action */}
+              <TouchableOpacity
+                style={[notificationStyles.actionButton, { backgroundColor: typeConfig.color }]}
+                onPress={() => {
+                  notification.action?.onPress();
+                }}
+              >
+                <Text style={notificationStyles.confirmText}>
+                  {notification.action.label}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
       </TouchableOpacity>
     </Animated.View>
   );
-};
+}, (prevProps, nextProps) => {
+  // Comparer les props pour éviter les re-rendus inutiles
+  return (
+    prevProps.notification.id === nextProps.notification.id &&
+    prevProps.notification.title === nextProps.notification.title &&
+    prevProps.notification.message === nextProps.notification.message &&
+    prevProps.notification.type === nextProps.notification.type &&
+    prevProps.position === nextProps.position
+  );
+});
 
 // Composant principal
 export const SmartNotifications: React.FC<SmartNotificationsProps> = ({
@@ -424,6 +469,28 @@ export const useNotifications = () => {
     tip: (title: string, message?: string, options?: Partial<SmartNotification>) => 
       manager.show({ ...options, id: options?.id || `tip_${Date.now()}`, type: 'tip', title, message, priority: options?.priority || 'low' }),
 
+    // 🆕 NOUVEAU: Notification de confirmation avec boutons Annuler/Confirmer
+    confirm: (title: string, message: string, onConfirm: () => void, onCancel?: () => void, options?: Partial<SmartNotification>) => {
+      const confirmId = `confirm_${Date.now()}`;
+      return manager.show({ 
+        ...options, 
+        id: confirmId, 
+        type: 'warning', 
+        title, 
+        message, 
+        priority: 'high',
+        duration: 0, // Pas d'auto-dismiss
+        persistent: true,
+        action: {
+          label: 'Confirmer',
+          onPress: () => {
+            onConfirm();
+            manager.dismiss(confirmId, 'action');
+          }
+        }
+      });
+    },
+
     dismiss: (id: string) => manager.dismiss(id, 'user'),
     dismissCategory: (category: string) => manager.dismissCategory(category),
     getStats: () => manager.getStats(),
@@ -453,8 +520,8 @@ const notificationStyles = {
     padding: Spacing.md,
   },
   header: {
-    flexDirection: 'row' as any,
-    alignItems: 'flex-start',
+    flexDirection: 'row' as const,
+    alignItems: 'flex-start' as const,
   },
   icon: {
     fontSize: 20,
@@ -465,7 +532,7 @@ const notificationStyles = {
     flex: 1,
   },
   title: {
-    fontSize: Typography.sizes.md,
+    fontSize: Typography.sizes.base, // Use 'base' instead of 'md'
     fontWeight: Typography.weights.semibold as any,
     marginBottom: Spacing.xs,
   },
@@ -481,7 +548,7 @@ const notificationStyles = {
   dismissText: {
     fontSize: 24,
     color: Colors.textSecondary,
-    fontWeight: Typography.weights.light as any,
+    fontWeight: Typography.weights.normal as any, // Use 'normal' instead of 'light'
   },
   actionContainer: {
     marginTop: Spacing.sm,
@@ -489,9 +556,37 @@ const notificationStyles = {
     borderTopWidth: 1,
     borderTopColor: Colors.border,
   },
+  actionButtons: {
+    flexDirection: 'row' as const,
+    justifyContent: 'flex-end' as const,
+    gap: Spacing.sm,
+  },
+  actionButton: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: 6,
+    minWidth: 80,
+    alignItems: 'center' as const,
+  },
+  cancelButton: {
+    backgroundColor: Colors.border,
+  },
+  cancelText: {
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.medium as any,
+    color: Colors.textSecondary,
+  },
+  confirmText: {
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.medium as any,
+    color: Colors.white,
+  },
   actionText: {
     fontSize: Typography.sizes.sm,
     fontWeight: Typography.weights.medium as any,
     textTransform: 'uppercase' as any,
   },
 };
+
+// Instance singleton du NotificationManager pour utilisation externe
+export const notificationManager = NotificationManager.getInstance();

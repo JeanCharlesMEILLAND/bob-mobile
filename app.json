@@ -1,11 +1,13 @@
 {
   "expo": {
-    "name": "bob-mobile",
+    "name": "BOB - Réseau d'entraide privé",
     "slug": "bob-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "description": "BOB est une application privée d'entraide et de partage entre amis, famille et personnes de confiance. Aucune transaction financière, aucun contenu public. Prêtez, empruntez et échangez des services uniquement avec vos contacts personnels.",
+    "privacy": "private",
     "splash": {
       "image": "./assets/adaptive-icon.png",
       "resizeMode": "contain",
@@ -15,13 +17,28 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.bob.privatenework",
+      "infoPlist": {
+        "NSContactsUsageDescription": "BOB accède à vos contacts pour vous connecter uniquement avec vos amis et famille déjà dans votre répertoire. Aucune donnée n'est partagée publiquement.",
+        "NSLocationWhenInUseUsageDescription": "BOB utilise votre localisation pour faciliter les échanges locaux avec vos proches uniquement."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.bob.privatenework",
+      "permissions": [
+        "READ_CONTACTS",
+        "ACCESS_FINE_LOCATION"
+      ],
+      "blockedPermissions": [
+        "CAMERA",
+        "RECORD_AUDIO",
+        "READ_SMS"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -39,7 +56,7 @@
       [
         "expo-contacts",
         {
-          "contactsPermission": "Bob a besoin d'accéder à vos contacts pour vous aider à retrouver vos amis qui utilisent déjà l'application et inviter les autres à vous rejoindre."
+          "contactsPermission": "BOB accède uniquement à vos contacts personnels pour vous connecter avec vos amis et famille. Aucun contact n'est partagé publiquement ou vendu. Application 100% privée entre personnes de confiance."
         }
       ]
     ]

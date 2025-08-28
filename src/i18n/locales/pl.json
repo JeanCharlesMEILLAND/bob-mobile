@@ -180,6 +180,7 @@
   "navigation": {
     "home": "Główna",
     "contacts": "Kontakty",
+    "chat": "Czat",
     "exchanges": "Wymiany",
     "events": "Wydarzenia",
     "profile": "Profil"
@@ -208,6 +209,12 @@
     "defaultLevel": "Początkujący",
     "createExchange": "Utwórz wymianę",
     "createBob": "Utwórz Bob",
+    "createEvent": "Utwórz wydarzenie",
+    "activities": "Aktywności",
+    "activitiesCount": "Aktywności ({{count}})",
+    "filter": "Filtr",
+    "loadingMore": "Ładowanie...",
+    "allActivitiesLoaded": "Wszystkie aktywności zostały załadowane",
     "myExchanges": "Moje wymiany",
     "availableExchanges": "Dostępne wymiany",
     "recentExchanges": "Najnowsze wymiany",
@@ -281,5 +288,44 @@
     "language": "Język",
     "chooseLanguage": "Wybierz język",
     "languageChanged": "Język zmieniony na {{language}}"
+  },
+
+  "ui": {
+    "maintenance": "🔧 Konserwacja",
+    "debugInfo": "Informacje debugowania",
+    "noRequestsReceived": "Brak otrzymanych żądań",
+    "noRequestsReceivedDesc": "Kiedy Twoje kontakty będą potrzebować pomocy,\nzobaczysz je tutaj!",
+    "requestsAndActions": "📋 Żądania i akcje ({{count}})",
+    "urgent": "PILNE",
+    "view": "Zobacz",
+    "hello": "Cześć {{username}}!",
+    "whatBobToday": "Co dzisiaj bobujemy?",
+    "user": "Użytkownik",
+    "tabs": {
+      "home": "Główna",
+      "exchanges": "Wymiany",
+      "events": "Wydarzenia",
+      "profile": "Profil"
+    }
+  },
+
+  "activityTypes": {
+    "emprunt": "Wypożyczenie",
+    "pret": "Pożyczenie",
+    "service": "Usługa",
+    "evenement": "Wydarzenie"
+  },
+
+  "activityStatus": {
+    "actif": "Aktywne",
+    "en_cours": "W trakcie",
+    "en_retard": "Spóźnione",
+    "confirme": "Potwierdzone",
+    "disponible": "Dostępne",
+    "planifie": "Zaplanowane",
+    "termine": "Zakończone",
+    "annule": "Anulowane",
+    "complete": "Zakończone",
+    "inconnu": "Nieznane"
   }
 }
