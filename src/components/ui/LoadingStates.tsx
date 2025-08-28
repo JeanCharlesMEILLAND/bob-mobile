@@ -107,8 +107,8 @@ export const Skeleton: React.FC<SkeletonProps> = ({
     <Animated.View
       style={[
         {
-          width,
-          height,
+          width: typeof width === 'string' ? width : width,
+          height: height,
           borderRadius,
           backgroundColor,
         },

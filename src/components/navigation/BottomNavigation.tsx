@@ -119,8 +119,8 @@ const styles = StyleSheet.create({
   containerDesktop: {
     flexDirection: 'column',
     width: 250,
-    height: '100vh',
-    position: 'fixed',
+    height: '100%',
+    position: 'absolute' as any,
     top: 0,
     bottom: 'auto',
     borderTopWidth: 0,

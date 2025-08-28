@@ -286,7 +286,7 @@ export class ErrorHandler {
     ];
     
     return retryableCodes.includes(error.code) || 
-           (error.status && error.status >= 500 && error.status < 600);
+           (!!error.status && error.status >= 500 && error.status < 600);
   }
 
   /**

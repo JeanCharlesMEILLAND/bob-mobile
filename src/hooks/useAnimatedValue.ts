@@ -18,30 +18,30 @@ export function useAnimatedValue(initialValue: number = 0): UseAnimatedValueRetu
 
   const animate = useCallback((
     toValue: number,
-    config: Animated.TimingAnimationConfig = {}
+    config: Partial<Animated.TimingAnimationConfig> = {}
   ): Promise<void> => {
     return new Promise((resolve) => {
       Animated.timing(animatedValue, {
-        toValue,
         duration: 300,
         easing: Easing.out(Easing.quad),
         useNativeDriver: true,
         ...config,
+        toValue,
       }).start(() => resolve());
     });
   }, [animatedValue]);
 
   const animateWithSpring = useCallback((
     toValue: number,
-    config: Animated.SpringAnimationConfig = {}
+    config: Partial<Animated.SpringAnimationConfig> = {}
   ): Promise<void> => {
     return new Promise((resolve) => {
       Animated.spring(animatedValue, {
-        toValue,
         tension: 100,
         friction: 8,
         useNativeDriver: true,
         ...config,
+        toValue,
       }).start(() => resolve());
     });
   }, [animatedValue]);

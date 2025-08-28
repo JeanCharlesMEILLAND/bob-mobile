@@ -1,4 +1,5 @@
 // src/utils/ImageCache.tsx - Système de cache avancé pour les images
+import React from 'react';
 import { Image } from 'react-native';
 
 export class ImageCache {

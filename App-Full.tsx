@@ -188,7 +188,7 @@ const AppContentSimple: React.FC = () => {
         {/* Contenu principal */}
         <View style={[
           { flex: 1 },
-          isDesktop && { marginLeft: 250, minHeight: '100vh' }
+          isDesktop && { marginLeft: 250, minHeight: '100%' }
         ]}>
           {renderScreen()}
         </View>
