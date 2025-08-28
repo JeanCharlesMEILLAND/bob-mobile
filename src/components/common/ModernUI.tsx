@@ -1,7 +1,7 @@
 // src/components/common/ModernUI.tsx - Composants UI modernes réutilisables
 import React from 'react';
 import { View, Text, TouchableOpacity, ViewStyle, TextStyle } from 'react-native';
-import LinearGradient from 'react-native-linear-gradient';
+// import LinearGradient from 'react-native-linear-gradient'; // Pas compatible web - remplacé par du CSS
 import { useTranslation } from 'react-i18next';
 import { ClocheIcon } from '../../assets/icons/ui/ClocheIcon';
 import { LogoBob } from '../../assets/images/branding/LogoBob';
