@@ -7,6 +7,7 @@ import {
   SmartInvitationTarget,
   InvitationTrackingData 
 } from '../types/events.extended.types';
+import { ErrorHandler, withErrorHandling, withRetry } from '../utils/error-handler';
 
 export interface EventNeed {
   id: string;
@@ -304,7 +305,8 @@ class EventsService {
       };
     } catch (error: any) {
       console.error('❌ Erreur création événement:', error.response?.data || error.message);
-      throw new Error('Impossible de créer l\'événement');
+      const bobError = ErrorHandler.handleApiError(error, 'création événement');
+      throw bobError;
     }
   }
 
@@ -326,7 +328,8 @@ class EventsService {
       }));
     } catch (error: any) {
       console.error('❌ Erreur récupération événements:', error.response?.data || error.message);
-      throw new Error('Impossible de récupérer les événements');
+      const bobError = ErrorHandler.handleApiError(error, 'récupération événements');
+      throw bobError;
     }
   }
 
@@ -421,7 +424,8 @@ class EventsService {
       };
     } catch (error: any) {
       console.error('❌ Erreur positionnement API unifiée:', error.response?.data || error.message);
-      throw new Error('Impossible de se positionner sur ce besoin');
+      const bobError = ErrorHandler.handleApiError(error, 'positionnement sur besoin');
+      throw bobError;
     }
   }
 
@@ -446,6 +450,9 @@ class EventsService {
       return result.bobs || [];
     } catch (error: any) {
       console.error('❌ Erreur récupération BOBs événement:', error.response?.data || error.message);
+      const bobError = ErrorHandler.handleApiError(error, 'récupération BOBs événement');
+      // Pour cette méthode, on retourne un tableau vide plutôt que de throw
+      ErrorHandler.logError(bobError, { eventId });
       return [];
     }
   }
@@ -500,7 +507,8 @@ class EventsService {
       return photoUrl;
     } catch (error: any) {
       console.error('❌ Erreur upload photo:', error);
-      throw new Error('Impossible d\'uploader la photo');
+      const bobError = ErrorHandler.handleApiError(error, 'upload photo événement');
+      throw bobError;
     }
   }
 
@@ -546,7 +554,8 @@ class EventsService {
       };
     } catch (error: any) {
       console.error('❌ Erreur création événement BOB:', error.response?.data || error.message);
-      throw new Error('Impossible de créer l\'événement BOB');
+      const bobError = ErrorHandler.handleApiError(error, 'création événement BOB');
+      throw bobError;
     }
   }
 
@@ -600,7 +609,8 @@ class EventsService {
       return updatedBesoin;
     } catch (error: any) {
       console.error('❌ Erreur mise à jour besoin:', error);
-      throw new Error('Impossible de mettre à jour le besoin');
+      const bobError = ErrorHandler.handleApiError(error, 'mise à jour besoin');
+      throw bobError;
     }
   }
 
@@ -698,7 +708,8 @@ class EventsService {
       return result;
     } catch (error: any) {
       console.error('❌ Erreur positionnement sur besoin:', error);
-      throw error;
+      const bobError = ErrorHandler.handleApiError(error, 'positionnement sur besoin');
+      throw bobError;
     }
   }
 
@@ -722,7 +733,8 @@ class EventsService {
       return result;
     } catch (error: any) {
       console.error('❌ Erreur acceptation invitation:', error);
-      throw error;
+      const bobError = ErrorHandler.handleApiError(error, 'acceptation invitation');
+      throw bobError;
     }
   }
 
@@ -754,7 +766,8 @@ class EventsService {
       return result;
     } catch (error: any) {
       console.error('❌ Erreur récupération BOBs événement:', error);
-      throw error;
+      const bobError = ErrorHandler.handleApiError(error, 'récupération BOBs événement');
+      throw bobError;
     }
   }
 
@@ -789,7 +802,8 @@ class EventsService {
       return result;
     } catch (error: any) {
       console.error('❌ Erreur complétion BOB:', error);
-      throw error;
+      const bobError = ErrorHandler.handleApiError(error, 'complétion BOB');
+      throw bobError;
     }
   }
 
@@ -819,17 +833,18 @@ class EventsService {
       return result;
     } catch (error: any) {
       console.error('❌ Erreur annulation BOB:', error);
-      throw error;
+      const bobError = ErrorHandler.handleApiError(error, 'annulation BOB');
+      throw bobError;
     }
   }
 
   /**
    * Méthode helper pour traiter les erreurs d'API de façon unifiée
+   * @deprecated Utiliser ErrorHandler.handleApiError à la place
    */
   private handleApiError(error: any, context: string): never {
-    const message = error.response?.data?.error?.message || error.message || 'Erreur inconnue';
-    console.error(`❌ ${context}:`, message);
-    throw new Error(message);
+    const bobError = ErrorHandler.handleApiError(error, context);
+    throw bobError;
   }
 }
 
