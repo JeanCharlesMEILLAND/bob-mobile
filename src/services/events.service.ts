@@ -661,6 +661,176 @@ class EventsService {
       throw error;
     }
   }
+
+  // =================== NOUVEAUX ENDPOINTS UNIFIÉS ===================
+
+  /**
+   * Se positionner sur un besoin d'événement (création automatique BOB)
+   */
+  async positionnerSurBesoin(
+    eventId: string, 
+    besoinId: string, 
+    params: { quantiteProposee: number; commentaire?: string },
+    token: string
+  ): Promise<{ success: boolean; bobIndividuel: BobIndividuel; besoin: any; message: string }> {
+    try {
+      console.log('🎯 Positionnement sur besoin:', { eventId, besoinId, params });
+
+      const response = await api.post(`/evenements/${eventId}/besoins/${besoinId}/position`, {
+        besoinId,
+        quantiteProposee: params.quantiteProposee,
+        commentaire: params.commentaire || ''
+      }, token);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || 'Erreur lors du positionnement');
+      }
+
+      const result = await response.json();
+      
+      console.log('✅ Positionnement réussi:', {
+        bobId: result.bobIndividuel?.id,
+        titre: result.bobIndividuel?.titre,
+        message: result.message
+      });
+
+      return result;
+    } catch (error: any) {
+      console.error('❌ Erreur positionnement sur besoin:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Accepter une invitation à un événement
+   */
+  async accepterInvitation(eventId: string, token: string): Promise<{ success: boolean; message: string; event: any }> {
+    try {
+      console.log('📨 Acceptation invitation événement:', eventId);
+
+      const response = await api.post(`/evenements/${eventId}/accept`, {}, token);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || 'Erreur lors de l\'acceptation');
+      }
+
+      const result = await response.json();
+      
+      console.log('✅ Invitation acceptée:', result.message);
+      return result;
+    } catch (error: any) {
+      console.error('❌ Erreur acceptation invitation:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Récupérer tous les BOBs créés depuis un événement
+   */
+  async getBobsFromEvent(eventId: string, token: string): Promise<{ bobs: BobIndividuel[]; count: number }> {
+    try {
+      console.log('🔍 Récupération BOBs événement:', eventId);
+
+      const response = await api.get(`/evenements/${eventId}/bobs`, token);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || 'Erreur lors de la récupération des BOBs');
+      }
+
+      const result = await response.json();
+      
+      console.log('✅ BOBs récupérés:', {
+        count: result.count,
+        bobs: result.bobs?.map((bob: BobIndividuel) => ({
+          id: bob.id,
+          titre: bob.titre,
+          origine: bob.origine
+        }))
+      });
+
+      return result;
+    } catch (error: any) {
+      console.error('❌ Erreur récupération BOBs événement:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Compléter un BOB (marquer comme terminé)
+   */
+  async completerBob(
+    bobId: string,
+    params: { evaluation?: number; commentaire?: string },
+    token: string
+  ): Promise<{ success: boolean; bob: BobIndividuel; bobizGagnes: number; message: string }> {
+    try {
+      console.log('✅ Complétion BOB:', { bobId, params });
+
+      const response = await api.put(`/echanges/${bobId}/complete`, {
+        evaluation: params.evaluation || 5,
+        commentaire: params.commentaire || ''
+      }, token);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || 'Erreur lors de la complétion');
+      }
+
+      const result = await response.json();
+      
+      console.log('🎉 BOB complété avec succès:', {
+        bobizGagnes: result.bobizGagnes,
+        message: result.message
+      });
+
+      return result;
+    } catch (error: any) {
+      console.error('❌ Erreur complétion BOB:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Annuler un BOB
+   */
+  async annulerBob(
+    bobId: string, 
+    params: { raison?: string },
+    token: string
+  ): Promise<{ success: boolean; bob: BobIndividuel; message: string }> {
+    try {
+      console.log('❌ Annulation BOB:', { bobId, params });
+
+      const response = await api.put(`/echanges/${bobId}/cancel`, {
+        raison: params.raison || 'Annulation utilisateur'
+      }, token);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || 'Erreur lors de l\'annulation');
+      }
+
+      const result = await response.json();
+      
+      console.log('✅ BOB annulé:', result.message);
+      return result;
+    } catch (error: any) {
+      console.error('❌ Erreur annulation BOB:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Méthode helper pour traiter les erreurs d'API de façon unifiée
+   */
+  private handleApiError(error: any, context: string): never {
+    const message = error.response?.data?.error?.message || error.message || 'Erreur inconnue';
+    console.error(`❌ ${context}:`, message);
+    throw new Error(message);
+  }
 }
 
 export const eventsService = new EventsService();

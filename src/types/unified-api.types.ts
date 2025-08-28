@@ -1,4 +1,5 @@
 // src/types/unified-api.types.ts - Types pour l'API unifiée Bob
+// Synchronisé avec les endpoints backend Strapi 5
 
 import { BobIndividuel } from '../services/events.service';
 
@@ -29,6 +30,25 @@ export interface AcceptationInvitationResponse {
 export interface BobsEvenementResponse {
   bobs: BobIndividuel[];
   count: number;
+}
+
+/**
+ * Réponse de l'endpoint PUT /echanges/:id/complete
+ */
+export interface BobCompletionResponse {
+  success: true;
+  bob: BobIndividuel;
+  bobizGagnes: number;
+  message: string;
+}
+
+/**
+ * Réponse de l'endpoint PUT /echanges/:id/cancel
+ */
+export interface BobCancellationResponse {
+  success: true;
+  bob: BobIndividuel;
+  message: string;
 }
 
 // =================== STRUCTURES DE DONNÉES ===================
@@ -114,6 +134,21 @@ export interface AcceptationParams {
   statut?: 'accepte';
 }
 
+/**
+ * Paramètres pour compléter un BOB
+ */
+export interface BobCompletionParams {
+  evaluation?: number; // 1-5 étoiles
+  commentaire?: string;
+}
+
+/**
+ * Paramètres pour annuler un BOB
+ */
+export interface BobCancellationParams {
+  raison?: string;
+}
+
 // =================== ERREURS API ===================
 
 /**
@@ -195,9 +230,10 @@ export function isApiError(response: any): response is ApiError {
 // =================== CONSTANTS ===================
 
 /**
- * Endpoints de l'API unifiée
+ * Endpoints de l'API unifiée - Synchronisés avec backend Strapi 5
  */
 export const UNIFIED_API_ENDPOINTS = {
+  // Événements
   POSITIONNER_SUR_BESOIN: (eventId: string, besoinId: string) => 
     `/evenements/${eventId}/besoins/${besoinId}/position`,
   ACCEPTER_INVITATION: (eventId: string) => 
@@ -207,5 +243,11 @@ export const UNIFIED_API_ENDPOINTS = {
   BOBS_DEPUIS_EVENEMENT: (eventId: string) => 
     `/evenements/${eventId}/bobs`,
   PARTICIPATION_UTILISATEUR: (eventId: string) => 
-    `/evenements/${eventId}/participation`
+    `/evenements/${eventId}/participation`,
+    
+  // BOBs/Échanges
+  COMPLETER_BOB: (bobId: string) => 
+    `/echanges/${bobId}/complete`,
+  ANNULER_BOB: (bobId: string) => 
+    `/echanges/${bobId}/cancel`,
 } as const;
