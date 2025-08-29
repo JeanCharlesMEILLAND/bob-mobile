@@ -32,15 +32,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     
     try {
+      // 🔐 RESTAURATION SESSION STRAPI UNIQUEMENT
+      console.log('🔐 Vérification session existante...');
       const session = await authService.restoreSession();
       
       if (session) {
         setUser(session.user);
         setIsAuthenticated(true);
-        } else {
+        console.log('✅ Session Strapi restaurée:', session.user.username);
+      } else {
+        console.log('ℹ️ Aucune session trouvée, affichage page de connexion');
+        setUser(null);
+        setIsAuthenticated(false);
       }
+      
     } catch (error) {
       console.error('💥 Erreur restauration session:', error);
+      setUser(null);
+      setIsAuthenticated(false);
     } finally {
       setIsLoading(false);
       setIsInitialized(true);

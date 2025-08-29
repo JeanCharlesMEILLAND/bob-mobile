@@ -33,15 +33,6 @@ export const ClocheIcon: React.FC<ClocheIconProps> = ({
         fill="#B0D3FF"
       />
       
-      {/* Point de notification rouge - seulement si hasNotification */}
-      {hasNotification && (
-        <Path 
-          d="M25.1816 0.953125C26.4716 0.953125 27.709 1.46582 28.6211 2.37793C29.533 3.28994 30.0458 4.52668 30.0459 5.81641C30.0459 7.10632 29.5332 8.34375 28.6211 9.25586C27.709 10.168 26.4716 10.6807 25.1816 10.6807C23.8919 10.6806 22.6552 10.1678 21.7432 9.25586C20.8311 8.34375 20.3184 7.10632 20.3184 5.81641C20.3185 4.52662 20.8311 3.28995 21.7432 2.37793C22.6552 1.4659 23.8919 0.953219 25.1816 0.953125Z" 
-          fill="#F61616" 
-          stroke="#E2EDFE"
-          strokeWidth="1"
-        />
-      )}
       
       <Defs>
         <LinearGradient id="paint0_linear" x1="16.0001" y1="2.66406" x2="5.0735" y2="25.8203" gradientUnits="userSpaceOnUse">

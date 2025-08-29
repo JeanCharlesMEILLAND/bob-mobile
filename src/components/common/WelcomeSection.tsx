@@ -7,10 +7,11 @@ import { BobEvent } from '../../types/events.extended.types';
 
 interface WelcomeSectionProps {
   username: string;
-  onAddContacts: () => void;
-  onCreateFirstBob: () => void;
-  onCreateFirstEvent: () => void;
+  onAddContacts?: () => void;
+  onCreateFirstBob?: () => void;
+  onCreateFirstEvent?: () => void;
   isNewUser?: boolean;
+  isWeb?: boolean;
   wasInvitedBy?: string; // Si invité par un autre bober
   pendingInvitation?: {
     event: BobEvent;
@@ -68,21 +69,21 @@ export const WelcomeSection: React.FC<WelcomeSectionProps> = ({
       icon: '👥',
       title: 'Ajoutez vos contacts',
       description: 'Importez vos amis et famille depuis votre téléphone',
-      action: onAddContacts,
+      action: onAddContacts || (() => console.log('Action non configurée: ajouter contacts')),
       buttonText: 'Ajouter contacts'
     },
     {
       icon: '🎯',
       title: 'Créez votre premier BOB',
       description: 'Prêtez, empruntez ou demandez un service',
-      action: onCreateFirstBob,
+      action: onCreateFirstBob || (() => console.log('Action non configurée: créer BOB')),
       buttonText: 'Créer un BOB'
     },
     {
       icon: '🎉',
       title: 'Organisez un événement',
       description: 'Planifiez une sortie ou activité entre amis',
-      action: onCreateFirstEvent,
+      action: onCreateFirstEvent || (() => console.log('Action non configurée: créer événement')),
       buttonText: 'Créer événement'
     }
   ];

@@ -325,16 +325,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
-    height: 60,
-    paddingBottom: 8,
-    paddingTop: 8,
+    height: 80,
+    paddingBottom: 12,
+    paddingTop: 18,
   },
   tabLabel: {
     fontSize: 12,
     fontWeight: '500',
   },
   tabIcon: {
-    fontSize: 20,
+    fontSize: 24,
   },
   tabIconFocused: {
     transform: [{ scale: 1.1 }],

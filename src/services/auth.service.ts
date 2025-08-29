@@ -19,47 +19,7 @@ class AuthService {
   async login(data: LoginData): Promise<AuthResponse> {
     logAuth('Tentative de connexion', { identifier: data.identifier });
     
-    // 🧪 MODE TEST LOCAL - Identifiants prédéfinis
-    const localTestCredentials = [
-      { identifier: 'jc.meilland@idboats.com', password: 'Oskarek1973$', username: 'Jean-Christophe Meilland', bobizPoints: 500 },
-      { identifier: 'jc.meilland', password: 'Oskarek1973$', username: 'Jean-Christophe Meilland', bobizPoints: 500 },
-      { identifier: 'test@bob.com', password: 'password123', username: 'TestUser', bobizPoints: 250 },
-      { identifier: 'admin@bob.com', password: 'admin123', username: 'Admin', bobizPoints: 1000 },
-      { identifier: 'marie@bob.com', password: 'marie123', username: 'Marie Dupont', bobizPoints: 320 },
-      { identifier: 'test', password: 'test', username: 'Demo User', bobizPoints: 100 }
-    ];
-
-    // Vérifier d'abord les identifiants locaux
-    const localUser = localTestCredentials.find(cred => 
-      (cred.identifier === data.identifier || cred.username.toLowerCase() === data.identifier.toLowerCase()) && 
-      cred.password === data.password
-    );
-
-    if (localUser) {
-      logAuth('Connexion locale réussie', { username: localUser.username });
-      
-      const mockResult = {
-        jwt: 'mock-jwt-token-' + Date.now(),
-        user: {
-          id: Math.floor(Math.random() * 10000),
-          username: localUser.username,
-          email: localUser.identifier.includes('@') ? localUser.identifier : `${localUser.username.toLowerCase().replace(' ', '.')}@bob.com`,
-          bobizPoints: localUser.bobizPoints
-        }
-      };
-
-      // 💾 Sauvegarder automatiquement la session avec cache
-      try {
-        await this.setSession(mockResult.jwt, mockResult.user);
-        logAuth('Session locale sauvegardée automatiquement');
-      } catch (error) {
-        logger.warn('auth', 'Erreur sauvegarde session locale', error);
-      }
-
-      return mockResult;
-    }
-
-    // Si pas de match local, essayer le serveur distant
+    // 🚀 AUTHENTIFICATION STRAPI UNIQUEMENT
     try {
       logger.debug('auth', 'Envoi requête vers /auth/local');
       const response = await apiClient.post('/auth/local', data);
@@ -69,25 +29,25 @@ class AuthService {
       if (!response.ok) {
         const errorText = await response.text();
         logger.error('auth', 'Erreur réponse serveur', { status: response.status, error: errorText.substring(0, 200) });
-        throw new Error('Identifiants incorrects. Utilisez les identifiants de test:\n• test@bob.com / password123\n• admin@bob.com / admin123\n• marie@bob.com / marie123\n• test / test');
+        throw new Error('Identifiants incorrects. Vérifiez votre email et mot de passe.');
       }
 
       const result = await response.json();
-      logAuth('Connexion serveur réussie', { username: result.user.username });
+      logAuth('Connexion Strapi réussie', { username: result.user.username });
       
       // 💾 Sauvegarder automatiquement la session avec cache
       try {
         await this.setSession(result.jwt, result.user);
-        logAuth('Session serveur sauvegardée automatiquement');
+        logAuth('Session Strapi sauvegardée automatiquement');
       } catch (error) {
-        logger.warn('auth', 'Erreur sauvegarde session serveur', error);
+        logger.warn('auth', 'Erreur sauvegarde session Strapi', error);
       }
       
       return result;
 
     } catch (serverError) {
-      logger.error('auth', 'Erreur serveur, utilisation du mode local uniquement', serverError);
-      throw new Error('Connexion impossible. Utilisez les identifiants de test:\n• test@bob.com / password123\n• admin@bob.com / admin123\n• marie@bob.com / marie123\n• test / test');
+      logger.error('auth', 'Erreur connexion Strapi', serverError);
+      throw new Error('Connexion impossible. Vérifiez vos identifiants et votre connexion internet.');
     }
   }
 

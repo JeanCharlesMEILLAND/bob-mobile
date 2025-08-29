@@ -534,14 +534,6 @@ export const WebLayout: React.FC<WebLayoutProps> = ({
 
           {/* Footer sidebar */}
           <View style={styles.sidebarFooter}>
-            <TouchableOpacity
-              style={styles.logoutButton}
-              onPress={handleLogout}
-              activeOpacity={0.8}
-            >
-              <Text>🚪</Text>
-              <Text style={styles.logoutText}>{t('webLayout.logout')}</Text>
-            </TouchableOpacity>
           </View>
         </View>
       )}

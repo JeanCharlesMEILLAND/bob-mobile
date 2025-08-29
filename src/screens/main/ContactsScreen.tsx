@@ -2472,6 +2472,20 @@ export const ContactsScreen = memo(() => {
           </>
       </ScrollView>
       
+      {/* Nom de l'écran pour debug */}
+      <View style={{
+        position: 'absolute',
+        bottom: 100,
+        left: 0,
+        right: 0,
+        backgroundColor: 'rgba(0,0,0,0.7)',
+        padding: 8,
+        alignItems: 'center'
+      }}>
+        <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>
+          📞 SCREEN: ContactsScreen.tsx
+        </Text>
+      </View>
       
     </View>
   );

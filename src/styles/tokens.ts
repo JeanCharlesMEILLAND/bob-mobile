@@ -8,7 +8,15 @@ export const Colors = {
   border: '#e9ecef',
   error: '#dc3545',
   success: '#28a745',
-  warning: '#ffc107',  // ← Ajoutez cette ligne
+  warning: '#ffc107',
+  
+  // Couleurs spécifiques Bob (ajout depuis Flutter)
+  lightblue: '#166AF6',        // Couleur signature Bob
+  lendColor: '#9B7402',        // Couleur prêt (or)
+  borrowColor: '#DE2A25',      // Couleur emprunt (rouge)
+  gradientBobies0: '#FFBA26',  // Bobies monnaie
+  gradientBobies100: '#FFE62C',
+  activeNavColor: '#0AC7F4',   // Navigation active
 } as const;
 
 export const Spacing = {

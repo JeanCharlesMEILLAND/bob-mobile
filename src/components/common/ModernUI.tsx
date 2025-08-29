@@ -416,16 +416,16 @@ export const ModernHomeHeader: React.FC<ModernHomeHeaderProps> = ({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: modernColors.white,
+    paddingHorizontal: 0,
+    paddingVertical: 20,
+    minHeight: 80,
+    backgroundColor: 'transparent',
     borderRadius: 12,
-    margin: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3
+    shadowColor: 'transparent',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0
   }}>
     <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
       {/* Logo Bob ou Avatar */}
@@ -535,7 +535,7 @@ export const ModernReceivedRequests: React.FC<ModernReceivedRequestsProps> = ({
 
   if (!requests || requests.length === 0) {
     return (
-      <ModernCard style={{ margin: 8 }}>
+      <View style={{ backgroundColor: 'transparent' }}>
         <View style={{ alignItems: 'center', paddingVertical: 20 }}>
           <Text style={{ fontSize: 32, marginBottom: 8 }}>💌</Text>
           <Text style={{
@@ -554,12 +554,12 @@ export const ModernReceivedRequests: React.FC<ModernReceivedRequestsProps> = ({
             {t('ui.noRequestsReceivedDesc')}
           </Text>
         </View>
-      </ModernCard>
+      </View>
     );
   }
 
   return (
-    <ModernCard style={{ margin: 8 }}>
+    <View style={{ backgroundColor: 'transparent' }}>
       <View style={{
         flexDirection: 'row',
         justifyContent: 'space-between',
@@ -694,7 +694,7 @@ export const ModernReceivedRequests: React.FC<ModernReceivedRequestsProps> = ({
           </View>
         </View>
       ))}
-    </ModernCard>
+    </View>
   );
 };
 

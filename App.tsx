@@ -12,6 +12,7 @@ import {
 } from './src/screens';
 // Écrans principaux
 import { HomeScreen, ContactsScreen, ChatListScreen } from './src/screens/main';
+import { ExchangesScreenWeb } from './src/screens/exchanges';
 
 // Écrans modaux
 import { CreateExchangeScreen, CreateBoberScreen, CreateEventScreen } from './src/screens/modals';
@@ -32,9 +33,29 @@ import { NavigationContext } from './src/navigation/SimpleNavigation';
 // Import i18n
 import './src/i18n';
 
+// Fonction d'urgence pour déconnexion (dev uniquement)
+const forceLogout = async () => {
+  try {
+    const { authService } = await import('./src/services');
+    await authService.logout();
+    console.log('🚪 Déconnexion forcée réussie');
+    // Recharger l'app
+    if (typeof window !== 'undefined' && window.location) {
+      window.location.reload();
+    }
+  } catch (error) {
+    console.error('❌ Erreur déconnexion forcée:', error);
+  }
+};
+
+// Exposer globalement pour debug console
+if (typeof window !== 'undefined') {
+  (window as any).forceLogout = forceLogout;
+}
+
 const AppContentSimple: React.FC = () => {
   const { t } = useTranslation();
-  const { isAuthenticated, isLoading, isInitialized } = useAuth();
+  const { isAuthenticated, isLoading, isInitialized, logout } = useAuth();
   const [currentScreen, setCurrentScreen] = React.useState<ScreenType>('home');
   const [navigationStack, setNavigationStack] = React.useState<Array<{screen: string, params?: any}>>([]);
 
@@ -177,13 +198,6 @@ const AppContentSimple: React.FC = () => {
   return (
     <NavigationContext.Provider value={navigationValue}>
       <View style={[GlobalStyles.container, isDesktop && { flexDirection: 'row' }]}>
-        {/* Navigation - Toujours visible */}
-        {navigationStack.length === 0 && (
-          <BottomNavigation
-            currentScreen={currentScreen}
-            onScreenChange={setCurrentScreen}
-          />
-        )}
         
         {/* Contenu principal */}
         <View style={[
@@ -209,9 +223,16 @@ const AppContentSimple: React.FC = () => {
             {renderScreen()}
           </View>
         </View>
+
+        {/* Navigation - Toujours visible */}
+        <BottomNavigation
+          currentScreen={currentScreen}
+          onScreenChange={setCurrentScreen}
+        />
         
-        {/* Notifications intelligentes */}
-        <SmartNotifications position="bottom" maxVisible={3} />
+        {/* Notifications intelligentes - TEMPORAIREMENT DÉSACTIVÉES */}
+        {/* <SmartNotifications position="bottom" maxVisible={3} /> */}
+        
       </View>
     </NavigationContext.Provider>
   );

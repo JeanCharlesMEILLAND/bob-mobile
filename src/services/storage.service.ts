@@ -207,4 +207,32 @@ export const storageService = {
       console.error('❌ Erreur debug storage:', error);
     }
   },
+
+  // =================== BOB ECOSYSTEM STORAGE ===================
+
+  /**
+   * Stocker une valeur générique avec préfixe BOB
+   */
+  set: async (key: string, value: any): Promise<void> => {
+    try {
+      const serializedValue = JSON.stringify(value);
+      await AsyncStorage.setItem(`@bob_${key}`, serializedValue);
+    } catch (error) {
+      console.error('❌ Erreur storage SET:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Récupérer une valeur générique
+   */
+  get: async <T = any>(key: string): Promise<T | null> => {
+    try {
+      const value = await AsyncStorage.getItem(`@bob_${key}`);
+      return value ? JSON.parse(value) : null;
+    } catch (error) {
+      console.error('❌ Erreur storage GET:', error);
+      return null;
+    }
+  },
 };
