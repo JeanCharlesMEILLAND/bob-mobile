@@ -1,25 +1,28 @@
 ﻿import { create } from 'zustand';
 import { bobService } from '../services/bobService';
+import { bobizService } from '../services/bobiz.service';
 import { Groupe, Echange, Evenement, Message, BobizTransaction } from '../types';
 
 interface BobStore {
-  // Ã‰tat
+  // État
   groupes: Groupe[];
   echanges: Echange[];
   evenements: Evenement[];
   messages: Message[];
   bobizTransactions: BobizTransaction[];
+  myBalance: number;
+  bobizStats: any;
   isLoading: boolean;
   
   // Actions Groupes
   loadGroupes: () => Promise<void>;
   createGroupe: (data: Partial<Groupe>) => Promise<void>;
   
-  // Actions Ã‰changes
+  // Actions Échanges
   loadEchanges: () => Promise<void>;
   createEchange: (data: Partial<Echange>) => Promise<void>;
   
-  // Actions Ã‰vÃ©nements
+  // Actions Événements
   loadEvenements: () => Promise<void>;
   createEvenement: (data: Partial<Evenement>) => Promise<void>;
   
@@ -29,15 +32,21 @@ interface BobStore {
   
   // Actions Bobiz
   loadBobizTransactions: () => Promise<void>;
+  loadMyBalance: () => Promise<void>;
+  loadBobizStats: () => Promise<void>;
+  spendBobiz: (points: number, description: string) => Promise<void>;
+  rewardUser: (userId: number, points: number, description: string) => Promise<void>;
 }
 
 export const useBobStore = create<BobStore>((set, get) => ({
-  // Ã‰tat initial
+  // État initial
   groupes: [],
   echanges: [],
   evenements: [],
   messages: [],
   bobizTransactions: [],
+  myBalance: 0,
+  bobizStats: null,
   isLoading: false,
 
   // === GROUPES ===
@@ -133,10 +142,64 @@ export const useBobStore = create<BobStore>((set, get) => ({
   // === BOBIZ ===
   loadBobizTransactions: async () => {
     try {
-      const bobizTransactions = await bobService.getBobizTransactions();
-      set({ bobizTransactions });
+      set({ isLoading: true });
+      const response = await bobizService.getMyTransactions();
+      set({ bobizTransactions: response.transactions, isLoading: false });
     } catch (error: any) {
       console.error('Erreur chargement transactions Bobiz:', error);
+      set({ isLoading: false });
+    }
+  },
+
+  loadMyBalance: async () => {
+    try {
+      const balance = await bobizService.getMyBalance();
+      set({ myBalance: balance.balance });
+    } catch (error: any) {
+      console.error('Erreur chargement solde Bobiz:', error);
+    }
+  },
+
+  loadBobizStats: async () => {
+    try {
+      const stats = await bobizService.getGlobalStats();
+      set({ bobizStats: stats });
+    } catch (error: any) {
+      console.error('Erreur chargement stats Bobiz:', error);
+    }
+  },
+
+  spendBobiz: async (points: number, description: string) => {
+    try {
+      await bobizService.spendBobiz({
+        points,
+        description,
+        source: 'echange_complete',
+      });
+      
+      // Recharger le solde et les transactions
+      await get().loadMyBalance();
+      await get().loadBobizTransactions();
+    } catch (error: any) {
+      console.error('Erreur dépense Bobiz:', error);
+      throw error;
+    }
+  },
+
+  rewardUser: async (userId: number, points: number, description: string) => {
+    try {
+      await bobizService.rewardUser({
+        userId,
+        points,
+        description,
+        source: 'bonus_niveau',
+      });
+      
+      // Recharger les stats si nécessaire
+      await get().loadBobizStats();
+    } catch (error: any) {
+      console.error('Erreur récompense Bobiz:', error);
+      throw error;
     }
   },
 }));

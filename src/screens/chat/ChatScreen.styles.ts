@@ -153,6 +153,26 @@ export const styles = StyleSheet.create({
     fontSize: 18,
   },
 
+  // Bouton pièce jointe
+  attachmentButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F0F0F0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+
+  attachmentButtonDisabled: {
+    backgroundColor: '#E5E5E5',
+    opacity: 0.6,
+  },
+
+  attachmentButtonText: {
+    fontSize: 16,
+  },
+
   // Zone de texte
   textInput: {
     flex: 1,

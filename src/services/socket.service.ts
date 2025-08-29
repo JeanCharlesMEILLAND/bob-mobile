@@ -1,12 +1,13 @@
 // src/services/socket.service.ts - Service Socket.io temps réel
 import { io, Socket } from 'socket.io-client';
 import { authService } from './auth.service';
+import { MediaFile } from './media.service';
 
 export interface SocketMessage {
   id: string;
   conversationId: string;
   content: string;
-  type: 'text' | 'image' | 'system' | 'status_update' | 'location';
+  type: 'text' | 'image' | 'media' | 'system' | 'status_update' | 'location';
   sender: {
     id: number;
     username: string;
@@ -16,6 +17,7 @@ export interface SocketMessage {
   timestamp: string;
   readBy: { [userId: string]: string };
   replyTo?: any;
+  attachments?: MediaFile[];
 }
 
 export interface TypingUser {
@@ -168,13 +170,14 @@ class SocketService {
   /**
    * Envoyer un message
    */
-  sendMessage(conversationId: string, content: string, type: string = 'text', replyToId?: string) {
+  sendMessage(conversationId: string, content: string, type: string = 'text', replyToId?: string, attachments?: MediaFile[]) {
     if (this.socket?.connected) {
       this.socket.emit('send_message', {
         conversationId,
         content,
         type,
-        replyToId
+        replyToId,
+        attachments
       });
       console.log(`📤 Message envoyé vers conversation: ${conversationId}`);
     } else {

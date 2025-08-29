@@ -1,6 +1,7 @@
 ﻿// src/services/api.ts
 // Configuration multi-environnement avec variables d'environnement
 import Constants from 'expo-constants';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const isDev = __DEV__ || process.env.NODE_ENV === 'development';
 
@@ -147,16 +148,75 @@ export const apiClient = {
   },
 };
 
-// Export tokenStorage for compatibility
+// TokenStorage - Gestion sécurisée des tokens d'authentification
+
+const TOKEN_KEY = '@bob_auth_token';
+
 export const tokenStorage = {
-  getToken: async () => {
-    // Implementation would go here
-    return null;
+  getToken: async (): Promise<string | null> => {
+    try {
+      const token = await AsyncStorage.getItem(TOKEN_KEY);
+      if (token && token.length > 10) {
+        console.log('🔐 Token récupéré:', token.substring(0, 20) + '...');
+        return token;
+      }
+      return null;
+    } catch (error) {
+      console.error('❌ Erreur récupération token:', error);
+      return null;
+    }
   },
-  setToken: async (token: string) => {
-    // Implementation would go here
+  
+  setToken: async (token: string): Promise<void> => {
+    try {
+      if (!token || token.length < 10) {
+        console.warn('⚠️ Token invalide fourni pour sauvegarde');
+        return;
+      }
+      await AsyncStorage.setItem(TOKEN_KEY, token);
+      console.log('✅ Token sauvegardé:', token.substring(0, 20) + '...');
+    } catch (error) {
+      console.error('❌ Erreur sauvegarde token:', error);
+      throw error;
+    }
   },
-  removeToken: async () => {
-    // Implementation would go here
+  
+  removeToken: async (): Promise<void> => {
+    try {
+      await AsyncStorage.removeItem(TOKEN_KEY);
+      console.log('🗑️ Token supprimé');
+    } catch (error) {
+      console.error('❌ Erreur suppression token:', error);
+      throw error;
+    }
+  },
+  
+  // Fonction utilitaire pour vérifier la validité d'un token
+  isValidToken: (token: string | null): boolean => {
+    if (!token) return false;
+    if (token.length < 10) return false;
+    // Vérification basique du format JWT
+    if (token.split('.').length !== 3) return false;
+    return true;
+  },
+  
+  // Fonction pour extraire les infos du token (sans validation cryptographique)
+  getTokenInfo: (token: string | null): any => {
+    if (!token || !tokenStorage.isValidToken(token)) return null;
+    
+    try {
+      const [, payload] = token.split('.');
+      const decoded = JSON.parse(atob(payload));
+      return {
+        userId: decoded.id || decoded.sub,
+        email: decoded.email,
+        exp: decoded.exp,
+        iat: decoded.iat,
+        isExpired: decoded.exp ? (decoded.exp * 1000 < Date.now()) : false
+      };
+    } catch (error) {
+      console.error('❌ Erreur décodage token:', error);
+      return null;
+    }
   }
 };

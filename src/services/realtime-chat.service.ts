@@ -2,12 +2,13 @@
 import { apiClient } from './api';
 import { authService } from './auth.service';
 import { socketService, SocketMessage } from './socket.service';
+import { MediaFile } from './media.service';
 
 export interface RealtimeChatMessage {
   id: string;
   conversationId: string;
   content: string;
-  type: 'text' | 'image' | 'system' | 'status_update' | 'location';
+  type: 'text' | 'image' | 'media' | 'system' | 'status_update' | 'location';
   sender: {
     id: number;
     username: string;
@@ -17,6 +18,7 @@ export interface RealtimeChatMessage {
   timestamp: string;
   readBy: { [userId: string]: string };
   replyTo?: RealtimeChatMessage;
+  attachments?: MediaFile[]; // Pièces jointes
   isTemporary?: boolean; // Pour les messages en cours d'envoi
 }
 
@@ -119,7 +121,7 @@ class RealtimeChatService {
   /**
    * Envoyer un message via Socket.io
    */
-  async sendMessage(conversationId: string, content: string, type: string = 'text', replyToId?: string): Promise<boolean> {
+  async sendMessage(conversationId: string, content: string, type: string = 'text', replyToId?: string, attachments?: MediaFile[]): Promise<boolean> {
     try {
       const user = await authService.getCurrentUser();
       if (!user) throw new Error('Utilisateur non connecté');
@@ -138,6 +140,7 @@ class RealtimeChatService {
         },
         timestamp: new Date().toISOString(),
         readBy: { [user.id]: new Date().toISOString() },
+        attachments: attachments,
         isTemporary: true
       };
 
@@ -145,7 +148,7 @@ class RealtimeChatService {
       this.addMessageToConversation(conversationId, tempMessage);
 
       // Envoyer via Socket.io
-      socketService.sendMessage(conversationId, content, type, replyToId);
+      socketService.sendMessage(conversationId, content, type, replyToId, attachments);
 
       return true;
 

@@ -5,13 +5,15 @@ import {
   Text,
   TouchableOpacity,
   TouchableWithoutFeedback,
-  Alert
+  Alert,
+  Image,
+  ScrollView
 } from 'react-native';
-import { ChatMessage } from '../../../types/chat.types';
+import { RealtimeChatMessage } from '../../../services/realtime-chat.service';
 import { WebStyles, getWebStyle } from '../../../styles/web';
 
 interface MessageBubbleProps {
-  message: ChatMessage;
+  message: RealtimeChatMessage;
   isOwn: boolean;
   showAvatar?: boolean;
   onReply: () => void;
@@ -58,9 +60,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
 
   const getReactionCounts = () => {
     const counts: Record<string, number> = {};
-    message.reactions?.forEach(reaction => {
-      counts[reaction.emoji] = (counts[reaction.emoji] || 0) + 1;
-    });
+    // TODO: Implémenter les réactions dans RealtimeChatMessage
     return counts;
   };
 
@@ -163,7 +163,19 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
 
     readIndicator: {
       fontSize: 12,
-      color: message.isRead ? '#007AFF' : '#999999',
+      color: '#007AFF', // Simplifier pour l'instant
+    },
+
+    attachmentsContainer: {
+      marginBottom: 8,
+    },
+
+    attachmentImage: {
+      width: 200,
+      height: 150,
+      borderRadius: 8,
+      marginBottom: 4,
+      backgroundColor: '#f0f0f0',
     },
 
     reactionsContainer: {
@@ -252,7 +264,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
           {showAvatar && !isOwn ? (
             <View style={styles.avatar}>
               <Text style={styles.avatarText}>
-                {message.senderName.charAt(0).toUpperCase()}
+                {message.sender?.username.charAt(0).toUpperCase() || '?'}
               </Text>
             </View>
           ) : (
@@ -265,15 +277,31 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
               {/* Réponse */}
               {message.replyTo && (
                 <View style={styles.replyContainer}>
-                  <Text style={styles.replyAuthor}>{message.replyTo.senderName}</Text>
+                  <Text style={styles.replyAuthor}>{message.replyTo.sender?.username || 'Utilisateur'}</Text>
                   <Text style={styles.replyText} numberOfLines={2}>
                     {message.replyTo.content}
                   </Text>
                 </View>
               )}
 
+              {/* Pièces jointes */}
+              {message.attachments && message.attachments.length > 0 && (
+                <View style={styles.attachmentsContainer}>
+                  {message.attachments.map((attachment, index) => (
+                    <Image
+                      key={attachment.id || index}
+                      source={{ uri: attachment.url }}
+                      style={styles.attachmentImage}
+                      resizeMode="cover"
+                    />
+                  ))}
+                </View>
+              )}
+
               {/* Contenu du message */}
-              <Text style={styles.messageContent}>{message.content}</Text>
+              {message.content && (
+                <Text style={styles.messageContent}>{message.content}</Text>
+              )}
             </View>
 
             {/* Réactions */}
@@ -297,7 +325,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
               <Text style={styles.timestamp}>{formatTime(message.timestamp)}</Text>
               {isOwn && (
                 <Text style={styles.readIndicator}>
-                  {message.isRead ? '✓✓' : '✓'}
+                  ✓
                 </Text>
               )}
             </View>

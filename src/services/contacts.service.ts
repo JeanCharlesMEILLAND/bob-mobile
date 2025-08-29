@@ -1,6 +1,7 @@
 // src/services/contacts.service.ts
 import { apiClient } from './api';
 import { logger, logContacts } from '../utils/logger';
+import { cachedApiCall } from '../utils/cache';
 import { 
   Groupe, 
   Contact, 

@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../hooks';
-import { useSimpleNavigation } from '../../navigation/SimpleNavigation';
+import { useNavigation } from '@react-navigation/native';
 import { Header } from '../../components/common';
 import { realtimeChatService, RealtimeChatMessage } from '../../services/realtime-chat.service';
 import { socketService, useSocket } from '../../services/socket.service';
@@ -23,6 +23,7 @@ import { EmojiPicker } from './components/EmojiPicker';
 import { TypingIndicatorComponent } from './components/TypingIndicator';
 import { WebStyles, getWebStyle, isWebDesktop } from '../../styles/web';
 import { styles } from './ChatScreen.styles';
+import { mediaService, MediaFile } from '../../services/media.service';
 
 interface ChatScreenProps {
   chatId: string;
@@ -43,13 +44,14 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
 }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const navigation = useSimpleNavigation();
+  const navigation = useNavigation();
   
   const [messages, setMessages] = useState<RealtimeChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [typingUsers, setTypingUsers] = useState<TypingIndicator[]>([]);
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
   
   // Hook Socket.io
   const { connected, socket } = useSocket();
@@ -107,8 +109,8 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
   };
 
   // Fonction d'envoi de message
-  const sendMessage = async () => {
-    if (!inputText.trim() || !user?.id) {
+  const sendMessage = async (attachments?: MediaFile[]) => {
+    if ((!inputText.trim() && !attachments?.length) || !user?.id) {
       return;
     }
 
@@ -118,12 +120,17 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
       // Arrêter l'indicateur de saisie
       realtimeChatService.stopTyping(chatId);
       
-      // Envoyer le message via le service temps réel
+      // Déterminer le type de message
+      const messageType = attachments?.length ? 'media' : 'text';
+      const content = inputText.trim() || (attachments?.length ? 'Image partagée' : '');
+      
+      // Envoyer le message via le service temps réel avec les pièces jointes
       await realtimeChatService.sendMessage(
         chatId, 
-        inputText.trim(), 
-        'text',
-        replyTo?.id
+        content, 
+        messageType,
+        replyTo?.id,
+        attachments
       );
       
       // Nettoyer l'input et la réponse
@@ -143,6 +150,83 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
         'Impossible d\'envoyer le message. Vérifiez votre connexion.',
         [{ text: 'OK' }]
       );
+    }
+  };
+
+  // Fonction pour ajouter des pièces jointes
+  const handleAttachment = () => {
+    if (uploadingAttachment) return;
+
+    Alert.alert(
+      'Ajouter une pièce jointe',
+      'Comment souhaitez-vous ajouter une image ?',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        { 
+          text: '📷 Appareil photo', 
+          onPress: () => handleTakePhoto() 
+        },
+        { 
+          text: '🖼️ Galerie', 
+          onPress: () => handlePickFromGallery() 
+        },
+      ]
+    );
+  };
+
+  const handleTakePhoto = async () => {
+    try {
+      setUploadingAttachment(true);
+
+      const result = await mediaService.takePhoto({
+        allowsEditing: true,
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const uploadedImages = await mediaService.uploadImagesFromPicker(result);
+        
+        if (uploadedImages.length > 0) {
+          await sendMessage(uploadedImages);
+        }
+      }
+
+    } catch (error: any) {
+      console.error('❌ Erreur photo:', error);
+      Alert.alert(
+        'Erreur appareil photo',
+        error.message || 'Impossible de prendre la photo'
+      );
+    } finally {
+      setUploadingAttachment(false);
+    }
+  };
+
+  const handlePickFromGallery = async () => {
+    try {
+      setUploadingAttachment(true);
+
+      const result = await mediaService.pickImages({
+        allowsMultipleSelection: true,
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const uploadedImages = await mediaService.uploadImagesFromPicker(result);
+        
+        if (uploadedImages.length > 0) {
+          await sendMessage(uploadedImages);
+        }
+      }
+
+    } catch (error: any) {
+      console.error('❌ Erreur galerie:', error);
+      Alert.alert(
+        'Erreur galerie',
+        error.message || 'Impossible de sélectionner les images'
+      );
+    } finally {
+      setUploadingAttachment(false);
     }
   };
 
@@ -271,6 +355,17 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
           </Text>
         </TouchableOpacity>
 
+        {/* Bouton pièce jointe */}
+        <TouchableOpacity
+          style={[styles.attachmentButton, uploadingAttachment && styles.attachmentButtonDisabled]}
+          onPress={handleAttachment}
+          disabled={uploadingAttachment}
+        >
+          <Text style={styles.attachmentButtonText}>
+            {uploadingAttachment ? '⏳' : '📎'}
+          </Text>
+        </TouchableOpacity>
+
         {/* Zone de texte */}
         <TextInput
           style={styles.textInput}
@@ -280,7 +375,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
           multiline
           maxLength={1000}
           returnKeyType="send"
-          onSubmitEditing={sendMessage}
+          onSubmitEditing={() => sendMessage()}
           blurOnSubmit={false}
         />
 
@@ -290,7 +385,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
             styles.sendButton,
             inputText.trim() ? styles.sendButtonActive : styles.sendButtonInactive
           ]}
-          onPress={sendMessage}
+          onPress={() => sendMessage()}
           disabled={!inputText.trim()}
         >
           <Text style={styles.sendButtonText}>➤</Text>
