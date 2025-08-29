@@ -22,4 +22,5 @@ export interface TabItem {
   id: ScreenType;
   label: string;
   icon: string;
+  subtitle?: string;
 }

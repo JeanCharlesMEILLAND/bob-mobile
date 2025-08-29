@@ -3,10 +3,18 @@
   "compilerOptions": {
     "strict": false,
     "noImplicitAny": false,
+    "skipDefaultLibCheck": true,
+    "skipLibCheck": true,
+    "noImplicitReturns": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "exactOptionalPropertyTypes": false,
+    "noImplicitOverride": false,
+    "noPropertyAccessFromIndexSignature": false,
+    "noUncheckedIndexedAccess": false,
     "types": ["nativewind/types"],
     "module": "ESNext",
     "forceConsistentCasingInFileNames": false,
-    "skipLibCheck": true,
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true
   }

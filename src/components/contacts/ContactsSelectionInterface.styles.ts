@@ -441,22 +441,7 @@ export const styles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
 
-  // Styles pour contacts déjà importés
-  contactRowDisabled: {
-    opacity: 0.5,
-    backgroundColor: '#F5F5F5',
-  },
-  contactCheckboxDisabled: {
-    backgroundColor: '#E0E0E0',
-    borderColor: '#BDBDBD',
-  },
-  contactAvatarDisabled: {
-    backgroundColor: '#E0E0E0',
-    opacity: 0.7,
-  },
-  contactTextDisabled: {
-    color: '#9E9E9E',
-  },
+  // Styles pour contacts déjà importés (supprimés pour éviter duplication)
   checkmarkDisabled: {
     fontSize: 12,
     color: '#4CAF50',

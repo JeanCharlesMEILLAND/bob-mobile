@@ -154,7 +154,7 @@ export const WebDesign = {
   // Conteneur principal
   container: {
     maxWidth: 1440,
-    margin: '0 auto',
+    alignSelf: 'center',
     padding: `0 ${WebSpacing.xl}px`,
     backgroundColor: WebColors.background,
     minHeight: '100vh',

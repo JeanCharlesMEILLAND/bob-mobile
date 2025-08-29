@@ -11,7 +11,7 @@ export const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     ...(Platform.OS === 'web' && {
       maxWidth: screenWidth > 768 ? '100%' : '100vw',
-      margin: '0 auto',
+      alignSelf: 'center',
     }),
   },
 
@@ -82,7 +82,8 @@ export const styles = StyleSheet.create({
     borderTopColor: '#E9ECEF',
     paddingBottom: Platform.OS === 'ios' ? 20 : 8,
     ...(Platform.OS === 'web' && {
-      borderTop: '1px solid #E9ECEF',
+      borderTopWidth: 1,
+      borderTopColor: '#E9ECEF',
       backgroundColor: '#FFFFFF',
       position: 'sticky',
       bottom: 0,
@@ -173,7 +174,7 @@ export const styles = StyleSheet.create({
         textAlignVertical: 'top',
       },
       web: {
-        outline: 'none',
+        outlineWidth: 0,
         resize: 'none',
         fontFamily: 'system-ui, -apple-system, sans-serif',
       },

@@ -100,7 +100,7 @@ export interface UseContactsReturn {
   syncContactsToStrapi: (contacts?: Contact[]) => Promise<any>;
   syncAvecStrapi: () => Promise<any>; // Legacy
   detectBobUsers: () => Promise<any>;
-  forcePullFromStrapi: () => Promise<void>;
+  forcePullFromStrapi: () => Promise<any>;
   
   // === NETTOYAGE ===
   viderToutStrapiPourUtilisateur: () => Promise<number>;
@@ -201,16 +201,16 @@ export const useContacts = (): UseContactsReturn => {
     // Format attendu par l'ancien système  
     return {
       totalContactsTelephone: currentStats?.totalTelephone || data.phoneContacts.length,
-      contactsAvecEmail: currentStats?.contactsAvecEmail || data.phoneContacts.filter(c => c.email).length,
-      contactsComplets: currentStats?.contactsComplets || data.phoneContacts.filter(c => (c as any).isComplete).length,
+      contactsAvecEmail: data.phoneContacts.filter(c => c.email).length,
+      contactsComplets: data.phoneContacts.filter(c => (c as any).isComplete).length,
       mesContacts: currentStats?.mesContacts || data.repertoireContacts.length,
       contactsAvecBob: currentStats?.contactsAvecBob || data.bobContacts.length,
       contactsSansBob: currentStats?.contactsSansBob || ((currentStats?.mesContacts || 0) - (currentStats?.contactsAvecBob || 0)),
       contactsDisponibles: currentStats?.contactsDisponibles || data.availableContacts.length,
       contactsInvites: currentStats?.invitationsEnCours || data.invitedContacts.length,
-      invitationsEnCours: currentStats?.invitations || data.invitedContacts.length,
+      invitationsEnCours: data.invitedContacts.length,
       invitationsAcceptees: 0, // TODO: Calculer depuis les invitations acceptées
-      totalInvitationsEnvoyees: currentStats?.invitations || data.invitedContacts.length,
+      totalInvitationsEnvoyees: data.invitedContacts.length,
       tauxCuration: currentStats?.tauxCuration || '0%',
       pourcentageBob: currentStats?.pourcentageBob || '0%'
     };
@@ -260,8 +260,7 @@ export const useContacts = (): UseContactsReturn => {
         } catch (error) {
           console.warn('⚠️ Erreur callback refreshData:', error);
         }
-      },
-      onProgress: progressCallback
+      }
     });
     
     if (importResult.imported > 0) {
@@ -468,7 +467,7 @@ export const useContacts = (): UseContactsReturn => {
     syncContactsToStrapi,
     syncAvecStrapi,
     detectBobUsers,
-    forcePullFromStrapi: async () => await forcePullFromStrapi(),
+    forcePullFromStrapi,
     
     // === NETTOYAGE ===
     viderToutStrapiPourUtilisateur: actions.deleteAllFromStrapi,
@@ -646,7 +645,7 @@ export const useContacts = (): UseContactsReturn => {
         insights[country] = {
           count: contacts.length,
           percentage: ((contacts.length / total) * 100).toFixed(1) + '%',
-          bobUsers: contacts.filter(c => c.isOnBob).length
+          bobUsers: contacts.filter(c => (c as any).isOnBob || (c as any).aSurBob).length
         };
       });
       
@@ -659,7 +658,7 @@ export const useContacts = (): UseContactsReturn => {
       
       const withEmail = allContacts.filter(c => c.email).length;
       const withFullName = allContacts.filter(c => c.nom && c.prenom).length;
-      const onBob = allContacts.filter(c => c.isOnBob).length;
+      const onBob = allContacts.filter(c => (c as any).isOnBob || (c as any).aSurBob).length;
       
       const emailScore = (withEmail / allContacts.length) * 30;
       const nameScore = (withFullName / allContacts.length) * 30;  
@@ -705,7 +704,7 @@ export const useContacts = (): UseContactsReturn => {
     
     preloadContacts: async () => {
       const manager = ContactsManager.getInstance();
-      await manager.ensureInitialized();
+      await (manager as any).ensureInitialized();
       console.log('✅ Contacts préchargés');
     },
     

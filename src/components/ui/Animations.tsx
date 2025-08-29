@@ -574,7 +574,7 @@ export const ParticleAnimation: React.FC<{
   }, [particles, duration, count]);
 
   return (
-    <View style={[styles.particleContainer, style]} pointerEvents="none">
+    <View style={[styles.particleContainer, style, { pointerEvents: 'none' }]}>
       {particles.map((particle, index) => (
         <Animated.View
           key={index}

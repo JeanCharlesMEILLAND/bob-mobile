@@ -444,7 +444,7 @@ export const WebLayout: React.FC<WebLayoutProps> = ({
         flex: 1,
         padding: WebSpacing.lg,
         maxWidth: WebDesign.layout.maxWidth,
-        margin: '0 auto',
+        alignSelf: 'center',
         width: '100%',
       }),
     },

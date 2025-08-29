@@ -271,7 +271,7 @@ export const ProgressiveImage: React.FC<ProgressiveImageProps> = ({
     <View style={style}>
       {loading && (
         <View style={[style, styles.imageLoadingContainer]}>
-          {loadingComponent || <Skeleton width="100%" height="100%" />}
+          {loadingComponent || <Skeleton width={100} height={100} />}
         </View>
       )}
       <Animated.Image

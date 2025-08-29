@@ -69,7 +69,11 @@ export const useEventInvitations = ({
         dateEnvoi: inv.dateEnvoi,
         dateVue: inv.dateVue,
         dateReponse: inv.dateReponse,
-        metadata: inv.metadata
+        metadata: {
+          ...inv.metadata,
+          canalPreferentiel: inv.metadata?.canalPreferentiel || 'push',
+          typeInvitation: inv.metadata?.typeInvitation || 'directe'
+        }
       }));
 
       setInvitations(extendedInvitations);

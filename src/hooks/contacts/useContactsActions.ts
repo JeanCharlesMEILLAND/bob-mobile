@@ -573,7 +573,7 @@ export const useContactsActions = (): UseContactsActionsReturn => {
       // Notification d'erreur
       notifications.error(
         'Erreur de suppression',
-        `Impossible de supprimer ${contact?.nom || identifier}. Veuillez réessayer.`,
+        `Impossible de supprimer ${identifier}. Veuillez réessayer.`,
         {
           category: 'contact_deletion',
           duration: 5000,

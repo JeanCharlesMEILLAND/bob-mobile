@@ -29,7 +29,10 @@ export const apiClient = {
       headers: {
         'Content-Type': 'application/json',
         ...(token && { Authorization: `Bearer ${token}` }),
+        'Accept': 'application/json',
       },
+      mode: 'cors',
+      credentials: 'omit',
     });
     return response;
   },
@@ -50,7 +53,11 @@ export const apiClient = {
         headers: {
           'Content-Type': 'application/json',
           ...(token && { Authorization: `Bearer ${token}` }),
+          'Accept': 'application/json',
+          'Access-Control-Allow-Origin': '*',
         },
+        mode: 'cors',
+        credentials: 'omit',
         body: JSON.stringify(data),
       });
       
@@ -79,7 +86,10 @@ export const apiClient = {
       headers: {
         'Content-Type': 'application/json',
         ...(token && { Authorization: `Bearer ${token}` }),
+        'Accept': 'application/json',
       },
+      mode: 'cors',
+      credentials: 'omit',
       body: JSON.stringify(data),
     });
     return response;

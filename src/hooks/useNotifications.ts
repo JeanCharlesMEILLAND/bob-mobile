@@ -49,6 +49,8 @@ export const useNotifications = (): NotificationHook => {
           shouldShowAlert: true,
           shouldPlaySound: true,
           shouldSetBadge: true,
+          shouldShowBanner: true,
+          shouldShowList: true,
         }),
       });
     }

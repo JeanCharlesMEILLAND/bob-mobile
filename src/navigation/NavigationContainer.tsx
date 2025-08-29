@@ -81,6 +81,7 @@ const TabBarIcon = ({ focused, name }: { focused: boolean; name: string }) => {
 function MainTabNavigator() {
   return (
     <Tab.Navigator
+      id={undefined}
       screenOptions={({ route }) => ({
         tabBarIcon: ({ focused }) => (
           <TabBarIcon focused={focused} name={route.name} />
@@ -121,6 +122,7 @@ function MainTabNavigator() {
 function AuthenticatedStack() {
   return (
     <Stack.Navigator
+      id={undefined}
       initialRouteName="MainApp"
       screenOptions={{
         headerShown: false,
@@ -238,7 +240,7 @@ function RootNavigator() {
   }
 
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator id={undefined} screenOptions={{ headerShown: false }}>
       {isAuthenticated ? (
         <Stack.Screen name="MainApp" component={AuthenticatedStack} />
       ) : (

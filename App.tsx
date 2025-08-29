@@ -1,6 +1,6 @@
 ﻿// App.tsx - Version avec navigation interne simple + ContactsRepertoireScreen
 import React from 'react';
-import { SafeAreaView, StatusBar, View, Text } from 'react-native';
+import { SafeAreaView, StatusBar, View, Text, Platform } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { AuthProvider } from './src/context';
 import { useAuth } from './src/hooks';
@@ -188,9 +188,26 @@ const AppContentSimple: React.FC = () => {
         {/* Contenu principal */}
         <View style={[
           { flex: 1 },
-          isDesktop && { marginLeft: 250, minHeight: '100%' }
+          isDesktop && { 
+            marginLeft: 280, 
+            minHeight: '100vh',
+            backgroundColor: '#F8FAFC',
+            ...(Platform.OS === 'web' && {
+              transition: 'margin-left 0.3s ease-in-out',
+            }),
+          }
         ]}>
-          {renderScreen()}
+          <View style={[
+            { flex: 1 },
+            isDesktop && {
+              padding: 24,
+              maxWidth: 1200,
+              alignSelf: 'center',
+              width: '100%',
+            }
+          ]}>
+            {renderScreen()}
+          </View>
         </View>
         
         {/* Notifications intelligentes */}

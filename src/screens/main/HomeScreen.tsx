@@ -19,6 +19,7 @@ import {
   ModernStatCard,
   ModernActionButton,
   ModernMaintenanceSection,
+  ModernMaintenanceButton,
   ModernHomeHeader,
   ModernReceivedRequests,
   modernColors 
@@ -75,8 +76,13 @@ export const HomeScreen: React.FC = () => {
       }
       
       // Charger les invitations d'événements
-      const events = await eventsService.getMyInvitations();
-      setEventInvitations(events || []);
+      try {
+        const events = await eventsService.getMyInvitations?.();
+        setEventInvitations(events || []);
+      } catch (eventsError) {
+        console.log('⚠️ Service événements non disponible');
+        setEventInvitations([]);
+      }
       
     } catch (error) {
       console.error('❌ Erreur chargement dashboard:', error);
@@ -245,7 +251,10 @@ export const HomeScreen: React.FC = () => {
         
         {renderEventInvitations()}
         
-        <ModernReceivedRequests />
+        <ModernReceivedRequests 
+          requests={[]}
+          onViewRequest={(requestId) => console.log('Voir demande:', requestId)}
+        />
         
         {testMode && (
           <ModernMaintenanceSection title="Mode Test Actif">

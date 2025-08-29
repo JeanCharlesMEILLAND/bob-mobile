@@ -57,7 +57,7 @@ export const BobChatScreen: React.FC<ChatScreenProps> = ({
         
         // Marquer les messages comme lus
         if (user?.id) {
-          await bobMessagingService.markMessagesAsRead(conversationId, user.id);
+          await bobMessagingService.markMessagesAsRead(conversationId, String(user.id));
         }
       }
       
@@ -105,7 +105,7 @@ export const BobChatScreen: React.FC<ChatScreenProps> = ({
   };
 
   const renderMessage = ({ item }: { item: BobMessage }) => {
-    const isMyMessage = item.senderId === user?.id;
+    const isMyMessage = item.senderId === String(user?.id);
     const isSystemMessage = item.type === 'system';
     
     if (isSystemMessage) {
@@ -330,7 +330,7 @@ const styles = {
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
-    alignItems: 'center',
+    alignItems: 'center' as const,
     backgroundColor: '#f8f9fa',
   },
   loadingText: {
@@ -345,8 +345,8 @@ const styles = {
     borderBottomColor: '#e9ecef',
   },
   headerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
@@ -363,7 +363,7 @@ const styles = {
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: 'bold' as const,
     color: '#1a1a1a',
   },
   headerSubtitle: {
@@ -377,8 +377,8 @@ const styles = {
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e9ecef',
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
     padding: 16,
   },
   contextIcon: {
@@ -390,7 +390,7 @@ const styles = {
   },
   contextTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: 'bold' as const,
     color: '#1a1a1a',
   },
   contextSubtitle: {
@@ -413,10 +413,10 @@ const styles = {
     marginBottom: 16,
   },
   myMessageContainer: {
-    alignItems: 'flex-end',
+    alignItems: 'flex-end' as const,
   },
   otherMessageContainer: {
-    alignItems: 'flex-start',
+    alignItems: 'flex-start' as const,
   },
   senderName: {
     fontSize: 12,
@@ -466,13 +466,13 @@ const styles = {
 
   // System Messages
   systemMessage: {
-    alignItems: 'center',
+    alignItems: 'center' as const,
     marginBottom: 16,
   },
   systemMessageText: {
     fontSize: 14,
     color: '#6c757d',
-    fontStyle: 'italic',
+    fontStyle: 'italic' as const,
     backgroundColor: '#f8f9fa',
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -490,8 +490,8 @@ const styles = {
     borderTopColor: '#e9ecef',
   },
   inputRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
+    flexDirection: 'row' as const,
+    alignItems: 'flex-end' as const,
     padding: 16,
   },
   textInput: {
@@ -512,7 +512,7 @@ const styles = {
     borderRadius: 22,
     backgroundColor: '#007AFF',
     justifyContent: 'center',
-    alignItems: 'center',
+    alignItems: 'center' as const,
   },
   sendButtonDisabled: {
     backgroundColor: '#6c757d',

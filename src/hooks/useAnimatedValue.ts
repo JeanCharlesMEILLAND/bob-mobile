@@ -94,7 +94,7 @@ export function useStaggerAnimation() {
     values: Animated.Value[],
     toValue: number,
     staggerDelay: number = 100,
-    config: Animated.TimingAnimationConfig = {}
+    config: Animated.TimingAnimationConfig = { toValue: 0, useNativeDriver: false }
   ): Promise<void> => {
     return new Promise((resolve) => {
       const animations = values.map((value, index) =>
@@ -116,7 +116,7 @@ export function useStaggerAnimation() {
     values: Animated.Value[],
     toValue: number,
     staggerDelay: number = 100,
-    config: Animated.SpringAnimationConfig = {}
+    config: Animated.SpringAnimationConfig = { toValue: 0, useNativeDriver: false }
   ): Promise<void> => {
     return new Promise((resolve) => {
       const animations = values.map((value, index) =>
@@ -223,7 +223,7 @@ export function useGestureAnimation() {
   const velocityValue = useRef(new Animated.Value(0)).current;
 
   const handleGestureStart = useCallback(() => {
-    gestureValue.setOffset(gestureValue._value);
+    gestureValue.setOffset((gestureValue as any)._value);
     gestureValue.setValue(0);
   }, [gestureValue]);
 
@@ -238,7 +238,7 @@ export function useGestureAnimation() {
     gestureValue.flattenOffset();
     velocityValue.setValue(velocity);
 
-    let finalValue = gestureValue._value;
+    let finalValue = (gestureValue as any)._value;
     
     if (boundaries) {
       if (boundaries.min !== undefined && finalValue < boundaries.min) {
@@ -262,7 +262,7 @@ export function useGestureAnimation() {
     snapPoints: number[],
     velocity: number = 0
   ) => {
-    const currentValue = gestureValue._value;
+    const currentValue = (gestureValue as any)._value;
     
     // Trouver le point de snap le plus proche
     const closestSnapPoint = snapPoints.reduce((closest, snapPoint) => {

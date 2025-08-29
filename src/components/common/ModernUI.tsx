@@ -533,7 +533,7 @@ export const ModernReceivedRequests: React.FC<ModernReceivedRequestsProps> = ({
       .substring(0, 2);
   };
 
-  if (requests.length === 0) {
+  if (!requests || requests.length === 0) {
     return (
       <ModernCard style={{ margin: 8 }}>
         <View style={{ alignItems: 'center', paddingVertical: 20 }}>

@@ -1,6 +1,6 @@
 // src/components/navigation/BottomNavigation.tsx
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform, Dimensions } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Platform, Dimensions, Animated } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { BottomNavigationProps, TabItem, ScreenType } from '../../types';
 import { Colors, Typography, Spacing } from '../../styles';
@@ -15,39 +15,61 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
   onScreenChange 
 }) => {
   const { t } = useTranslation();
+  const [hoveredTab, setHoveredTab] = useState<string | null>(null);
+  const [isCollapsed, setIsCollapsed] = useState(false);
   
   const tabs: TabItem[] = [
-    { id: 'home', label: t('navigation.home'), icon: '🏠' },
-    { id: 'contacts', label: t('navigation.contacts'), icon: '📞' },
-    { id: 'chat', label: t('navigation.chat'), icon: '💬' },
-    { id: 'profile', label: t('navigation.profile'), icon: '👤' },
+    { id: 'home', label: t('navigation.home'), icon: '🏠', subtitle: 'Dashboard' },
+    { id: 'contacts', label: t('navigation.contacts'), icon: '👥', subtitle: 'Network' },
+    { id: 'chat', label: t('navigation.chat'), icon: '💬', subtitle: 'Messages' },
+    { id: 'profile', label: t('navigation.profile'), icon: '⚙️', subtitle: 'Settings' },
   ];
 
-  const renderTabIcon = (tabId: string, isActive: boolean) => {
-    const iconProps = { width: 22, height: 22, active: isActive };
+  const renderTabIcon = (tabId: string, isActive: boolean, isHovered: boolean = false) => {
+    const isDesktop = isWebDesktop();
+    const iconSize = isDesktop ? 24 : 20;
+    const iconColor = isActive 
+      ? (isDesktop ? '#FFFFFF' : Colors.primary)
+      : isHovered 
+        ? (isDesktop ? '#EC4899' : Colors.textSecondary)
+        : Colors.textSecondary;
+    
+    const iconStyle = {
+      fontSize: iconSize,
+      color: iconColor,
+      transition: Platform.OS === 'web' ? 'all 0.2s ease-in-out' : undefined,
+    };
     
     switch (tabId) {
       case 'home':
-        return <HomeIcon {...iconProps} height={20} />;
+        return (
+          <View style={[styles.iconContainer, isDesktop && styles.iconContainerDesktop]}>
+            <Text style={iconStyle}>🏠</Text>
+          </View>
+        );
       case 'contacts':
         return (
-          <Text style={{ fontSize: 20, color: isActive ? Colors.primary : Colors.textSecondary }}>
-            📞
-          </Text>
+          <View style={[styles.iconContainer, isDesktop && styles.iconContainerDesktop]}>
+            <Text style={iconStyle}>👥</Text>
+          </View>
         );
       case 'chat':
         return (
-          <Text style={{ fontSize: 20, color: isActive ? Colors.primary : Colors.textSecondary }}>
-            💬
-          </Text>
+          <View style={[styles.iconContainer, isDesktop && styles.iconContainerDesktop]}>
+            <Text style={iconStyle}>💬</Text>
+          </View>
         );
       case 'profile':
-        return <ProfileIcon {...iconProps} width={16} height={20} />;
+        return (
+          <View style={[styles.iconContainer, isDesktop && styles.iconContainerDesktop]}>
+            <Text style={iconStyle}>⚙️</Text>
+          </View>
+        );
       default:
         return (
-          <Text style={{ fontSize: 20, color: isActive ? Colors.primary : Colors.textSecondary }}>
-            📱
-          </Text>
+          <View style={[styles.iconContainer, isDesktop && styles.iconContainerDesktop]}>
+            <Text style={iconStyle}>📱</Text>
+          </View>
         );
     }
   };
@@ -57,42 +79,99 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
   return (
     <View style={[
       styles.container, 
-      isDesktop && styles.containerDesktop,
+      isDesktop && [styles.containerDesktop, isCollapsed && styles.containerCollapsed],
       getWebStyle(isDesktop ? styles.sidebarContainer : {})
     ]}>
       {isDesktop && (
-        <View style={styles.sidebarHeader}>
-          <Text style={styles.sidebarTitle}>🏠 BOB Network</Text>
+        <View style={[styles.sidebarHeader, isCollapsed && styles.sidebarHeaderCollapsed]}>
+          <View style={styles.logoContainer}>
+            <Text style={[styles.logoIcon, isCollapsed && styles.logoIconCollapsed]}>🏠</Text>
+            {!isCollapsed && (
+              <View style={styles.logoText}>
+                <Text style={styles.sidebarTitle}>BOB Network</Text>
+                <Text style={styles.sidebarSubtitle}>Private Exchange</Text>
+              </View>
+            )}
+          </View>
+          {isDesktop && (
+            <TouchableOpacity
+              style={styles.collapseButton}
+              onPress={() => setIsCollapsed(!isCollapsed)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.collapseIcon}>{isCollapsed ? '→' : '←'}</Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
       
-      {tabs.map((tab) => (
-        <TouchableOpacity
-          key={tab.id}
-          style={[
-            styles.tab,
-            isDesktop && styles.tabDesktop,
-            currentScreen === tab.id && (isDesktop ? styles.tabActiveDesktop : styles.tabActive)
-          ]}
-          onPress={() => onScreenChange(tab.id)}
-          activeOpacity={0.7}
-        >
-          <View style={[styles.tabContent, isDesktop && styles.tabContentDesktop]}>
-            {renderTabIcon(tab.id, currentScreen === tab.id)}
-            <Text style={[
-              styles.tabLabel,
-              isDesktop && styles.tabLabelDesktop,
-              currentScreen === tab.id && (isDesktop ? styles.tabLabelActiveDesktop : styles.tabLabelActive)
-            ]}>
-              {tab.label || 'Tab'}
-            </Text>
-          </View>
-        </TouchableOpacity>
-      ))}
+      <View style={styles.navSection}>
+        {tabs.map((tab) => {
+          const isActive = currentScreen === tab.id;
+          const isHovered = hoveredTab === tab.id;
+          
+          return (
+            <TouchableOpacity
+              key={tab.id}
+              style={[
+                styles.tab,
+                isDesktop && styles.tabDesktop,
+                isCollapsed && styles.tabCollapsed,
+                isActive && (isDesktop ? styles.tabActiveDesktop : styles.tabActive),
+                isHovered && isDesktop && styles.tabHovered
+              ]}
+              onPress={() => onScreenChange(tab.id)}
+              onMouseEnter={Platform.OS === 'web' ? () => setHoveredTab(tab.id) : undefined}
+              onMouseLeave={Platform.OS === 'web' ? () => setHoveredTab(null) : undefined}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.tabContent, isDesktop && styles.tabContentDesktop]}>
+                {renderTabIcon(tab.id, isActive, isHovered)}
+                {(!isDesktop || !isCollapsed) && (
+                  <View style={styles.tabTextContainer}>
+                    <Text style={[
+                      styles.tabLabel,
+                      isDesktop && styles.tabLabelDesktop,
+                      isActive && (isDesktop ? styles.tabLabelActiveDesktop : styles.tabLabelActive),
+                      isHovered && isDesktop && styles.tabLabelHovered
+                    ]}>
+                      {tab.label || 'Tab'}
+                    </Text>
+                    {isDesktop && tab.subtitle && (
+                      <Text style={[
+                        styles.tabSubtitle,
+                        isActive && styles.tabSubtitleActive
+                      ]}>
+                        {tab.subtitle}
+                      </Text>
+                    )}
+                  </View>
+                )}
+              </View>
+              {isActive && isDesktop && (
+                <View style={styles.activeIndicator} />
+              )}
+            </TouchableOpacity>
+          );
+        })}
+      </View>
       
       {isDesktop && (
-        <View style={styles.sidebarFooter}>
-          <Text style={styles.sidebarVersion}>v1.0.0</Text>
+        <View style={[styles.sidebarFooter, isCollapsed && styles.sidebarFooterCollapsed]}>
+          <View style={styles.userProfile}>
+            <View style={styles.userAvatar}>
+              <Text style={styles.userAvatarText}>JC</Text>
+            </View>
+            {!isCollapsed && (
+              <View style={styles.userInfo}>
+                <Text style={styles.userName}>Jean-Charles</Text>
+                <Text style={styles.userStatus}>• En ligne</Text>
+              </View>
+            )}
+          </View>
+          {!isCollapsed && (
+            <Text style={styles.sidebarVersion}>BOB v2.0.0</Text>
+          )}
         </View>
       )}
     </View>
@@ -118,52 +197,174 @@ const styles = StyleSheet.create({
   // Desktop sidebar styles
   containerDesktop: {
     flexDirection: 'column',
-    width: 250,
-    height: '100%',
-    position: 'absolute' as any,
+    width: 280,
+    height: '100vh',
+    position: 'fixed' as any,
     top: 0,
-    bottom: 'auto',
-    borderTopWidth: 0,
+    left: 0,
+    backgroundColor: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
     borderRightWidth: 1,
-    borderRightColor: Colors.border,
-    paddingTop: 0,
-    paddingBottom: 20,
-    minHeight: 'auto',
+    borderRightColor: 'rgba(255,255,255,0.1)',
+    paddingVertical: 0,
+    zIndex: 1000,
+    ...(Platform.OS === 'web' && {
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      backdropFilter: 'blur(10px)',
+      boxShadow: '4px 0 20px rgba(0,0,0,0.1)',
+      transition: 'all 0.3s ease-in-out',
+    }),
+  },
+
+  containerCollapsed: {
+    width: 80,
   },
   
   sidebarContainer: {
     ...(Platform.OS === 'web' && {
-      boxShadow: '2px 0 4px rgba(0,0,0,0.1)',
+      boxShadow: '4px 0 20px rgba(0,0,0,0.1)',
     }),
   },
   
+  // Header styles
   sidebarHeader: {
-    padding: 20,
+    padding: 24,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-    backgroundColor: Colors.background,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+
+  sidebarHeaderCollapsed: {
+    padding: 16,
+  },
+
+  logoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+
+  logoIcon: {
+    fontSize: 28,
+    marginRight: 12,
+    ...(Platform.OS === 'web' && {
+      filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))',
+      transition: 'all 0.2s ease',
+    }),
+  },
+
+  logoIconCollapsed: {
+    marginRight: 0,
+  },
+
+  logoText: {
+    flex: 1,
   },
   
   sidebarTitle: {
-    fontSize: 18,
-    fontWeight: Typography.weights.bold,
-    color: Colors.primary,
-    textAlign: 'center',
+    fontSize: 20,
+    fontWeight: 'bold' as const,
+    color: '#FFFFFF',
+    letterSpacing: -0.5,
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+
+  sidebarSubtitle: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.7)',
+    marginTop: 2,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase' as const,
+  },
+
+  collapseButton: {
+    width: 32,
+    height: 32,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...(Platform.OS === 'web' && {
+      cursor: 'pointer',
+      transition: 'all 0.2s ease',
+    }),
+  },
+
+  collapseIcon: {
+    fontSize: 16,
+    color: '#FFFFFF',
+    fontWeight: 'bold' as const,
+  },
+
+  // Navigation section
+  navSection: {
+    flex: 1,
+    paddingTop: 20,
   },
   
+  // Footer styles
   sidebarFooter: {
-    marginTop: 'auto',
     padding: 20,
     borderTopWidth: 1,
-    borderTopColor: Colors.border,
+    borderTopColor: 'rgba(255,255,255,0.1)',
+  },
+
+  sidebarFooterCollapsed: {
+    padding: 16,
     alignItems: 'center',
+  },
+
+  userProfile: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+
+  userAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+
+  userAvatarText: {
+    fontSize: 14,
+    fontWeight: 'bold' as const,
+    color: '#FFFFFF',
+  },
+
+  userInfo: {
+    flex: 1,
+  },
+
+  userName: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: '#FFFFFF',
+    marginBottom: 2,
+  },
+
+  userStatus: {
+    fontSize: 12,
+    color: '#4ADE80',
+    fontWeight: '500' as const,
   },
   
   sidebarVersion: {
-    fontSize: 12,
-    color: Colors.textSecondary,
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.5)',
+    textAlign: 'center',
+    letterSpacing: 0.5,
   },
   
+  // Tab styles
   tab: {
     flex: 1,
     alignItems: 'center',
@@ -176,13 +377,26 @@ const styles = StyleSheet.create({
   
   tabDesktop: {
     flex: 0,
-    width: 'auto',
+    width: '100%',
     marginHorizontal: 12,
     marginVertical: 4,
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 12,
     alignItems: 'flex-start',
+    flexDirection: 'row' as const,
+    position: 'relative',
+    ...(Platform.OS === 'web' && {
+      cursor: 'pointer',
+      transition: 'all 0.2s ease-in-out',
+    }),
+  },
+
+  tabCollapsed: {
+    marginHorizontal: 16,
+    paddingHorizontal: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   
   tabContent: {
@@ -190,9 +404,15 @@ const styles = StyleSheet.create({
   },
   
   tabContentDesktop: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'flex-start' as const,
     width: '100%',
+  },
+
+  tabTextContainer: {
+    flex: 1,
+    marginLeft: 12,
   },
   
   tabActive: {
@@ -200,17 +420,45 @@ const styles = StyleSheet.create({
   },
   
   tabActiveDesktop: {
-    backgroundColor: Colors.primary,
+    backgroundColor: 'rgba(255,255,255,0.15)',
     ...(Platform.OS === 'web' && {
-      boxShadow: '0 2px 4px rgba(59,130,246,0.3)',
+      boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+      backdropFilter: 'blur(10px)',
     }),
   },
-  
-  tabIcon: {
-    fontSize: 20,
-    marginBottom: 4,
+
+  tabHovered: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    ...(Platform.OS === 'web' && {
+      transform: 'translateX(4px)',
+    }),
+  },
+
+  activeIndicator: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 3,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 2,
+    ...(Platform.OS === 'web' && {
+      boxShadow: '0 0 8px rgba(255,255,255,0.5)',
+    }),
+  },
+
+  // Icon styles
+  iconContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  iconContainerDesktop: {
+    width: 24,
+    height: 24,
   },
   
+  // Label styles
   tabLabel: {
     fontSize: Typography.sizes.xs,
     color: Colors.textSecondary,
@@ -220,11 +468,24 @@ const styles = StyleSheet.create({
   },
   
   tabLabelDesktop: {
-    fontSize: Typography.sizes.sm,
+    fontSize: 15,
     marginTop: 0,
-    marginLeft: 12,
     textAlign: 'left',
-    flex: 1,
+    color: 'rgba(255,255,255,0.8)',
+    fontWeight: '500' as const,
+    letterSpacing: 0.5,
+  },
+
+  tabSubtitle: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.5)',
+    marginTop: 2,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase' as const,
+  },
+
+  tabSubtitleActive: {
+    color: 'rgba(255,255,255,0.8)',
   },
   
   tabLabelActive: {
@@ -233,7 +494,11 @@ const styles = StyleSheet.create({
   },
   
   tabLabelActiveDesktop: {
-    color: Colors.white,
-    fontWeight: Typography.weights.semibold,
+    color: '#FFFFFF',
+    fontWeight: '600' as const,
+  },
+
+  tabLabelHovered: {
+    color: 'rgba(255,255,255,0.95)',
   },
 });

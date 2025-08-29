@@ -21,6 +21,8 @@ class AuthService {
     
     // 🧪 MODE TEST LOCAL - Identifiants prédéfinis
     const localTestCredentials = [
+      { identifier: 'jc.meilland@idboats.com', password: 'Oskarek1973$', username: 'Jean-Christophe Meilland', bobizPoints: 500 },
+      { identifier: 'jc.meilland', password: 'Oskarek1973$', username: 'Jean-Christophe Meilland', bobizPoints: 500 },
       { identifier: 'test@bob.com', password: 'password123', username: 'TestUser', bobizPoints: 250 },
       { identifier: 'admin@bob.com', password: 'admin123', username: 'Admin', bobizPoints: 1000 },
       { identifier: 'marie@bob.com', password: 'marie123', username: 'Marie Dupont', bobizPoints: 320 },
