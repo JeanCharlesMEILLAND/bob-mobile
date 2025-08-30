@@ -17,7 +17,49 @@
     "search": "Search",
     "filter": "Filter",
     "clear": "Clear",
-    "refresh": "Refresh"
+    "refresh": "Refresh",
+    "test": "Test",
+    "settings": "Settings",
+    "permissions": "Permissions",
+    "enable": "Enable",
+    "disable": "Disable"
+  },
+
+  "notifications": {
+    "title": "Notifications",
+    "pushNotifications": "Push notifications",
+    "testNotification": "Test notification",
+    "markAllRead": "Mark all as read",
+    "noNotifications": "No notifications",
+    "permissionRequired": "Permissions required",
+    "permissionDenied": "Permissions denied",
+    "enableInSettings": "Please enable notifications in settings",
+    "testSent": "Test notification sent!",
+    "unreadCount": "{{count}} unread",
+    "unreadCount_plural": "{{count}} unread",
+    "types": {
+      "new_exchange": "New exchange",
+      "new_message": "New message",
+      "event_reminder": "Event reminder", 
+      "bobiz_reward": "BOBIZ reward",
+      "system_alert": "System alert"
+    }
+  },
+
+  "location": {
+    "title": "Location",
+    "currentLocation": "Current location",
+    "searchAddress": "Search address...",
+    "noResults": "No addresses found",
+    "permissionRequired": "Location permission required",
+    "permissionDenied": "Location permission denied",
+    "locationError": "Unable to get your location",
+    "nearbyEvents": "Nearby events",
+    "distance": "Distance",
+    "away": "away",
+    "nearby": "Nearby",
+    "searchingLocation": "Searching...",
+    "useCurrentLocation": "Use my location"
   },
   
   "contacts": {

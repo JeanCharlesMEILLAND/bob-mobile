@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { AuthProvider } from './src/context';
 import { useAuth } from './src/hooks';
 import { LoadingScreen, SmartNotifications } from './src/components/common';
+import ErrorBoundary from './src/components/common/ErrorBoundary';
 import { 
   LoginScreen, 
   EventsScreen, 
@@ -240,11 +241,26 @@ const AppContentSimple: React.FC = () => {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <SafeAreaView style={GlobalStyles.safeArea}>
-        <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
-        <AppContentSimple />
-      </SafeAreaView>
-    </AuthProvider>
+    <ErrorBoundary
+      showErrorDetails={__DEV__}
+      onError={(error, errorInfo) => {
+        console.error('🚨 [APP] Erreur globale capturée:', error);
+        // TODO: Envoyer à un service de monitoring
+      }}
+    >
+      <AuthProvider>
+        <SafeAreaView style={GlobalStyles.safeArea}>
+          <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
+          <ErrorBoundary
+            resetOnPropsChange
+            onError={(error, errorInfo) => {
+              console.error('🚨 [APP_CONTENT] Erreur de contenu:', error);
+            }}
+          >
+            <AppContentSimple />
+          </ErrorBoundary>
+        </SafeAreaView>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }

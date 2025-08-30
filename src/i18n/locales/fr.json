@@ -17,7 +17,49 @@
     "search": "Rechercher",
     "filter": "Filtrer",
     "clear": "Effacer",
-    "refresh": "Actualiser"
+    "refresh": "Actualiser",
+    "test": "Test",
+    "settings": "Paramètres",
+    "permissions": "Permissions",
+    "enable": "Activer",
+    "disable": "Désactiver"
+  },
+
+  "notifications": {
+    "title": "Notifications",
+    "pushNotifications": "Notifications push",
+    "testNotification": "Notification de test",
+    "markAllRead": "Tout marquer comme lu",
+    "noNotifications": "Aucune notification",
+    "permissionRequired": "Permissions requises",
+    "permissionDenied": "Permissions refusées",
+    "enableInSettings": "Veuillez activer les notifications dans les paramètres",
+    "testSent": "Notification de test envoyée !",
+    "unreadCount": "{{count}} non lue",
+    "unreadCount_plural": "{{count}} non lues",
+    "types": {
+      "new_exchange": "Nouvel échange",
+      "new_message": "Nouveau message", 
+      "event_reminder": "Rappel d'événement",
+      "bobiz_reward": "Récompense BOBIZ",
+      "system_alert": "Alerte système"
+    }
+  },
+
+  "location": {
+    "title": "Localisation",
+    "currentLocation": "Position actuelle",
+    "searchAddress": "Rechercher une adresse...",
+    "noResults": "Aucune adresse trouvée",
+    "permissionRequired": "Permission de localisation requise",
+    "permissionDenied": "Permission de localisation refusée", 
+    "locationError": "Impossible d'obtenir votre position",
+    "nearbyEvents": "Événements à proximité",
+    "distance": "Distance",
+    "away": "de distance",
+    "nearby": "À proximité",
+    "searchingLocation": "Recherche en cours...",
+    "useCurrentLocation": "Utiliser ma position"
   },
   
   "contacts": {

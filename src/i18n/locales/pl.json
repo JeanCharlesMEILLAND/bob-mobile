@@ -17,7 +17,49 @@
     "search": "Szukaj",
     "filter": "Filtruj",
     "clear": "Wyczyść",
-    "refresh": "Odśwież"
+    "refresh": "Odśwież",
+    "test": "Test",
+    "settings": "Ustawienia",
+    "permissions": "Uprawnienia", 
+    "enable": "Włącz",
+    "disable": "Wyłącz"
+  },
+
+  "notifications": {
+    "title": "Powiadomienia",
+    "pushNotifications": "Powiadomienia push",
+    "testNotification": "Testowe powiadomienie",
+    "markAllRead": "Oznacz wszystkie jako przeczytane",
+    "noNotifications": "Brak powiadomień",
+    "permissionRequired": "Wymagane uprawnienia",
+    "permissionDenied": "Uprawnienia odrzucone",
+    "enableInSettings": "Proszę włączyć powiadomienia w ustawieniach",
+    "testSent": "Testowe powiadomienie wysłane!",
+    "unreadCount": "{{count}} nieprzeczytane",
+    "unreadCount_plural": "{{count}} nieprzeczytanych",
+    "types": {
+      "new_exchange": "Nowa wymiana",
+      "new_message": "Nowa wiadomość",
+      "event_reminder": "Przypomnienie o wydarzeniu",
+      "bobiz_reward": "Nagroda BOBIZ", 
+      "system_alert": "Ostrzeżenie systemowe"
+    }
+  },
+
+  "location": {
+    "title": "Lokalizacja",
+    "currentLocation": "Obecna lokalizacja",
+    "searchAddress": "Szukaj adresu...",
+    "noResults": "Nie znaleziono adresów",
+    "permissionRequired": "Wymagane uprawnienie do lokalizacji",
+    "permissionDenied": "Uprawnienie do lokalizacji odrzucone",
+    "locationError": "Nie można uzyskać Twojej lokalizacji",
+    "nearbyEvents": "Wydarzenia w pobliżu",
+    "distance": "Odległość",
+    "away": "odległości",
+    "nearby": "W pobliżu",
+    "searchingLocation": "Wyszukiwanie...",
+    "useCurrentLocation": "Użyj mojej lokalizacji"
   },
   
   "contacts": {

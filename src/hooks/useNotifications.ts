@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Platform } from 'react-native';
+import { Platform, AppState } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { notificationService } from '../services/notificationService';
 
 interface Notification {
   id: number;
@@ -31,6 +32,11 @@ interface NotificationHook {
   markAllAsRead: () => Promise<void>;
   getUnreadCount: () => Promise<number>;
   requestPermissions: () => Promise<boolean>;
+  // Nouvelles fonctions push
+  pushToken: string | null;
+  isPushReady: boolean;
+  initializePush: () => Promise<boolean>;
+  sendTestNotification: () => Promise<void>;
 }
 
 const API_BASE = 'http://localhost:1337/api';
@@ -40,6 +46,10 @@ export const useNotifications = (): NotificationHook => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // États pour push notifications
+  const [pushToken, setPushToken] = useState<string | null>(null);
+  const [isPushReady, setIsPushReady] = useState(false);
 
   // Configuration des notifications Expo
   useEffect(() => {
@@ -194,10 +204,132 @@ export const useNotifications = (): NotificationHook => {
     }
   }, []);
 
-  // Chargement initial
+  // Initialisation des push notifications
+  const initializePush = useCallback(async (): Promise<boolean> => {
+    try {
+      console.log('🔔 [USE_NOTIFICATIONS] Initialisation push...');
+      
+      const success = await notificationService.initialize();
+      const token = notificationService.getToken();
+      
+      setPushToken(token);
+      setIsPushReady(success);
+      
+      if (success && token) {
+        console.log('✅ [USE_NOTIFICATIONS] Push initialisé avec succès');
+        
+        // Synchroniser le token avec Strapi si nécessaire
+        await syncPushTokenWithServer(token);
+      }
+      
+      return success;
+    } catch (error) {
+      console.error('❌ [USE_NOTIFICATIONS] Erreur init push:', error);
+      setError('Erreur initialisation push notifications');
+      return false;
+    }
+  }, []);
+
+  // Synchroniser le token push avec le serveur
+  const syncPushTokenWithServer = useCallback(async (token: string) => {
+    try {
+      await apiCall('/users/me/push-token', {
+        method: 'PUT',
+        body: JSON.stringify({
+          pushToken: token,
+          platform: Platform.OS,
+          deviceInfo: {
+            os: Platform.OS,
+            version: Platform.Version,
+          }
+        })
+      });
+      
+      console.log('✅ [USE_NOTIFICATIONS] Token push synchronisé avec serveur');
+    } catch (error) {
+      console.error('❌ [USE_NOTIFICATIONS] Erreur sync token:', error);
+    }
+  }, []);
+
+  // Envoyer une notification de test
+  const sendTestNotification = useCallback(async () => {
+    try {
+      if (!isPushReady) {
+        throw new Error('Service push non initialisé');
+      }
+
+      // Créer une notification de test dans Strapi
+      const response = await apiCall('/notifications', {
+        method: 'POST',
+        body: JSON.stringify({
+          data: {
+            titre: '🔔 Test Notification',
+            message: 'Les notifications push BOB fonctionnent parfaitement !',
+            type: 'système_info',
+            priorite: 'haute',
+            canaux: ['push', 'inapp'],
+            dateCreation: new Date().toISOString(),
+            statut: 'envoyée',
+            metadata: {
+              isTest: true,
+              source: 'mobile_app'
+            }
+          }
+        })
+      });
+
+      if (response.data) {
+        // Déclencher la notification push locale
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title: response.data.titre,
+            body: response.data.message,
+            data: {
+              notificationId: response.data.id,
+              type: response.data.type,
+              ...response.data.metadata
+            },
+          },
+          trigger: null, // Immédiat
+        });
+
+        // Rafraîchir la liste
+        await fetchNotifications();
+        
+        console.log('✅ [USE_NOTIFICATIONS] Notification de test envoyée');
+      }
+    } catch (error) {
+      console.error('❌ [USE_NOTIFICATIONS] Erreur test notification:', error);
+      setError('Erreur envoi notification de test');
+    }
+  }, [isPushReady, fetchNotifications]);
+
+  // Écouter les changements d'état de l'app pour synchroniser
   useEffect(() => {
-    fetchNotifications();
-  }, [fetchNotifications]);
+    const handleAppStateChange = (nextAppState: string) => {
+      if (nextAppState === 'active') {
+        // App revient en premier plan, synchroniser
+        fetchNotifications();
+        getUnreadCount();
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    return () => subscription?.remove();
+  }, [fetchNotifications, getUnreadCount]);
+
+  // Initialisation globale
+  useEffect(() => {
+    const initialize = async () => {
+      // Charger les notifications depuis Strapi
+      await fetchNotifications();
+      
+      // Initialiser les push notifications
+      await initializePush();
+    };
+    
+    initialize();
+  }, [fetchNotifications, initializePush]);
 
   return {
     notifications,
@@ -209,6 +341,11 @@ export const useNotifications = (): NotificationHook => {
     markAllAsRead,
     getUnreadCount,
     requestPermissions,
+    // Nouvelles fonctions push
+    pushToken,
+    isPushReady,
+    initializePush,
+    sendTestNotification,
   };
 };
 
