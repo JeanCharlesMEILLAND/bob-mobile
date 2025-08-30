@@ -22,7 +22,8 @@
     "settings": "Paramètres",
     "permissions": "Permissions",
     "enable": "Activer",
-    "disable": "Désactiver"
+    "disable": "Désactiver",
+    "ok": "OK"
   },
 
   "notifications": {
@@ -219,10 +220,56 @@
     "validation": {
       "usernameRequired": "Nom d'utilisateur requis",
       "emailRequired": "Email requis",
+      "emailInvalid": "Adresse email invalide",
       "passwordRequired": "Mot de passe requis",
+      "confirmPasswordRequired": "Confirmation du mot de passe requise",
       "identifierRequired": "Email ou nom d'utilisateur requis",
       "passwordsNotMatch": "Les mots de passe ne correspondent pas",
       "passwordTooShort": "Minimum 6 caractères"
+    },
+
+    "forgotPassword": {
+      "title": "Mot de passe oublié",
+      "subtitle": "Entrez votre email pour recevoir un lien de réinitialisation",
+      "sendResetEmail": "Envoyer le lien de reset",
+      "emailSentTitle": "Email envoyé !",
+      "emailSentMessage": "Un lien de réinitialisation a été envoyé à {{email}}. Vérifiez votre boîte mail."
+    },
+
+    "resetPassword": {
+      "title": "Nouveau mot de passe",
+      "subtitle": "Choisissez un nouveau mot de passe sécurisé",
+      "updatePassword": "Mettre à jour le mot de passe",
+      "successTitle": "Mot de passe mis à jour !",
+      "successMessage": "Votre mot de passe a été modifié avec succès. Vous pouvez maintenant vous connecter.",
+      "invalidTokenTitle": "Lien invalide",
+      "invalidTokenMessage": "Ce lien de réinitialisation est invalide ou mal formé.",
+      "expiredTokenTitle": "Lien expiré",
+      "expiredTokenMessage": "Ce lien de réinitialisation a expiré. Demandez un nouveau lien."
+    },
+
+    "newPassword": "Nouveau mot de passe",
+    "backToLogin": "Retour à la connexion",
+
+    "biometric": {
+      "title": "Authentification biométrique",
+      "authenticate": "Se connecter avec {{type}}",
+      "usePassword": "Utiliser le mot de passe",
+      "defaultMessage": "Utilisez votre empreinte ou Face ID pour vous connecter rapidement",
+      "notAvailable": "Biométrie non disponible",
+      "notAvailableMessage": "Cet appareil ne supporte pas l'authentification biométrique",
+      "notConfigured": "Biométrie non configurée", 
+      "notConfiguredMessage": "Configurez Touch ID ou Face ID dans les paramètres de votre appareil pour utiliser cette fonctionnalité",
+      "setupTitle": "Configurer la biométrie",
+      "setupMessage": "Pour utiliser Touch ID ou Face ID, configurez-les d'abord dans les paramètres de votre appareil",
+      "setupNow": "Configurer maintenant",
+      "openSettings": "Ouvrir les paramètres",
+      "error": "Erreur biométrique",
+      "authFailed": "L'authentification biométrique a échoué",
+      "enableTitle": "Activer la connexion biométrique ?",
+      "enableMessage": "Vous pourrez vous connecter rapidement avec votre empreinte ou Face ID",
+      "enable": "Activer",
+      "disable": "Plus tard"
     },
     
     "errors": {

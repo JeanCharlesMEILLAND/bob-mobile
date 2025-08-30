@@ -12,3 +12,4 @@ export * from './media.service';
 export * from './notification.service';
 export * from './realtime-chat.service';
 export * from './socket.service';
+export * from './referral.service';

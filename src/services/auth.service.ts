@@ -146,6 +146,62 @@ class AuthService {
   }
 
   // ==========================================
+  // MÉTHODES RESET PASSWORD (NOUVELLES)
+  // ==========================================
+
+  async requestPasswordReset(email: string): Promise<void> {
+    logAuth('Demande de reset password', { email });
+    
+    try {
+      const response = await apiClient.post('/auth/forgot-password', { email });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || 'Erreur lors de la demande de reset');
+      }
+      
+      logAuth('Reset password demandé avec succès', { email });
+      
+    } catch (error: any) {
+      logger.error('auth', 'Erreur demande reset password', error);
+      throw new Error('Impossible d\'envoyer l\'email de reset. Vérifiez votre adresse email.');
+    }
+  }
+
+  async validateResetToken(token: string): Promise<boolean> {
+    try {
+      const response = await apiClient.post('/auth/reset-password/validate', { token });
+      return response.ok;
+    } catch (error) {
+      logger.error('auth', 'Erreur validation token reset', error);
+      return false;
+    }
+  }
+
+  async resetPassword(token: string, password: string): Promise<void> {
+    logAuth('Reset password avec token');
+    
+    try {
+      const response = await apiClient.post('/auth/reset-password', {
+        code: token,
+        password: password,
+        passwordConfirmation: password
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || 'Erreur lors du reset du mot de passe');
+      }
+      
+      logAuth('Mot de passe réinitialisé avec succès');
+      
+    } catch (error: any) {
+      logger.error('auth', 'Erreur reset password', error);
+      throw new Error('Impossible de réinitialiser le mot de passe. Le lien peut être expiré.');
+    }
+  }
+
+  // ==========================================
   // MÉTHODES DE GESTION DU TOKEN (NOUVELLES)
   // ==========================================
 

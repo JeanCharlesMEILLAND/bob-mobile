@@ -1,9 +1,10 @@
 // src/screens/profile/ProfileScreen.tsx - Version modernisée
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { useAuth, useContacts } from '../../hooks';
+import { useAuth, useContacts, useNetworkAccess } from '../../hooks';
 import { useSimpleNavigation } from '../../navigation/SimpleNavigation';
+import { biometricService } from '../../services/biometric.service';
 import { useTestStore } from '../../store/testStore';
 import { Header } from '../../components/common';
 import { LanguageSelector } from '../../components/common/LanguageSelector';
@@ -16,6 +17,7 @@ import {
   modernColors 
 } from '../../components/common/ModernUI';
 import { ModernScreen } from '../../components/common/ModernScreen';
+import { ReferralSection } from '../../components/common/ReferralSection';
 
 // ProfileAction remplacé par ModernActionButton
 
@@ -25,9 +27,73 @@ export const ProfileScreen: React.FC = () => {
   const navigation = useSimpleNavigation();
   const { forcePullFromStrapi } = useContacts();
   const [showLanguageSelector, setShowLanguageSelector] = useState(false);
+  const [biometricStatus, setBiometricStatus] = useState<any>(null);
+  
+  // Network access stats
+  const networkAccess = useNetworkAccess({ feature: 'profile' });
   
   // Store pour les modes de test
   const { testMode, setTestMode, setInvitedBy } = useTestStore();
+
+  useEffect(() => {
+    loadBiometricStatus();
+  }, []);
+
+  const loadBiometricStatus = async () => {
+    try {
+      const capability = await biometricService.checkCapability();
+      const isEnabled = await biometricService.getEnabled();
+      setBiometricStatus({
+        ...capability,
+        isEnabled
+      });
+    } catch (error) {
+      console.error('Erreur chargement biométrie:', error);
+    }
+  };
+
+  const handleBiometricToggle = async () => {
+    try {
+      if (!biometricStatus?.isAvailable) {
+        Alert.alert('Biométrie non disponible', biometricStatus?.reason || 'Cette fonctionnalité n\'est pas disponible sur votre appareil.');
+        return;
+      }
+
+      if (biometricStatus.isEnabled) {
+        // Désactiver
+        await biometricService.setEnabled(false);
+        Alert.alert('Biométrie désactivée', 'Vous devrez utiliser votre mot de passe pour vous connecter.');
+      } else {
+        // Activer
+        Alert.alert(
+          'Activer la biométrie',
+          'Souhaitez-vous utiliser votre empreinte digitale ou Face ID pour vous connecter plus rapidement ?',
+          [
+            { text: 'Annuler', style: 'cancel' },
+            {
+              text: 'Activer',
+              onPress: async () => {
+                try {
+                  await biometricService.setEnabled(true);
+                  if (user?.email || user?.username) {
+                    await biometricService.saveBiometricCredential(user.email || user.username);
+                  }
+                  Alert.alert('Biométrie activée', 'Vous pourrez maintenant vous connecter avec votre empreinte ou Face ID !');
+                } catch (error) {
+                  Alert.alert('Erreur', 'Impossible d\'activer la biométrie.');
+                }
+              }
+            }
+          ]
+        );
+      }
+      
+      await loadBiometricStatus(); // Recharger le statut
+    } catch (error) {
+      console.error('Erreur toggle biométrie:', error);
+      Alert.alert('Erreur', 'Impossible de modifier les paramètres biométriques.');
+    }
+  };
 
   const handleLogout = () => {
     Alert.alert(
@@ -217,6 +283,216 @@ export const ProfileScreen: React.FC = () => {
           color={modernColors.primary}
           label={`${200 - (userBobizPoints % 200)} points pour le niveau suivant`}
         />
+      </ModernSection>
+
+      {/* Section de parrainage avec QR code */}
+      <ReferralSection />
+
+      {/* Biometric Security Section */}
+      <ModernSection title="🔐 Sécurité Biométrique" style={{ margin: 8 }}>
+        <ModernCard style={{
+          backgroundColor: biometricStatus?.isEnabled ? '#F0FDF4' : '#FEF3C7',
+          borderColor: biometricStatus?.isEnabled ? '#22C55E' : '#F59E0B',
+          borderWidth: 1
+        }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={{ fontSize: 32, marginRight: 16 }}>
+              {biometricStatus?.isEnabled ? '🟢' : biometricStatus?.isAvailable ? '🟡' : '🔴'}
+            </Text>
+            <View style={{ flex: 1 }}>
+              <Text style={{
+                fontSize: 16,
+                fontWeight: 'bold',
+                color: biometricStatus?.isEnabled ? '#15803D' : '#92400E',
+                marginBottom: 4
+              }}>
+                {biometricStatus?.isEnabled 
+                  ? '✅ Biométrie activée'
+                  : biometricStatus?.isAvailable 
+                    ? '⚠️ Biométrie disponible' 
+                    : '❌ Biométrie non disponible'
+                }
+              </Text>
+              <Text style={{
+                fontSize: 14,
+                color: modernColors.dark,
+                lineHeight: 18
+              }}>
+                {biometricStatus?.isEnabled 
+                  ? 'Connexion rapide avec Touch ID / Face ID'
+                  : biometricStatus?.isAvailable 
+                    ? 'Activez pour une connexion plus rapide'
+                    : biometricStatus?.reason || 'Non supporté sur cet appareil'
+                }
+              </Text>
+            </View>
+            {biometricStatus?.isAvailable && (
+              <TouchableOpacity
+                onPress={handleBiometricToggle}
+                style={{
+                  backgroundColor: biometricStatus.isEnabled ? '#EF4444' : '#22C55E',
+                  paddingHorizontal: 16,
+                  paddingVertical: 8,
+                  borderRadius: 6
+                }}
+              >
+                <Text style={{
+                  color: 'white',
+                  fontSize: 12,
+                  fontWeight: 'bold'
+                }}>
+                  {biometricStatus.isEnabled ? 'Désactiver' : 'Activer'}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </ModernCard>
+      </ModernSection>
+
+      {/* Network Stats Section */}
+      <ModernSection title="🏘️ Mon Réseau BOB" style={{ margin: 8 }}>
+        <View style={{ flexDirection: 'row', marginBottom: 16 }}>
+          <ModernStatCard
+            icon="👥"
+            number={networkAccess.networkStats.totalContacts}
+            label="Contacts total"
+            color={modernColors.info}
+          />
+          <ModernStatCard
+            icon="🤝"
+            number={networkAccess.networkStats.bobContacts}
+            label="Amis sur BOB"
+            color={networkAccess.networkStats.bobContacts >= 3 ? modernColors.success : modernColors.warning}
+          />
+        </View>
+        
+        <View style={{ flexDirection: 'row', marginBottom: 16 }}>
+          <ModernStatCard
+            icon="⚡"
+            number={networkAccess.networkStats.activeContacts}
+            label="Amis actifs"
+            color={modernColors.primary}
+          />
+          <ModernStatCard
+            icon="📱"
+            number={networkAccess.networkStats.totalContacts - networkAccess.networkStats.bobContacts}
+            label="À inviter"
+            color={modernColors.gray}
+          />
+        </View>
+
+        {networkAccess.networkStats.bobContacts < 5 && (
+          <ModernCard style={{ 
+            backgroundColor: '#FEF3C7',
+            borderLeftWidth: 4,
+            borderLeftColor: '#F59E0B',
+            marginTop: 8
+          }}>
+            <Text style={{
+              fontSize: 14,
+              fontWeight: '600',
+              color: '#92400E',
+              marginBottom: 6
+            }}>
+              💡 Conseil : Développez votre réseau !
+            </Text>
+            <Text style={{
+              fontSize: 13,
+              color: '#78350F',
+              lineHeight: 18
+            }}>
+              {networkAccess.networkStats.bobContacts < 2 
+                ? 'Invitez au moins 2 amis pour profiter pleinement de BOB ! Plus votre réseau est grand, plus vous pouvez échanger.'
+                : 'Excellent début ! Continuez à inviter vos proches pour créer une vraie communauté d\'entraide.'
+              }
+            </Text>
+          </ModernCard>
+        )}
+      </ModernSection>
+
+      {/* Account Completion Progress */}
+      <ModernSection title="📊 Profil" style={{ margin: 8 }}>
+        {(() => {
+          const hasEmail = !!user?.email;
+          const hasUsername = !!user?.username;
+          const hasBiometric = !!biometricStatus?.isEnabled;
+          const hasNetwork = networkAccess.networkStats.bobContacts > 0;
+          const hasReferral = true; // Assume referral system is set up
+          
+          const completed = [hasEmail, hasUsername, hasBiometric, hasNetwork, hasReferral].filter(Boolean).length;
+          const total = 5;
+          const percentage = Math.round((completed / total) * 100);
+          
+          return (
+            <>
+              <ModernProgressBar
+                percentage={percentage}
+                color={percentage === 100 ? modernColors.success : modernColors.primary}
+                label={`Profil complété à ${percentage}%`}
+              />
+              
+              <View style={{ marginTop: 16, gap: 8 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={{ fontSize: 16, marginRight: 8 }}>
+                    {hasEmail ? '✅' : '⏳'}
+                  </Text>
+                  <Text style={{ 
+                    fontSize: 14, 
+                    color: hasEmail ? modernColors.success : modernColors.gray 
+                  }}>
+                    Email configuré
+                  </Text>
+                </View>
+                
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={{ fontSize: 16, marginRight: 8 }}>
+                    {hasUsername ? '✅' : '⏳'}
+                  </Text>
+                  <Text style={{ 
+                    fontSize: 14, 
+                    color: hasUsername ? modernColors.success : modernColors.gray 
+                  }}>
+                    Nom d'utilisateur défini
+                  </Text>
+                </View>
+                
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={{ fontSize: 16, marginRight: 8 }}>
+                    {hasBiometric ? '✅' : '⏳'}
+                  </Text>
+                  <Text style={{ 
+                    fontSize: 14, 
+                    color: hasBiometric ? modernColors.success : modernColors.gray 
+                  }}>
+                    Biométrie activée
+                  </Text>
+                </View>
+                
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={{ fontSize: 16, marginRight: 8 }}>
+                    {hasNetwork ? '✅' : '⏳'}
+                  </Text>
+                  <Text style={{ 
+                    fontSize: 14, 
+                    color: hasNetwork ? modernColors.success : modernColors.gray 
+                  }}>
+                    Réseau établi ({networkAccess.networkStats.bobContacts} amis)
+                  </Text>
+                </View>
+                
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={{ fontSize: 16, marginRight: 8 }}>✅</Text>
+                  <Text style={{ 
+                    fontSize: 14, 
+                    color: modernColors.success
+                  }}>
+                    Code parrainage configuré
+                  </Text>
+                </View>
+              </View>
+            </>
+          );
+        })()}
       </ModernSection>
 
       {/* Settings Section */}

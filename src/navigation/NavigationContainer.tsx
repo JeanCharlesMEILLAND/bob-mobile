@@ -21,13 +21,16 @@ import { CreateExchangeScreen, CreateBoberScreen, CreateEventScreen } from '../s
 import { BoberCardScreen, BobTestScenario, DataInjectionScreen, VerifyStrapi } from '../screens/exchanges';
 import { ChatScreen } from '../screens/chat';
 
+// Écrans de parrainage
+import { ReferralHandlerScreen, JoinScreen } from '../screens/referral';
+
 // Types de navigation
 export type RootStackParamList = {
   // Auth
-  Login: undefined;
+  Login: { referralCode?: string };
   
   // Main app
-  MainApp: undefined;
+  MainApp: { referralCode?: string };
   
   // Écrans modaux
   CreateExchange: undefined;
@@ -44,6 +47,10 @@ export type RootStackParamList = {
     contactPhone?: string;
     isOnline?: boolean;
   };
+  
+  // Référrainage
+  Referral: { code: string };
+  Join: { code: string };
   
   // Debug/Test
   BobTest: undefined;
@@ -226,6 +233,24 @@ function AuthenticatedStack() {
           title: 'Vérification Strapi',
         }}
       />
+
+      {/* Écrans de parrainage */}
+      <Stack.Screen 
+        name="Referral" 
+        component={ReferralHandlerScreen}
+        options={{
+          headerShown: false,
+        }}
+      />
+      
+      <Stack.Screen 
+        name="Join" 
+        component={JoinScreen}
+        options={{
+          headerShown: true,
+          title: 'Rejoindre BOB',
+        }}
+      />
     </Stack.Navigator>
   );
 }
@@ -256,10 +281,21 @@ const linking = {
   prefixes: ['bobapp://', 'https://bobapp.fr', 'https://bob.local'],
   config: {
     screens: {
-      Login: 'login',
+      Login: {
+        path: 'login',
+        parse: {
+          referralCode: (code: string) => code,
+        },
+      },
       MainApp: {
+        path: '',
         screens: {
-          Home: 'home',
+          Home: {
+            path: 'home',
+            parse: {
+              referralCode: (code: string) => code,
+            },
+          },
           Contacts: 'contacts',
           ChatList: 'messages',
           Profile: 'profile',
@@ -291,6 +327,20 @@ const linking = {
       BobTest: 'test',
       DataInjection: 'data-injection',
       VerifyStrapi: 'verify-strapi',
+      // Route spéciale pour les liens de parrainage
+      Referral: {
+        path: 'referral/:code',
+        parse: {
+          code: (code: string) => code,
+        },
+      },
+      // Route pour rejoindre avec un code
+      Join: {
+        path: 'join/:code',
+        parse: {
+          code: (code: string) => code,
+        },
+      },
     },
   },
 };

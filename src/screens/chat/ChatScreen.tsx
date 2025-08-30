@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../hooks';
-import { useNavigation } from '@react-navigation/native';
+import { useSimpleNavigation } from '../../navigation/SimpleNavigation';
 import { Header } from '../../components/common';
 import { realtimeChatService, RealtimeChatMessage } from '../../services/realtime-chat.service';
 import { socketService, useSocket } from '../../services/socket.service';
@@ -44,7 +44,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
 }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const navigation = useNavigation();
+  const { goBack } = useSimpleNavigation();
   
   const [messages, setMessages] = useState<RealtimeChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
@@ -305,7 +305,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
         title={title}
         subtitle={subtitle}
         showBackButton={true}
-        onBackPress={() => navigation.goBack()}
+        onBackPress={() => goBack()}
         rightComponent={() => (
           <View style={styles.headerActions}>
             <TouchableOpacity 

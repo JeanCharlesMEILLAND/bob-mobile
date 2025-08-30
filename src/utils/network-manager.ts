@@ -1,6 +1,6 @@
 // src/utils/network-manager.ts - Gestionnaire réseau et mode offline
 
-import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
+// import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { EventEmitter } from 'events';
 
@@ -58,15 +58,24 @@ class NetworkManager extends EventEmitter {
     // Charger la queue depuis le storage
     await this.loadRequestQueue();
 
+    // TODO: Activer NetInfo une fois la compatibilité web résolue
     // Écouter les changements de réseau
-    NetInfo.addEventListener(this.handleNetworkChange.bind(this));
+    // NetInfo.addEventListener(this.handleNetworkChange.bind(this));
     
-    // État initial du réseau
-    const initialState = await NetInfo.fetch();
-    this.handleNetworkChange(initialState);
+    // État initial du réseau (mode web par défaut)
+    // const initialState = await NetInfo.fetch();
+    // this.handleNetworkChange(initialState);
+    
+    // Simuler état connecté pour le web
+    this.handleNetworkChange({
+      isConnected: true,
+      isInternetReachable: true,
+      type: 'wifi',
+      details: {}
+    } as any);
   }
 
-  private handleNetworkChange(state: NetInfoState) {
+  private handleNetworkChange(state: any) {
     const previouslyConnected = this.networkState.isConnected;
     
     this.networkState = {

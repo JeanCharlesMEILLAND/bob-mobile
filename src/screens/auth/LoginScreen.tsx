@@ -1,9 +1,13 @@
 // src/screens/auth/LoginScreen.tsx - Version modernisée
-import React, { useState } from 'react';
-import { View, Text, Alert, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, Alert, Platform, TouchableOpacity } from 'react-native';
 import { useTranslation } from 'react-i18next';
+// import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { useAuth } from '../../hooks';
 import { Button, Input, PasswordInput } from '../../components/common';
+import { referralService } from '../../services';
+import { storageService } from '../../services/storage.service';
+import type { RootStackParamList } from '../../navigation/NavigationContainer';
 import { 
   ModernCard,
   ModernActionButton,
@@ -11,10 +15,18 @@ import {
 } from '../../components/common/ModernUI';
 import { ModernScreen } from '../../components/common/ModernScreen';
 
+// type LoginScreenRouteProp = RouteProp<RootStackParamList, 'Login'>;
+
 export const LoginScreen: React.FC = () => {
   const { t } = useTranslation();
+  // const navigation = useNavigation();
+  // const route = useRoute<LoginScreenRouteProp>();
   const { login, register, testConnection, isLoading } = useAuth();
   const [isRegisterMode, setIsRegisterMode] = useState(false);
+  
+  // Referral state
+  const [referralCode, setReferralCode] = useState('');
+  const [hasValidReferral, setHasValidReferral] = useState(false);
   
   // Form states
   const [identifier, setIdentifier] = useState('');
@@ -25,6 +37,44 @@ export const LoginScreen: React.FC = () => {
   
   // Error states
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    // Check for referral code from navigation or storage
+    const checkReferralCode = async () => {
+      try {
+        // Code from navigation params
+        // const navReferralCode = route.params?.referralCode;
+        
+        // Code from storage (saved from deep link)
+        const storedReferralCode = await storageService.get('pending_referral_code');
+        
+        const codeToUse = storedReferralCode;
+        
+        if (codeToUse) {
+          setReferralCode(codeToUse);
+          
+          // Validate the code
+          const validation = await referralService.validateReferralCode(codeToUse);
+          if (validation.success) {
+            setHasValidReferral(true);
+            
+            Alert.alert(
+              '🎁 Code de parrainage détecté',
+              `Vous avez été invité par ${validation.data?.referrerName || 'un ami'} !\n\nConnectez-vous ou inscrivez-vous pour activer votre parrainage.`,
+              [{ text: 'Super !' }]
+            );
+          } else {
+            setReferralCode('');
+            await storageService.remove('pending_referral_code');
+          }
+        }
+      } catch (error) {
+        console.error('Erreur vérification code parrainage:', error);
+      }
+    };
+
+    checkReferralCode();
+  }, []);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -64,6 +114,9 @@ export const LoginScreen: React.FC = () => {
           }
         ]
       );
+    } else {
+      // Apply referral code if present
+      await applyReferralCodeIfPresent();
     }
   };
 
@@ -77,6 +130,30 @@ export const LoginScreen: React.FC = () => {
       Alert.alert(t('auth.errors.registerError'), result.error || t('auth.errors.unknownError'));
     } else {
       Alert.alert(t('common.success'), t('auth.registerSuccess'));
+      // Apply referral code if present
+      await applyReferralCodeIfPresent();
+    }
+  };
+
+  const applyReferralCodeIfPresent = async () => {
+    if (referralCode && hasValidReferral) {
+      try {
+        const result = await referralService.applyReferralCode(referralCode);
+        
+        if (result.success) {
+          // Clean up stored code
+          await storageService.remove('pending_referral_code');
+          
+          Alert.alert(
+            '🎉 Parrainage activé !',
+            'Félicitations ! Votre parrainage a été activé. Vos Bobiz de bienvenue arriveront bientôt !',
+            [{ text: 'Super !' }]
+          );
+        }
+      } catch (error) {
+        console.error('Erreur application parrainage:', error);
+        // Don't show error to user - parrainage is bonus feature
+      }
     }
   };
 
@@ -136,6 +213,36 @@ export const LoginScreen: React.FC = () => {
           {isRegisterMode ? t('auth.registerSubtitle') : t('auth.loginSubtitle')}
         </Text>
       </ModernCard>
+
+      {/* Referral Code Indicator */}
+      {hasValidReferral && (
+        <ModernCard style={{ marginBottom: 16, backgroundColor: '#F0FDF4' }}>
+          <View style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            padding: 4
+          }}>
+            <Text style={{ fontSize: 32, marginRight: 12 }}>🎁</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={{
+                fontSize: 16,
+                fontWeight: 'bold',
+                color: '#059669',
+                marginBottom: 4
+              }}>
+                Code de parrainage actif
+              </Text>
+              <Text style={{
+                fontSize: 14,
+                color: modernColors.dark,
+                lineHeight: 18
+              }}>
+                Vous recevrez des Bobiz de bienvenue après connexion !
+              </Text>
+            </View>
+          </View>
+        </ModernCard>
+      )}
       
       <ModernCard>
         {isRegisterMode ? (
@@ -193,6 +300,25 @@ export const LoginScreen: React.FC = () => {
               error={errors.confirmPassword}
             />
           </View>
+        )}
+        
+        {/* Forgot Password Link */}
+        {!isRegisterMode && (
+          <TouchableOpacity
+            style={{ alignItems: 'center', marginTop: 16 }}
+            onPress={() => {
+              // TODO: Implémenter navigation vers forgot password
+              Alert.alert('Info', 'Fonctionnalité à venir');
+            }}
+          >
+            <Text style={{
+              fontSize: 14,
+              color: modernColors.primary,
+              textDecorationLine: 'underline'
+            }}>
+              {t('auth.forgotPassword.title')}
+            </Text>
+          </TouchableOpacity>
         )}
         
         <View style={{ marginTop: 24 }}>

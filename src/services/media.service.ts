@@ -287,17 +287,18 @@ class MediaService {
    */
   async resizeImage(uri: string, maxWidth: number = 1200, maxHeight: number = 1200, quality: number = 0.8): Promise<string> {
     try {
-      // Utiliser expo-image-manipulator si disponible
-      const { manipulateAsync, SaveFormat } = await import('expo-image-manipulator');
+      // TODO: Installer expo-image-manipulator une fois les conflits de dépendances résolus
+      // const { manipulateAsync, SaveFormat } = await import('expo-image-manipulator');
+      // const result = await manipulateAsync(
+      //   uri,
+      //   [{ resize: { width: maxWidth, height: maxHeight } }],
+      //   { compress: quality, format: SaveFormat.JPEG }
+      // );
+      // console.log('🔄 Image redimensionnée:', result.width, 'x', result.height);
+      // return result.uri;
       
-      const result = await manipulateAsync(
-        uri,
-        [{ resize: { width: maxWidth, height: maxHeight } }],
-        { compress: quality, format: SaveFormat.JPEG }
-      );
-
-      console.log('🔄 Image redimensionnée:', result.width, 'x', result.height);
-      return result.uri;
+      console.warn('⚠️ Redimensionnement non disponible, utilisation de l\'image originale');
+      return uri;
     } catch (error) {
       console.warn('⚠️ Redimensionnement non disponible, utilisation de l\'image originale');
       return uri;

@@ -9,11 +9,12 @@ import {
   Animated,
   Dimensions,
   StyleSheet,
-  Platform
+  Platform,
+  Alert
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { useAuth } from '../../hooks';
-import { useNavigation, useNavigationActions } from '../../hooks/useNavigation';
+import { useAuth, useNetworkAccess } from '../../hooks';
+import { useSimpleNavigation } from '../../navigation/SimpleNavigation';
 import { eventsService } from '../../services/events.service';
 import { bobizService } from '../../services/bobiz.service';
 import { 
@@ -44,10 +45,16 @@ interface DashboardStats {
 export const HomeScreen: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const { navigateToTab } = useNavigation();
-  const { createBob, createEvent, openDebugTools } = useNavigationActions();
+  const { navigate, navigateToTab } = useSimpleNavigation();
   const { testMode } = useTestStore();
   const { myBalance, loadMyBalance } = useBobStore();
+  
+  // Network access for exchanges - require at least 2 friends
+  const exchangeNetworkAccess = useNetworkAccess({
+    minNetworkSize: 2,
+    showWarningThreshold: 1,
+    feature: 'exchanges'
+  });
   
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -107,19 +114,32 @@ export const HomeScreen: React.FC = () => {
   const handleQuickAction = (action: string) => {
     switch (action) {
       case 'create_bob':
-        createBob();
+        // Check network access before allowing exchange creation
+        if (!exchangeNetworkAccess.hasAccess) {
+          Alert.alert(
+            '🏘️ Réseau requis',
+            `Pour créer des échanges BOB, vous devez avoir au moins ${2} amis sur l'application.\n\nVotre réseau actuel : ${exchangeNetworkAccess.networkStats.bobContacts} amis BOB.`,
+            [
+              { text: 'Annuler', style: 'cancel' },
+              { text: 'Voir mes contacts', onPress: () => navigateToTab('contacts') }
+            ]
+          );
+          return;
+        }
+        navigate('CreateBober');
         break;
       case 'create_event':
-        createEvent();
+        navigate('CreateEvent');
         break;
       case 'view_contacts':
-        navigateToTab('Contacts');
+        navigateToTab('contacts');
         break;
       case 'view_messages':
-        navigateToTab('ChatList');
+        navigateToTab('chat');
         break;
       case 'debug_tools':
-        openDebugTools();
+        // Ouvrir les outils de debug
+        navigate('DataInjection');
         break;
     }
   };
@@ -158,6 +178,57 @@ export const HomeScreen: React.FC = () => {
             </Text>
           </View>
 
+          {/* Network warning banner */}
+          {exchangeNetworkAccess.showWarning && (
+            <View style={{
+              backgroundColor: '#FEF3C7',
+              padding: 16,
+              marginHorizontal: 20,
+              marginBottom: 16,
+              borderRadius: 12,
+              borderLeftWidth: 4,
+              borderLeftColor: '#F59E0B'
+            }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={{ fontSize: 24, marginRight: 12 }}>🏘️</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={{
+                    fontSize: 16,
+                    fontWeight: 'bold',
+                    color: '#92400E',
+                    marginBottom: 4
+                  }}>
+                    Développez votre réseau !
+                  </Text>
+                  <Text style={{
+                    fontSize: 14,
+                    color: '#78350F',
+                    lineHeight: 18
+                  }}>
+                    Vous avez {exchangeNetworkAccess.networkStats.bobContacts} amis sur BOB. Plus votre réseau est grand, plus vous pouvez échanger !
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => navigateToTab('contacts')}
+                  style={{
+                    backgroundColor: '#F59E0B',
+                    paddingHorizontal: 12,
+                    paddingVertical: 6,
+                    borderRadius: 6
+                  }}
+                >
+                  <Text style={{
+                    color: 'white',
+                    fontSize: 12,
+                    fontWeight: 'bold'
+                  }}>
+                    Inviter
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
           {/* Stats BOBIZ */}
           <ModernCard style={styles.statsCard}>
             <View style={styles.statsHeader}>
@@ -173,13 +244,24 @@ export const HomeScreen: React.FC = () => {
           <ModernSection title="🚀 Actions rapides">
             <View style={styles.quickActions}>
               <TouchableOpacity
-                style={[styles.actionCard, { backgroundColor: '#EC4899' }]}
+                style={[
+                  styles.actionCard, 
+                  { 
+                    backgroundColor: exchangeNetworkAccess.hasAccess ? '#EC4899' : '#9CA3AF',
+                    opacity: exchangeNetworkAccess.hasAccess ? 1 : 0.7
+                  }
+                ]}
                 onPress={() => handleQuickAction('create_bob')}
               >
-                <Text style={styles.actionIcon}>📦</Text>
+                <Text style={styles.actionIcon}>
+                  {exchangeNetworkAccess.hasAccess ? '📦' : '🔒'}
+                </Text>
                 <Text style={styles.actionTitle}>Créer un BOB</Text>
                 <Text style={styles.actionSubtitle}>
-                  Prête, emprunte ou demande un service
+                  {exchangeNetworkAccess.hasAccess 
+                    ? 'Prête, emprunte ou demande un service'
+                    : `Nécessite ${2} amis sur BOB (vous en avez ${exchangeNetworkAccess.networkStats.bobContacts})`
+                  }
                 </Text>
               </TouchableOpacity>
 
@@ -217,7 +299,7 @@ export const HomeScreen: React.FC = () => {
 
               <TouchableOpacity
                 style={styles.navCard}
-                onPress={() => navigateToTab('Profile')}
+                onPress={() => navigateToTab('profile')}
               >
                 <Text style={styles.navIcon}>👤</Text>
                 <Text style={styles.navLabel}>Profil</Text>
