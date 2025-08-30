@@ -8,61 +8,68 @@ export const isLargeScreen = width > 1024;
 export const isMediumScreen = width > 768 && width <= 1024;
 export const isSmallScreen = width <= 768;
 
-// Palette couleurs moderne
+// Palette couleurs BOB - Inspirée du site officiel bobapp.fr
 export const WebColors = {
-  // Couleurs principales
-  primary: '#3B82F6',
-  primaryLight: '#60A5FA',
-  primaryDark: '#1D4ED8',
+  // Couleurs principales BOB - Bleu doux et chaleureux
+  primary: '#4A9EFF',        // Bleu principal BOB
+  primaryLight: '#7BB8FF',   // Bleu clair
+  primaryDark: '#2E7FDB',    // Bleu foncé
+  primarySoft: '#E8F4FF',    // Bleu très doux pour backgrounds
   
-  // Couleurs secondaires
-  secondary: '#8B5CF6',
-  secondaryLight: '#A78BFA',
-  secondaryDark: '#7C3AED',
+  // Couleurs secondaires - Tons complémentaires doux
+  secondary: '#6B73FF',      // Violet doux
+  secondaryLight: '#9BA3FF', // Violet clair
+  secondaryDark: '#4C52D9',  // Violet foncé
   
-  // Couleurs accent
-  accent: '#10B981',
-  accentLight: '#34D399',
-  accentDark: '#059669',
+  // Couleurs accent - Tons naturels et apaisants
+  accent: '#00C896',         // Vert menthe
+  accentLight: '#4DD4AC',    // Vert clair
+  accentDark: '#00A076',     // Vert foncé
   
-  // Couleurs neutres
+  // Couleurs neutres - Gris doux et chaleureux
   white: '#FFFFFF',
-  gray50: '#F9FAFB',
-  gray100: '#F3F4F6',
-  gray200: '#E5E7EB',
-  gray300: '#D1D5DB',
-  gray400: '#9CA3AF',
-  gray500: '#6B7280',
-  gray600: '#4B5563',
-  gray700: '#374151',
-  gray800: '#1F2937',
-  gray900: '#111827',
+  gray50: '#FAFCFF',         // Blanc cassé très doux
+  gray100: '#F0F6FF',        // Gris très clair avec nuance bleue
+  gray200: '#E8F0FF',        // Gris clair doux
+  gray300: '#CBD5E0',        // Gris moyen doux
+  gray400: '#94A3B8',        // Gris neutre
+  gray500: '#64748B',        // Gris moyen
+  gray600: '#475569',        // Gris foncé doux
+  gray700: '#334155',        // Gris foncé
+  gray800: '#1E293B',        // Gris très foncé
+  gray900: '#0F172A',        // Noir doux
   
-  // Couleurs fonctionnelles
-  success: '#10B981',
-  warning: '#F59E0B',
-  error: '#EF4444',
-  info: '#3B82F6',
+  // Couleurs fonctionnelles - Tons BOB
+  success: '#00C896',        // Vert menthe pour succès
+  warning: '#FFB84D',        // Orange doux pour avertissements
+  error: '#FF6B6B',          // Rouge doux pour erreurs
+  info: '#4A9EFF',           // Bleu principal pour info
   
-  // Couleurs spécifiques Bob
-  bobGreen: '#10B981',
-  bobBlue: '#3B82F6',
-  bobPurple: '#8B5CF6',
-  bobOrange: '#F59E0B',
+  // Couleurs spécifiques BOB - Palette étendue
+  bobBlue: '#4A9EFF',        // Bleu principal
+  bobBlueSoft: '#E8F4FF',    // Fond bleu doux
+  bobGreen: '#00C896',       // Vert BOB
+  bobPurple: '#6B73FF',      // Violet BOB
+  bobOrange: '#FFB84D',      // Orange BOB
+  bobPink: '#FF8FA3',        // Rose doux
   
-  // Backgrounds
-  background: '#FAFBFC',
-  surface: '#FFFFFF',
-  surfaceHover: '#F8FAFC',
+  // Backgrounds - Dégradés inspirés du site
+  background: '#FAFCFF',     // Fond principal très doux
+  backgroundGradient: 'linear-gradient(135deg, #E8F4FF 0%, #FFFFFF 50%, #F0F8FF 100%)',
+  surface: '#FFFFFF',        // Surface blanche pure
+  surfaceHover: '#F8FBFF',   // Surface au survol
+  surfaceSoft: '#F0F6FF',    // Surface douce
   
-  // Bordures
-  border: '#E2E8F0',
-  borderHover: '#CBD5E1',
+  // Bordures - Tons doux
+  border: '#E8F0FF',         // Bordure principale douce
+  borderHover: '#CBD5E0',    // Bordure au survol
+  borderLight: '#F0F6FF',    // Bordure très claire
   
-  // Ombres
-  shadow: 'rgba(0, 0, 0, 0.1)',
-  shadowMedium: 'rgba(0, 0, 0, 0.15)',
-  shadowLarge: 'rgba(0, 0, 0, 0.25)',
+  // Ombres - Douces et subtiles
+  shadow: 'rgba(74, 158, 255, 0.08)',       // Ombre principale avec teinte bleue
+  shadowMedium: 'rgba(74, 158, 255, 0.12)', // Ombre moyenne
+  shadowLarge: 'rgba(74, 158, 255, 0.18)',  // Ombre forte
+  shadowSoft: 'rgba(74, 158, 255, 0.04)',   // Ombre très douce
 };
 
 // Typography moderne

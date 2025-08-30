@@ -174,7 +174,7 @@ export const useCustomAlert = () => {
       message,
       icon: '❓',
       buttons: [
-        { text: 'Annuler', style: 'cancel', onPress: onCancel },
+        { text: 'Annuler', style: 'cancel', onPress: onCancel || (() => {}) },
         { text: 'Confirmer', style: 'primary', onPress: onConfirm },
       ],
       onClose: hideAlert,
@@ -193,7 +193,7 @@ export const useCustomAlert = () => {
       message,
       icon: '🗑️',
       buttons: [
-        { text: 'Annuler', style: 'cancel', onPress: onCancel },
+        { text: 'Annuler', style: 'cancel', onPress: onCancel || (() => {}) },
         { text: confirmText, style: 'destructive', onPress: onConfirm },
       ],
       onClose: hideAlert,
@@ -203,7 +203,7 @@ export const useCustomAlert = () => {
   const showSuccess = (title: string, message?: string) => {
     showAlert({
       title,
-      message,
+      message: message || '',
       icon: '✅',
       buttons: [{ text: 'OK', style: 'primary' }],
       onClose: hideAlert,
@@ -213,7 +213,7 @@ export const useCustomAlert = () => {
   const showError = (title: string, message?: string) => {
     showAlert({
       title,
-      message,
+      message: message || '',
       icon: '❌',
       buttons: [{ text: 'OK', style: 'primary' }],
       onClose: hideAlert,

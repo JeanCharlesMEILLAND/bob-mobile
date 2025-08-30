@@ -95,6 +95,11 @@ export class ContactsManager {
       logger.error('contacts', 'Erreur synchronisation', error);
     }
   }
+
+  isSyncBlockedStatus(): boolean {
+    // Retourne false par défaut - la sync n'est pas bloquée
+    return false;
+  }
 }
 
 export { ContactsManager as default };

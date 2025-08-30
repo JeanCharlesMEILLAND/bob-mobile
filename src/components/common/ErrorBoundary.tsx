@@ -46,7 +46,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     };
   }
   
-  componentDidCatch(error: Error, errorInfo: any) {
+  override componentDidCatch(error: Error, errorInfo: any) {
     // Log de l'erreur
     console.error('🚨 [ERROR_BOUNDARY] Erreur capturée:', {
       error: error.message,
@@ -76,14 +76,14 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     }
   }
   
-  componentDidUpdate(prevProps: ErrorBoundaryProps) {
+  override componentDidUpdate(prevProps: ErrorBoundaryProps) {
     // Reset si les props changent (navigation, nouvelles données)
     if (this.props.resetOnPropsChange && this.state.hasError && prevProps.children !== this.props.children) {
       this.resetError();
     }
   }
   
-  componentWillUnmount() {
+  override componentWillUnmount() {
     if (this.resetTimeoutId) {
       clearTimeout(this.resetTimeoutId);
     }
@@ -164,7 +164,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
    * Afficher les détails de l'erreur
    */
   private showErrorDetails = () => {
-    const { error, errorInfo, errorId } = this.state;
+    const { error, errorId } = this.state;
     
     Alert.alert(
       'Détails de l\'erreur',
@@ -188,7 +188,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     }
   };
   
-  render() {
+  override render() {
     if (this.state.hasError) {
       // Fallback personnalisé fourni par les props
       if (this.props.fallback) {

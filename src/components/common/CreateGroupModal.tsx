@@ -9,7 +9,6 @@ import {
   StyleSheet,
   Alert,
 } from 'react-native';
-import { Button } from './Button';
 import { Input } from './Input';
 import { Colors, Typography, Spacing, GlobalStyles } from '../../styles';
 import { 
@@ -75,7 +74,7 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
     try {
       const submitData: CreateGroupeData = {
         nom: formData.nom.trim(),
-        description: formData.description.trim() || undefined,
+        description: formData.description?.trim() || '',
         couleur: formData.couleur,
         type: formData.type,
       };

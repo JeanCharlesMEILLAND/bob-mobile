@@ -1,25 +1,6 @@
 // src/navigation/SimpleNavigation.tsx
 import React, { createContext, useContext, useState, ReactNode } from 'react';
-
-export type TabType = 'home' | 'contacts' | 'exchanges' | 'events' | 'profile';
-export type ScreenType = 'login' | 'main' | 'modal';
-export type ModalType = 'createExchange' | 'createEvent' | 'createBober' | null;
-
-export interface NavigationState {
-  currentScreen: ScreenType;
-  currentTab: TabType;
-  currentModal: ModalType;
-}
-
-export interface NavigationActions {
-  navigateToTab: (tab: TabType) => void;
-  navigateToScreen: (screen: ScreenType) => void;
-  openModal: (modal: ModalType) => void;
-  closeModal: () => void;
-  goBack: () => void;
-}
-
-export type NavigationContextType = NavigationState & NavigationActions;
+import { TabType, ScreenType, ModalType, NavigationContextType, NavigationState, NavigationActions } from '../types/navigation.types';
 
 export const NavigationContext = createContext<NavigationContextType | null>(null);
 

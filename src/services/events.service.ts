@@ -311,6 +311,22 @@ class EventsService {
   }
 
   /**
+   * Récupérer les événements à venir
+   */
+  async getUpcomingEvents(token: string): Promise<Event[]> {
+    try {
+      const allEvents = await this.getEvents(token);
+      const now = new Date();
+      return allEvents.filter(event => 
+        event.statut === 'planifie' && new Date(event.dateDebut) >= now
+      );
+    } catch (error: any) {
+      console.error('❌ Erreur récupération événements à venir:', error.message);
+      return [];
+    }
+  }
+
+  /**
    * Récupérer la liste des événements
    */
   async getEvents(token: string): Promise<Event[]> {

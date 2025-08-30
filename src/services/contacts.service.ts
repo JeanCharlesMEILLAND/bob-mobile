@@ -1370,6 +1370,13 @@ export const contactsService = {
   },
 
   /**
+   * Méthode getContacts pour compatibilité
+   */
+  getContacts: async (token: string): Promise<Contact[]> => {
+    return await contactsService.getMyContacts(token);
+  },
+
+  /**
    * Normaliser un numéro de téléphone - PRÉSERVER LE NUMÉRO ORIGINAL
    */
   normalizePhoneNumber: (phone: string): string => {
