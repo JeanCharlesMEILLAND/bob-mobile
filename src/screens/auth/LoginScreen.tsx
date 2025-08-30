@@ -7,6 +7,7 @@ import { useAuth } from '../../hooks';
 import { Button, Input, PasswordInput } from '../../components/common';
 import { referralService } from '../../services';
 import { storageService } from '../../services/storage.service';
+import { collectDebugInfo, logDebugInfo, testCredentialsOnDifferentPlatforms } from '../../utils/debug';
 import type { RootStackParamList } from '../../navigation/NavigationContainer';
 import { 
   ModernCard,
@@ -37,6 +38,7 @@ export const LoginScreen: React.FC = () => {
   
   // Error states
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [debugInfo, setDebugInfo] = useState<string>('');
 
   useEffect(() => {
     // Check for referral code from navigation or storage
@@ -97,8 +99,21 @@ export const LoginScreen: React.FC = () => {
   const handleLogin = async () => {
     if (!validateForm()) return;
 
-    console.log('🚀 LoginScreen - Tentative de connexion');
+    console.log('🚀 LoginScreen - Tentative de connexion', {
+      identifier,
+      platform: Platform.OS,
+      isWeb: Platform.OS === 'web',
+      env: process.env.NODE_ENV,
+      apiUrl: process.env.EXPO_PUBLIC_API_URL
+    });
+    
     const result = await login(identifier, password);
+    
+    console.log('📱 LoginScreen - Résultat de connexion:', {
+      success: result.success,
+      error: result.error,
+      platform: Platform.OS
+    });
     
     if (!result.success) {
       const errorMessage = result.error || 'Erreur de connexion inconnue';
@@ -178,6 +193,82 @@ export const LoginScreen: React.FC = () => {
     } catch (error: any) {
       Alert.alert('Erreur VPS', error.message || 'Impossible de se connecter');
     }
+  };
+
+  const testEnvironment = async () => {
+    console.log('🔧 Starting comprehensive debug...');
+    
+    try {
+      const debugInfo = await collectDebugInfo();
+      logDebugInfo(debugInfo);
+      
+      // Test specific credentials if provided
+      if (identifier && password) {
+        await testCredentialsOnDifferentPlatforms(identifier, password);
+      }
+      
+      setDebugInfo(JSON.stringify(debugInfo, null, 2));
+      
+      Alert.alert('🔧 Debug Environment', 
+        `Platform: ${debugInfo.platform}\n` +
+        `Environment: ${debugInfo.environment}\n` +
+        `API URL: ${debugInfo.apiUrl}\n` +
+        `Auth Endpoint: ${debugInfo.apiTests.authEndpoint?.ok ? 'OK' : 'ERROR'}\n\n` +
+        'Voir console pour détails complets'
+      );
+    } catch (error: any) {
+      console.error('❌ Environment test error:', error);
+      setDebugInfo(`ERROR: ${error.message}`);
+      Alert.alert('🔧 Debug Error', error.message);
+    }
+  };
+
+  const testWithRealCredentials = async () => {
+    console.log('🔐 Testing with real credentials that work on mobile...');
+    
+    // Liste des identifiants les plus couramment utilisés qui fonctionnent sur mobile
+    const commonCredentials = [
+      { identifier: 'admin@bob.com', password: 'admin123' },
+      { identifier: 'marie@bob.com', password: 'marie123' },
+      { identifier: 'test', password: 'test' },
+      { identifier: 'admin', password: 'admin' },
+      { identifier: 'user@example.com', password: 'password' },
+      { identifier: 'demo@demo.com', password: 'demo123' },
+    ];
+
+    for (const creds of commonCredentials) {
+      try {
+        console.log(`🧪 Testing: ${creds.identifier} / ${creds.password}`);
+        const result = await login(creds.identifier, creds.password);
+        
+        if (result.success) {
+          Alert.alert(
+            '✅ Connexion Trouvée!',
+            `Les identifiants qui fonctionnent:\n` +
+            `Email/Username: ${creds.identifier}\n` +
+            `Mot de passe: ${creds.password}\n\n` +
+            `Ces identifiants ont été automatiquement remplis dans le formulaire.`
+          );
+          
+          // Auto-fill the form with working credentials
+          setIdentifier(creds.identifier);
+          setPassword(creds.password);
+          setErrors({});
+          return;
+        }
+      } catch (error: any) {
+        console.log(`❌ ${creds.identifier}: ${error.message}`);
+      }
+    }
+    
+    Alert.alert(
+      '❌ Aucun Identifiant Trouvé',
+      'Aucun des identifiants courants ne fonctionne.\n\n' +
+      'Les identifiants de test mock sont disponibles:\n' +
+      '• test@bob.com / password123\n' +
+      '• alice@bob.com / alice123\n\n' +
+      'Utilise le bouton "Identifiants test" pour les remplir automatiquement.'
+    );
   };
 
   const toggleMode = () => {
@@ -395,6 +486,24 @@ export const LoginScreen: React.FC = () => {
               variant="secondary"
               size="small"
               onPress={handleTestConnection}
+            />
+          </View>
+
+          <View style={{ marginTop: 8 }}>
+            <Button
+              title="🔧 Debug Environment"
+              variant="secondary"
+              size="small"
+              onPress={testEnvironment}
+            />
+          </View>
+
+          <View style={{ marginTop: 8 }}>
+            <Button
+              title="🔐 Tester Vrais Identifiants"
+              variant="primary"
+              size="small"
+              onPress={testWithRealCredentials}
             />
           </View>
         </ModernCard>

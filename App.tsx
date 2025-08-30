@@ -1,10 +1,11 @@
 ﻿// App.tsx - Version avec navigation interne simple + ContactsRepertoireScreen
 import React from 'react';
 import { SafeAreaView, StatusBar, View, Text, Platform } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { AuthProvider } from './src/context';
 import { useAuth } from './src/hooks';
-import { LoadingScreen, SmartNotifications } from './src/components/common';
+import { LoadingScreen } from './src/components/common';
 import ErrorBoundary from './src/components/common/ErrorBoundary';
 import { 
   LoginScreen, 
@@ -12,8 +13,8 @@ import {
   ProfileScreen 
 } from './src/screens';
 // Écrans principaux
-import { HomeScreen, ContactsScreen, ChatListScreen } from './src/screens/main';
-import { ExchangesScreenWeb } from './src/screens/exchanges';
+import { HomeScreen, ChatListScreen } from './src/screens/main';
+import { ContactsScreenSimple as ContactsScreen } from './src/screens/main/ContactsScreenSimple';
 
 // Écrans modaux
 import { CreateExchangeScreen, CreateBoberScreen, CreateEventScreen } from './src/screens/modals';
@@ -25,7 +26,7 @@ import { BoberCardScreen, BobTestScenario, DataInjectionScreen, VerifyStrapi } f
 import { ChatScreen } from './src/screens/chat';
 import { BottomNavigation } from './src/components/navigation';
 import { GlobalStyles, Colors } from './src/styles';
-import { WebStyles, isWebDesktop } from './src/styles/web';
+import { isWebDesktop } from './src/styles/web';
 import { ScreenType } from './src/types';
 import './src/utils/webCSS';
 
@@ -56,7 +57,7 @@ if (typeof window !== 'undefined') {
 
 const AppContentSimple: React.FC = () => {
   const { t } = useTranslation();
-  const { isAuthenticated, isLoading, isInitialized, logout } = useAuth();
+  const { isAuthenticated, isLoading, isInitialized } = useAuth();
   const [currentScreen, setCurrentScreen] = React.useState<ScreenType>('home');
   const [navigationStack, setNavigationStack] = React.useState<Array<{screen: string, params?: any}>>([]);
 
@@ -192,6 +193,9 @@ const AppContentSimple: React.FC = () => {
     navigate,
     goBack,
     navigateToTab,
+    currentScreen,
+    currentTab: currentScreen as any,
+    currentModal: null,
   };
 
   const isDesktop = isWebDesktop();
@@ -205,7 +209,7 @@ const AppContentSimple: React.FC = () => {
           { flex: 1 },
           isDesktop && { 
             marginLeft: 280, 
-            minHeight: '100vh',
+            minHeight: '100%' as any,
             backgroundColor: '#F8FAFC',
             ...(Platform.OS === 'web' && {
               transition: 'margin-left 0.3s ease-in-out',
@@ -228,7 +232,7 @@ const AppContentSimple: React.FC = () => {
         {/* Navigation - Toujours visible */}
         <BottomNavigation
           currentScreen={currentScreen}
-          onScreenChange={setCurrentScreen}
+          onScreenChange={(screen: string) => setCurrentScreen(screen as ScreenType)}
         />
         
         {/* Notifications intelligentes - TEMPORAIREMENT DÉSACTIVÉES */}
@@ -241,26 +245,28 @@ const AppContentSimple: React.FC = () => {
 
 export default function App() {
   return (
-    <ErrorBoundary
-      showErrorDetails={__DEV__}
-      onError={(error, errorInfo) => {
-        console.error('🚨 [APP] Erreur globale capturée:', error);
-        // TODO: Envoyer à un service de monitoring
-      }}
-    >
-      <AuthProvider>
-        <SafeAreaView style={GlobalStyles.safeArea}>
-          <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
-          <ErrorBoundary
-            resetOnPropsChange
-            onError={(error, errorInfo) => {
-              console.error('🚨 [APP_CONTENT] Erreur de contenu:', error);
-            }}
-          >
-            <AppContentSimple />
-          </ErrorBoundary>
-        </SafeAreaView>
-      </AuthProvider>
-    </ErrorBoundary>
+    <SafeAreaProvider>
+      <ErrorBoundary
+        showErrorDetails={__DEV__}
+        onError={(error) => {
+          console.error('🚨 [APP] Erreur globale capturée:', error);
+          // TODO: Envoyer à un service de monitoring
+        }}
+      >
+        <AuthProvider>
+          <SafeAreaView style={GlobalStyles.safeArea}>
+            <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
+            <ErrorBoundary
+              resetOnPropsChange
+              onError={(error) => {
+                console.error('🚨 [APP_CONTENT] Erreur de contenu:', error);
+              }}
+            >
+              <AppContentSimple />
+            </ErrorBoundary>
+          </SafeAreaView>
+        </AuthProvider>
+      </ErrorBoundary>
+    </SafeAreaProvider>
   );
 }

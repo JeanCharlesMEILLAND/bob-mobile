@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc:*)",
+      "Bash(curl:*)",
+      "Read(C:\\BOB\\bob-backend\\dist\\src\\api\\auth\\controllers/**)",
+      "Read(C:\\BOB\\bob-backend/**)",
+      "Read(C:\\BOB\\bob-backend/**)",
+      "Read(C:\\BOB\\bob-backend/**)",
+      "Read(C:\\BOB\\bob-backend/**)",
+      "Read(C:\\BOB\\bob-backend/**)",
+      "Read(C:\\BOB\\bob-backend/**)",
+      "Read(C:\\BOB\\bob-backend/**)",
+      "Read(C:\\BOB\\bob-backend/**)",
+      "Read(C:\\BOB\\bob-backend/**)",
+      "Read(C:\\BOB\\bob-backend/**)",
+      "Read(C:\\BOB\\bob-backend/**)",
+      "Read(C:\\BOB\\bob-backend/**)",
+      "Read(C:\\BOB\\bob-backend/**)",
+      "Read(C:\\BOB\\bob-backend\\dist\\src\\api\\auth\\controllers/**)",
+      "Read(C:\\BOB\\bob-backend\\src/**)",
+      "Read(C:\\BOB\\bob-backend\\src\\api\\auth\\controllers/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

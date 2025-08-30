@@ -9,7 +9,6 @@ import {
   Alert,
   ActivityIndicator,
   StyleSheet,
-  Platform,
 } from 'react-native';
 import { mediaService, MediaFile, ImagePickerOptions } from '../../services/media.service';
 import { Colors } from '../../styles/tokens';
@@ -42,7 +41,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
   const [images, setImages] = useState<MediaFile[]>(initialImages);
   const [uploading, setUploading] = useState(false);
 
-  const showImageSourcePicker = () => {
+  const handleAddImages = () => {
     if (disabled || uploading) return;
 
     const remainingSlots = maxImages - images.length;
@@ -68,6 +67,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
       ]
     );
   };
+
 
   const handleTakePhoto = async () => {
     try {
@@ -163,7 +163,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
     );
   };
 
-  const renderImagePreview = (image: MediaFile, index: number) => (
+  const renderImagePreview = (image: MediaFile, _index: number) => (
     <View key={image.id} style={styles.imageContainer}>
       <Image
         source={{ uri: image.url }}

@@ -12,7 +12,7 @@ interface ClocheIconProps {
 export const ClocheIcon: React.FC<ClocheIconProps> = ({
   width = 24,
   height = 24,
-  hasNotification = false
+  hasNotification: _hasNotification = false
 }) => (
   <View style={{
     width,

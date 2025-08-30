@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "BOB - Réseau d'entraide privé",
-    "slug": "bob-mobile",
+    "slug": "bob",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -32,7 +32,9 @@
       "package": "com.bob.privatenework",
       "permissions": [
         "READ_CONTACTS",
-        "ACCESS_FINE_LOCATION"
+        "ACCESS_FINE_LOCATION",
+        "android.permission.READ_CONTACTS",
+        "android.permission.WRITE_CONTACTS"
       ],
       "blockedPermissions": [
         "CAMERA",
@@ -59,6 +61,13 @@
           "contactsPermission": "BOB accède uniquement à vos contacts personnels pour vous connecter avec vos amis et famille. Aucun contact n'est partagé publiquement ou vendu. Application 100% privée entre personnes de confiance."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "06849e7f-444b-4911-860b-d1a6bd7c6898"
+      },
+      "googleApiKey": "AIzaSyCH91z2s19tFw0nCcgZgUctlvPs00jDndY"
+    },
+    "owner": "pdggamerz"
   }
 }

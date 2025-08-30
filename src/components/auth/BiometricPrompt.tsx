@@ -23,10 +23,6 @@ export const BiometricPrompt: React.FC<BiometricPromptProps> = ({
   const { t } = useTranslation();
   const [capability, setCapability] = useState<BiometricCapability | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [canEnableBiometric, setCanEnableBiometric] = useState<{
-    canEnable: boolean;
-    reason?: string;
-  }>({ canEnable: false });
 
   useEffect(() => {
     checkBiometricCapability();
@@ -37,10 +33,10 @@ export const BiometricPrompt: React.FC<BiometricPromptProps> = ({
     
     try {
       const cap = await biometricService.checkCapability();
-      const canEnable = await biometricService.canEnableBiometric();
+      await biometricService.canEnableBiometric();
       
       setCapability(cap);
-      setCanEnableBiometric(canEnable);
+      // setCanEnableBiometric(canEnable); // removed unused state
     } catch (error) {
       console.error('Erreur vérification biométrie:', error);
     } finally {
@@ -156,7 +152,7 @@ export const BiometricPrompt: React.FC<BiometricPromptProps> = ({
           <View style={{ flexDirection: 'row', gap: 12 }}>
             <Button
               title={t('common.ok')}
-              onPress={onCancel}
+              onPress={onCancel || (() => {})}
               variant="secondary"
               size="small"
             />
@@ -212,7 +208,7 @@ export const BiometricPrompt: React.FC<BiometricPromptProps> = ({
           <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>
             <Button
               title={t('common.cancel')}
-              onPress={onCancel}
+              onPress={onCancel || (() => {})}
               variant="secondary"
               size="small"
             />
@@ -292,7 +288,7 @@ export const BiometricPrompt: React.FC<BiometricPromptProps> = ({
           <View style={{ flexDirection: 'row', gap: 12 }}>
             <Button
               title={t('common.cancel')}
-              onPress={onCancel}
+              onPress={onCancel || (() => {})}
               variant="secondary"
               size="small"
               style={{ flex: 1 }}

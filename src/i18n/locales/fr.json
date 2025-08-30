@@ -385,6 +385,10 @@
     "comingSoon": "Fonctionnalité en cours de développement..."
   },
   
+  "home": {
+    "welcome": "Bienvenue {{username}} !"
+  },
+
   "welcome": {
     "title": "Bienvenue {{username}} !",
     "subtitle": "BOB vous permet de vous entraider avec vos proches.",
